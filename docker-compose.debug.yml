@@ -3,7 +3,6 @@ version: '3.4'
 services:
   collector:
     image: stock_data_collector
-    container_name: stock_data_collector
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -12,7 +11,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
     command: ["sleep", "infinity"]
     ports:
-      - "5000:5000"
+      - "5001:5001"
     environment:
       - DISPLAY=:1
       - QT_DEBUG_PLUGINS=1
@@ -27,7 +26,12 @@ services:
       - "/dev/dri/card0:/dev/dri/card0"
     depends_on:
       - postgres
-
+    deploy:
+      replicas: 1
+    networks:
+      - overlay_network
+    secrets:
+      - db_password
 
   postgres:
     image: postgres
@@ -40,8 +44,17 @@ services:
       - "5432:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-
+    deploy:
+      replicas: 1
+    networks:
+      - overlay_network
+    secrets:
+      - db_password
 
 secrets:
   db_password:
     external: true
+
+networks:
+  overlay_network:
+    driver: overlay
