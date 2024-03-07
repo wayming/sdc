@@ -32,6 +32,5 @@ USER $USERNAME
 WORKDIR /home/$USERNAME
 
 ENV PATH=$PATH:/usr/local/go/bin
-ENV GOPATH=/home/$USERNAME
 
 CMD sleep infinitly
