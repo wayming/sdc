@@ -8,7 +8,7 @@ RUN apt install curl iproute2 vim -y
 RUN rm -rf /var/lib/apt/lists/*
 
 # Install Golang
-ENV GOLANG_VERSION 1.17
+ENV GOLANG_VERSION 1.22.1
 RUN wget https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go$GOLANG_VERSION.linux-amd64.tar.gz && \
     rm go$GOLANG_VERSION.linux-amd64.tar.gz
@@ -29,10 +29,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 USER $USERNAME
-RUN mkdir -p /home/$USERNAME/StockDataCollector
-WORKDIR /home/$USERNAME/StockDataCollector
+WORKDIR /home/$USERNAME
 
 ENV PATH=$PATH:/usr/local/go/bin
-ENV GOPATH=/home/$USERNAME/StockDataCollector
+ENV GOPATH=/home/$USERNAME
 
 CMD sleep infinitly

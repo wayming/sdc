@@ -1,0 +1,5 @@
+[user]
+	email = wayming.z@gmail.com
+	name = way
+[credential]
+	helper = "!f() { /home/appuser/.vscode-server/bin/0ee08df0cf4527e40edc9aa28f4b5bd38bbff2b2/node /tmp/vscode-remote-containers-f4192fdd-d4d5-4aa8-868c-a97ea03a541d.js git-credential-helper $*; }; f"

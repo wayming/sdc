@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: ./Dockerfile
     volumes:
-      - ../..:/home/appuser/host
+      - .:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
     command: ["sleep", "infinity"]
     ports:
