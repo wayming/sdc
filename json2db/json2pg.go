@@ -2,25 +2,71 @@ package json2db
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
+	"time"
 )
 
-type DDLGenPG struct {
+const MAX_CHAR_SIZE = 1024
+
+type PGDDLGenrator struct {
 }
 
-func NewDDLGenPG() *DDLGenPG {
+func NewPGDDLGenrator() *PGDDLGenrator {
 	log.SetFlags(log.Ldate | log.Ltime)
-	return &DDLGenPG{}
+	return &PGDDLGenrator{}
 }
 
-func (d *DDLGenPG) Gen(jsonText string) string {
+func (d *PGDDLGenrator) Do(jsonText string, tableName string) string {
 	var data map[string]interface{}
-	var ddl string
+	ddl := "CREATE TABLE " + tableName + "("
+
 	err := json.Unmarshal([]byte(jsonText), &data)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-	} else {
-		log.Println("Parse results ", data)
+		return ""
 	}
-	return ddl
+	log.Println("Parse results ", data)
+
+	for key, value := range data {
+		colType, err := d.deriveColType(value)
+		if err != nil {
+			log.Fatal("Failed to derive type for ", value, ", error ", err)
+			return ""
+		}
+		ddl += key + " " + colType + ", "
+	}
+
+	ddlS := ddl[:len(ddl)-1]
+	return ddlS + ")"
+}
+
+func (d *PGDDLGenrator) deriveColType(value interface{}) (string, error) {
+	var err error
+	var colType string
+	switch v := value.(type) {
+	case int:
+		colType = "integer"
+	case float64:
+		colType = "double"
+	case bool:
+		colType = "boolean"
+	case time.Time:
+		colType = "timestamp"
+	case map[string]interface{}:
+		colType = "text"
+	case string:
+		if len(v) <= MAX_CHAR_SIZE {
+			colType = "vchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+		} else {
+			colType = "text"
+		}
+	case nil:
+		colType = "text"
+	default:
+		err = errors.New("unknown type")
+	}
+
+	return colType, err
 }

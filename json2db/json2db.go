@@ -1,5 +1,5 @@
 package json2db
 
-type DDLGen interface {
-	Gen(string) string
+type DDLGenerator interface {
+	do(string) string
 }
