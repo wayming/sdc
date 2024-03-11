@@ -1,5 +1,5 @@
 package json2db
 
-type DDLGenerator interface {
-	do(string) []string
+type JsonToSQLConverter interface {
+	CreateTable(string, string) []string
 }
