@@ -22,7 +22,7 @@ func NewJsonToPGSQLConverter() *JsonToPGSQLConverter {
 	return &JsonToPGSQLConverter{}
 }
 
-func (d *JsonToPGSQLConverter) CreateTable(jsonText string, tableName string) []string {
+func (d *JsonToPGSQLConverter) CreateTableSQL(jsonText string, tableName string) []string {
 	var data map[string]interface{}
 	var ddls []string
 	mainDDL := "CREATE TABLE " + tableName + " ("
@@ -45,17 +45,16 @@ func (d *JsonToPGSQLConverter) CreateTable(jsonText string, tableName string) []
 		}
 
 		if colType == "table" {
-			subTable, ok := value.(map[string]interface{})
-			if ok {
-				if _, ok = subTable["name"]; ok {
-					subJSON, err := json.Marshal(subTable)
+			if nestObj, ok := value.(map[string]interface{}); ok {
+				if _, nameOk := nestObj["name"]; nameOk {
+					subJSON, err := json.Marshal(nestObj)
 					if err == nil {
-						ddls = append(ddls, d.CreateTable(string(subJSON), "sdc_"+key)...)
+						ddls = append(ddls, d.CreateTableSQL(string(subJSON), "sdc_"+key)...)
 					} else {
-						log.Fatal("Failed to marshal ", subTable, " to JSON, error ", err)
+						log.Fatal("Failed to marshal ", nestObj, " to JSON, error ", err)
 					}
 				} else {
-					log.Fatal("Failed to find the [name] key from the map ", subTable)
+					log.Fatal("Failed to find the [name] key from the map ", nestObj)
 				}
 			} else {
 				log.Fatal("Failed to convert value ", value, " to map[string]interface{}")
@@ -70,15 +69,17 @@ func (d *JsonToPGSQLConverter) CreateTable(jsonText string, tableName string) []
 	return ddls
 }
 
-func (d *JsonToPGSQLConverter) InsertRows(jsonText string, tableName string) []string {
+func (d *JsonToPGSQLConverter) InsertRowsSQL(jsonText string, tableName string) ([]string, [][][]interface{}) {
 	var sqls []string
-	sql := "INSERT INTO " + tableName + "(" + strings.Join(d.tableFieldsMap[tableName], ", ") + ")" + " VALUES ("
+	var bindVars [][][]interface{}
 
+	// Generage SQL
+	sql := "INSERT INTO " + tableName + " (" + strings.Join(d.tableFieldsMap[tableName], ", ") + ") VALUES（"
 	var data []map[string]interface{}
 	err := json.Unmarshal([]byte(jsonText), &data)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-		return sqls
+		return sqls, bindVars
 	}
 	for index := range d.tableFieldsMap[tableName] {
 		if index > 0 {
@@ -87,18 +88,28 @@ func (d *JsonToPGSQLConverter) InsertRows(jsonText string, tableName string) []s
 		sql = sql + "$" + strconv.Itoa(index+1)
 	}
 	sql = sql + ")"
-	log.Println("Parse results ", data)
-	// for _, row := data {
-	// 	var rowValues string
-	// 	for _, field := d.tableFieldsMap[tableName] {
-	// 		if len(rowValues) > 0 {
-	// 			rowValue = rowValue + ", " + row
-	// 		}
 
-	// 	}
-	// }
+	// Generate Bind Variables
+	var bindVarsForRows [][]interface{}
+	for _, row := range data {
+		var bindVarsForRow []interface{}
+		for _, field := range d.tableFieldsMap[tableName] {
+			if nestObj, ok := row[field].(map[string]interface{}); ok {
+				if name, nameOk := nestObj["name"]; nameOk {
+					bindVarsForRow = append(bindVarsForRow, name)
+					continue
+				} else {
+					log.Fatal("Failed to find the name field from the subtree under root ", field)
+
+				}
+			}
+			bindVarsForRow = append(bindVarsForRow, row[field])
+		}
+		bindVarsForRows = append(bindVarsForRows, bindVarsForRow)
+	}
 	sqls = append(sqls, sql)
-	return sqls
+	bindVars = append(bindVars, bindVarsForRows)
+	return sqls, bindVars
 }
 
 func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) {

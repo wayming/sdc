@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestJsonToPGSQLConverter_CreateTable(t *testing.T) {
+func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 	type args struct {
 		jsonText string
 	}
@@ -16,7 +16,7 @@ func TestJsonToPGSQLConverter_CreateTable(t *testing.T) {
 		want []string
 	}{
 		{
-			name: "Sanity",
+			name: "CreateTableSQL",
 			d:    NewJsonToPGSQLConverter(),
 			args: args{jsonText: `{
 				"name": "Microsoft Corporation",
@@ -42,14 +42,14 @@ func TestJsonToPGSQLConverter_CreateTable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &JsonToPGSQLConverter{}
-			if got := d.CreateTable(tt.args.jsonText, "sdc_tickers"); !reflect.DeepEqual(got, tt.want) {
+			if got := d.CreateTableSQL(tt.args.jsonText, "sdc_tickers"); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("JsonToPGSQLConverter.Gen() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestJsonToPGSQLConverter_InsertRows(t *testing.T) {
+func TestJsonToPGSQLConverter_InsertRowsSQL(t *testing.T) {
 	type fields struct {
 		tableFieldsMap map[string][]string
 	}
@@ -64,10 +64,10 @@ func TestJsonToPGSQLConverter_InsertRows(t *testing.T) {
 		want   []string
 	}{
 		{
-			name: "Sanity",
+			name: "InsertRowsSQL",
 			fields: fields{
 				map[string][]string{
-					"sdc_tickers": {"name", "symbol", "has_intraday", "country", "stock_exchange_name"},
+					"sdc_tickers": {"country", "has_eod", "has_intraday", "name", "stock_exchange", "symbol"},
 				},
 			},
 			args: args{
@@ -88,8 +88,7 @@ func TestJsonToPGSQLConverter_InsertRows(t *testing.T) {
 				}}]`,
 				tableName: "sdc_tickers"},
 			want: []string{
-				`CREATE TABLE sdc_stock_exchange (acronym vchar(1024), city vchar(1024), country vchar(1024), country_code vchar(1024), mic vchar(1024), name vchar(1024), website vchar(1024));`,
-				`CREATE TABLE sdc_tickers (country text, has_eod boolean, has_intraday boolean, name vchar(1024), stock_exchange_name string, symbol vchar(1024));`},
+				`INSERT INTO sdc_tickers (country, has_eod, has_intraday, name, stock_exchange, symbol) VALUES（$1, $2, $3, $4, $5, $6)`},
 		},
 	}
 	for _, tt := range tests {
@@ -97,8 +96,14 @@ func TestJsonToPGSQLConverter_InsertRows(t *testing.T) {
 			d := &JsonToPGSQLConverter{
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			if got := d.InsertRows(tt.args.jsonText, tt.args.tableName); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("JsonToPGSQLConverter.InsertRows() = %v, want %v", got, tt.want)
+			sqls, bindVars := d.InsertRowsSQL(tt.args.jsonText, tt.args.tableName)
+			if !reflect.DeepEqual(sqls, tt.want) {
+				t.Errorf("JsonToPGSQLConverter.InsertRowsSQL() = %v, %v, want %v", sqls, bindVars, tt.want)
+			}
+			if len(bindVars) == 1 && len(bindVars[0]) == 1 && len(bindVars[0][0]) == len(tt.fields.tableFieldsMap["sdc_tickers"]) {
+				t.Log("Got expected bind variables")
+			} else {
+				t.Errorf("bind variables %v do not match the insert fields %v", bindVars, tt.fields.tableFieldsMap["sdc_tickers"])
 			}
 		})
 	}
