@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 const MAX_CHAR_SIZE = 1024
 
+type JsonObject map[string]interface{}
 type JsonToPGSQLConverter struct {
 	tableFieldsMap map[string][]string
 }
@@ -22,66 +24,32 @@ func NewJsonToPGSQLConverter() *JsonToPGSQLConverter {
 	return &JsonToPGSQLConverter{}
 }
 
-func (d *JsonToPGSQLConverter) CreateTableSQL(jsonText string, tableName string) []string {
-	var data map[string]interface{}
-	var ddls []string
-	mainDDL := "CREATE TABLE " + tableName + " ("
-
-	err := json.Unmarshal([]byte(jsonText), &data)
+// Assume a flat json text string
+func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson(jsonText string, tableName string) string {
+	var obj JsonObject
+	err := json.Unmarshal([]byte(jsonText), &obj)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-		return ddls
 	}
-	log.Println("Parse results ", data)
-
-	fields := d.tableFieldsMap[tableName]
-	for _, key := range orderedKeys(data) {
-		fields = append(fields, key)
-		value := data[key]
-		colType, err := d.deriveColType(value)
-		if err != nil {
-			log.Fatal("Failed to derive type for ", value, ", error ", err)
-			return ddls
-		}
-
-		if colType == "table" {
-			if nestObj, ok := value.(map[string]interface{}); ok {
-				if _, nameOk := nestObj["name"]; nameOk {
-					subJSON, err := json.Marshal(nestObj)
-					if err == nil {
-						ddls = append(ddls, d.CreateTableSQL(string(subJSON), "sdc_"+key)...)
-					} else {
-						log.Fatal("Failed to marshal ", nestObj, " to JSON, error ", err)
-					}
-				} else {
-					log.Fatal("Failed to find the [name] key from the map ", nestObj)
-				}
-			} else {
-				log.Fatal("Failed to convert value ", value, " to map[string]interface{}")
-			}
-			key = key + "_name"
-			colType = "string"
-		}
-		mainDDL += key + " " + colType + ", "
-	}
-
-	ddls = append(ddls, mainDDL[:len(mainDDL)-2]+");")
-	return ddls
+	return d.GenCreateTableSQLByObj(obj, tableName)
 }
 
-func (d *JsonToPGSQLConverter) InsertRowsSQL(jsonText string, tableName string) ([]string, [][][]interface{}) {
-	var sqls []string
-	var bindVars [][][]interface{}
-
-	// Generage SQL
-	sql := "INSERT INTO " + tableName + " (" + strings.Join(d.tableFieldsMap[tableName], ", ") + ") VALUES（"
-	var data []map[string]interface{}
-	err := json.Unmarshal([]byte(jsonText), &data)
+// Assume a flat json text string for the same table
+func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByJson(jsonText string, tableName string) (string, [][]interface{}) {
+	var objs []JsonObject
+	err := json.Unmarshal([]byte(jsonText), &objs)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-		return sqls, bindVars
 	}
-	for index := range d.tableFieldsMap[tableName] {
+
+	return d.GenBulkInsertRowsSQLByObjs(objs, tableName)
+}
+
+func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{}) {
+	// Generage SQL
+	fields := d.tableFieldsMap[tableName]
+	sql := "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
+	for index := range fields {
 		if index > 0 {
 			sql = sql + ", "
 		}
@@ -90,26 +58,74 @@ func (d *JsonToPGSQLConverter) InsertRowsSQL(jsonText string, tableName string) 
 	sql = sql + ")"
 
 	// Generate Bind Variables
-	var bindVarsForRows [][]interface{}
-	for _, row := range data {
-		var bindVarsForRow []interface{}
-		for _, field := range d.tableFieldsMap[tableName] {
-			if nestObj, ok := row[field].(map[string]interface{}); ok {
-				if name, nameOk := nestObj["name"]; nameOk {
-					bindVarsForRow = append(bindVarsForRow, name)
-					continue
-				} else {
-					log.Fatal("Failed to find the name field from the subtree under root ", field)
+	var bindVars [][]interface{}
+	for _, obj := range jsonObjs {
+		var bindVarsForObj []interface{}
+		for _, field := range fields {
+			bindVarsForObj = append(bindVarsForObj, obj[field])
+		}
+		bindVars = append(bindVars, bindVarsForObj)
+	}
 
+	return sql, bindVars
+}
+
+func (d *JsonToPGSQLConverter) GenCreateTableSQLByObj(obj JsonObject, tableName string) string {
+	fields := d.tableFieldsMap[tableName]
+	ddl := "CREATE TABLE " + tableName + " ("
+	for _, key := range orderedKeys(obj) {
+		fields = append(fields, key)
+		value := obj[key]
+		colType, err := d.deriveColType(value)
+		if err != nil {
+			log.Fatal("Failed to derive type for ", value, ", error ", err)
+			return ""
+		}
+		ddl += key + " " + colType + ", "
+	}
+	ddl = ddl[:len(ddl)-2] + ");"
+
+	return ddl
+}
+
+// Flatten one level of nested object
+func (d *JsonToPGSQLConverter) FlattenJsonArray(jsonText string, rootTable string) ([]map[string]interface{}, []string) {
+	var objs []map[string]interface{}
+	var tableNames []string
+	err := json.Unmarshal([]byte(jsonText), &objs)
+	if err != nil {
+		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
+		return objs, tableNames
+	}
+	tableNames = append(tableNames, rootTable)
+
+	for _, obj := range objs {
+		for key, val := range obj {
+			if nestObj, nestOK := val.(map[string]interface{}); nestOK {
+				name, nameOK := nestObj["name"]
+				if nameOK {
+					// Override the nested object with the name
+					obj[key] = name
+					if !mapExistInMap(nestObj, objs) {
+						objs = append(objs, nestObj)
+						tableNames = append(tableNames, "sdc_"+key)
+					}
+				} else {
+					log.Fatal("Could not find the [name] key from nested object. ", nestObj)
 				}
 			}
-			bindVarsForRow = append(bindVarsForRow, row[field])
 		}
-		bindVarsForRows = append(bindVarsForRows, bindVarsForRow)
 	}
-	sqls = append(sqls, sql)
-	bindVars = append(bindVars, bindVarsForRows)
-	return sqls, bindVars
+	return objs, tableNames
+}
+
+func mapExistInMap(m map[string]interface{}, s []map[string]interface{}) bool {
+	for _, element := range s {
+		if reflect.DeepEqual(m, element) {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) {
@@ -124,8 +140,6 @@ func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) 
 		colType = "boolean"
 	case time.Time:
 		colType = "timestamp"
-	case map[string]interface{}:
-		colType = "table"
 	case string:
 		if len(v) <= MAX_CHAR_SIZE {
 			colType = "vchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
