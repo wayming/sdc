@@ -22,7 +22,7 @@ const JSON_TEXT = `[{
 		"website": "www.nasdaq.com"
 	}}]`
 
-var JSON_OBJS = [2]map[string]interface{}{
+var JSON_OBJS = [2]JsonObject{
 	{
 		"country":        nil,
 		"has_eod":        true,
@@ -58,7 +58,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson(t *testing.T) {
 	}{
 		{
 			name:    "CreateTableSQL",
-			fields:  fields{},
+			fields:  fields{tableFieldsMap: make(map[string][]string)},
 			args:    args{jsonText: string(testJsonText), tableName: "sdc_tickers"},
 			wantSql: `CREATE TABLE sdc_tickers (country text, has_eod boolean, has_intraday boolean, name vchar(1024), stock_exchange vchar(1024), symbol vchar(1024));`,
 		},
@@ -128,7 +128,7 @@ func TestJsonToPGSQLConverter_GenBulkInsertRowsSQLByJson(t *testing.T) {
 	}
 }
 
-func TestJsonToPGSQLConverter_FlattenJsonArray(t *testing.T) {
+func TestJsonToPGSQLConverter_FlattenJsonArrayText(t *testing.T) {
 	type fields struct {
 		tableFieldsMap map[string][]string
 	}
@@ -137,18 +137,19 @@ func TestJsonToPGSQLConverter_FlattenJsonArray(t *testing.T) {
 		rootTable string
 	}
 	tests := []struct {
-		name           string
-		fields         fields
-		args           args
-		wantJsonTexts  []map[string]interface{}
-		wantTableNames []string
+		name         string
+		fields       fields
+		args         args
+		wantJsonObjs map[string][]JsonObject
 	}{
 		{
-			name:           "FlattenJsonArray",
-			fields:         fields{},
-			args:           args{jsonText: JSON_TEXT, rootTable: "sdc_tickers"},
-			wantJsonTexts:  JSON_OBJS[:],
-			wantTableNames: []string{"sdc_tickers", "sdc_stock_exchange"},
+			name:   "FlattenJsonArrayText",
+			fields: fields{},
+			args:   args{jsonText: JSON_TEXT, rootTable: "sdc_tickers"},
+			wantJsonObjs: map[string][]JsonObject{
+				"sdc_tickers":        JSON_OBJS[:1],
+				"sdc_stock_exchange": JSON_OBJS[1:],
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -156,12 +157,9 @@ func TestJsonToPGSQLConverter_FlattenJsonArray(t *testing.T) {
 			d := &JsonToPGSQLConverter{
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			got, got1 := d.FlattenJsonArray(tt.args.jsonText, tt.args.rootTable)
-			if !reflect.DeepEqual(got, tt.wantJsonTexts) {
-				t.Errorf("JsonToPGSQLConverter.FlattenJsonArray() got = %v, want %v", got, tt.wantJsonTexts)
-			}
-			if !reflect.DeepEqual(got1, tt.wantTableNames) {
-				t.Errorf("JsonToPGSQLConverter.FlattenJsonArray() got1 = %v, want %v", got1, tt.wantTableNames)
+			got := d.FlattenJsonArrayText(tt.args.jsonText, tt.args.rootTable)
+			if !reflect.DeepEqual(got, tt.wantJsonObjs) {
+				t.Errorf("JsonToPGSQLConverter.FlattenJsonArray() got = %v, want %v", got, tt.wantJsonObjs)
 			}
 		})
 	}

@@ -3,3 +3,5 @@
 .config/
 go/
 .viminfo
+main.go
+main

@@ -14,14 +14,13 @@ import (
 
 const MAX_CHAR_SIZE = 1024
 
-type JsonObject map[string]interface{}
 type JsonToPGSQLConverter struct {
 	tableFieldsMap map[string][]string
 }
 
 func NewJsonToPGSQLConverter() *JsonToPGSQLConverter {
 	log.SetFlags(log.Ldate | log.Ltime)
-	return &JsonToPGSQLConverter{}
+	return &JsonToPGSQLConverter{tableFieldsMap: make(map[string][]string)}
 }
 
 // Assume a flat json text string
@@ -32,6 +31,26 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson(jsonText string, tableNam
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
 	}
 	return d.GenCreateTableSQLByObj(obj, tableName)
+}
+
+func (d *JsonToPGSQLConverter) GenCreateTableSQLByObj(obj JsonObject, tableName string) string {
+	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
+	for _, key := range orderedKeys(obj) {
+		if _, ok := d.tableFieldsMap[tableName]; !ok {
+			d.tableFieldsMap[tableName] = make([]string, 0)
+		}
+		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], key)
+		value := obj[key]
+		colType, err := d.deriveColType(value)
+		if err != nil {
+			log.Fatal("Failed to derive type for ", value, ", error ", err)
+			return ""
+		}
+		ddl += key + " " + colType + ", "
+	}
+	ddl = ddl[:len(ddl)-2] + ");"
+
+	return ddl
 }
 
 // Assume a flat json text string for the same table
@@ -69,46 +88,30 @@ func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByObjs(jsonObjs []JsonObject,
 
 	return sql, bindVars
 }
-
-func (d *JsonToPGSQLConverter) GenCreateTableSQLByObj(obj JsonObject, tableName string) string {
-	fields := d.tableFieldsMap[tableName]
-	ddl := "CREATE TABLE " + tableName + " ("
-	for _, key := range orderedKeys(obj) {
-		fields = append(fields, key)
-		value := obj[key]
-		colType, err := d.deriveColType(value)
-		if err != nil {
-			log.Fatal("Failed to derive type for ", value, ", error ", err)
-			return ""
-		}
-		ddl += key + " " + colType + ", "
-	}
-	ddl = ddl[:len(ddl)-2] + ");"
-
-	return ddl
-}
-
-// Flatten one level of nested object
-func (d *JsonToPGSQLConverter) FlattenJsonArray(jsonText string, rootTable string) ([]map[string]interface{}, []string) {
-	var objs []map[string]interface{}
-	var tableNames []string
+func (d *JsonToPGSQLConverter) FlattenJsonArrayText(jsonText string, rootTable string) map[string][]JsonObject {
+	var objs []JsonObject
+	var allObjs map[string][]JsonObject
 	err := json.Unmarshal([]byte(jsonText), &objs)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-		return objs, tableNames
+		return allObjs
 	}
-	tableNames = append(tableNames, rootTable)
+	return d.FlattenJsonArrayObjs(objs, rootTable)
+}
 
-	for _, obj := range objs {
+// Flatten one level of nested object
+func (d *JsonToPGSQLConverter) FlattenJsonArrayObjs(jsonObjs []JsonObject, rootTable string) map[string][]JsonObject {
+	allObjs := make(map[string][]JsonObject)
+
+	for _, obj := range jsonObjs {
 		for key, val := range obj {
 			if nestObj, nestOK := val.(map[string]interface{}); nestOK {
 				name, nameOK := nestObj["name"]
 				if nameOK {
 					// Override the nested object with the name
 					obj[key] = name
-					if !mapExistInMap(nestObj, objs) {
-						objs = append(objs, nestObj)
-						tableNames = append(tableNames, "sdc_"+key)
+					if !existsInSlice(allObjs["sdc_"+key], nestObj) {
+						allObjs["sdc_"+key] = append(allObjs["sdc_"+key], nestObj)
 					}
 				} else {
 					log.Fatal("Could not find the [name] key from nested object. ", nestObj)
@@ -116,10 +119,11 @@ func (d *JsonToPGSQLConverter) FlattenJsonArray(jsonText string, rootTable strin
 			}
 		}
 	}
-	return objs, tableNames
+	allObjs[rootTable] = jsonObjs
+	return allObjs
 }
 
-func mapExistInMap(m map[string]interface{}, s []map[string]interface{}) bool {
+func existsInSlice(s []JsonObject, m JsonObject) bool {
 	for _, element := range s {
 		if reflect.DeepEqual(m, element) {
 			return true
@@ -155,7 +159,7 @@ func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) 
 	return colType, err
 }
 
-func orderedKeys(m map[string]interface{}) []string {
+func orderedKeys(m JsonObject) []string {
 	var keys []string
 	for key := range m {
 		keys = append(keys, key)
