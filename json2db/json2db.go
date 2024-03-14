@@ -7,5 +7,6 @@ type JsonToSQLConverter interface {
 	GenCreateTableSQLByObj(obj JsonObject, tableName string) string
 	GenBulkInsertRowsSQLByJson(jsonText string, tableName string) (string, [][]interface{})
 	GenBulkInsertRowsSQLByObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{})
-	FlattenJsonArray(jsonText string, rootTable string) ([]map[string]interface{}, []string)
+	FlattenJsonArray(jsonText string, rootTable string) map[string][]JsonObject
+	FlattenJsonArrayObjs(jsonObjs []JsonObject, rootTable string) map[string][]JsonObject
 }
