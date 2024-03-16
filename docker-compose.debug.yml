@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
-    command: ["sleep", "infinity"]
+    command: ["bash", "stock_data_collector_init.sh"]
     ports:
       - "5001:5001"
     environment:
@@ -34,6 +34,8 @@ services:
       - source: pg_pass_file
         target: pg_pass_file
         mode: 0400
+        uid: '1000'  # appuser
+        gid: '1000'  #appuser
 
   postgres:
     image: postgres

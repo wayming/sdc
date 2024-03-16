@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/lib/pq"
 	"github.com/wayming/sdc/json2db"
 )
 
@@ -22,11 +23,11 @@ func NewPGLoader() *PGLoader {
 	return &PGLoader{db: nil}
 }
 
-func (loader *PGLoader) Connect(user string, password string, dbname string) {
+func (loader *PGLoader) Connect(host string, port string, user string, password string, dbname string) {
 	var err error
-	connectonString := "user=" + user + " password=" + password + " dbname=" + dbname
+	connectonString := "host=" + host + " port=" + port + " user=" + user + " password=" + password + " dbname=" + dbname
 	if loader.db, err = sql.Open("postgres", connectonString); err != nil {
-		log.Fatal("Failed to connect to database ", dbname, " with user ", user)
+		log.Fatal("Failed to connect to database ", dbname, " with user ", user, ", error ", err)
 	}
 }
 
@@ -49,13 +50,26 @@ func (loader PGLoader) Load(url string) int {
 
 	converter := json2db.NewJsonToPGSQLConverter()
 	allObjs := converter.FlattenJsonArrayObjs(jsonResponse.Data, "sdc_tickers")
+	numAllObjs := 0
 	for tbl, objs := range allObjs {
-		log.Println(converter.GenCreateTableSQLByObj(objs[0], tbl))
+		tableCreateSQL := converter.GenCreateTableSQLByObj(objs[0], tbl)
+		if _, err := loader.db.Exec(tableCreateSQL); err != nil {
+			log.Fatal("Failed to execute SQL ", tableCreateSQL, ". Error ", err)
+		}
+		numAllObjs += len(objs)
 	}
 	for tbl, objs := range allObjs {
-		sql, bindVars := converter.GenBulkInsertRowsSQLByObjs(objs, tbl)
-		log.Print(sql, " Bind variables ", bindVars)
+		insertSQL, allRows := converter.GenBulkInsertRowsSQLByObjs(objs, tbl)
+
+		var bindParams []interface{}
+		for _, row := range allRows {
+			bindParams = append(bindParams, row...)
+		}
+
+		if _, err := loader.db.Exec(insertSQL); err != nil {
+			log.Fatal("Failed to execute SQL ", insertSQL, ". Bind parameters ", bindParams, ". Error ", err)
+		}
 	}
 
-	return len(allObjs)
+	return numAllObjs
 }
