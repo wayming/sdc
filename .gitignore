@@ -5,3 +5,9 @@ go/
 .viminfo
 main.go
 main
+.bash_history
+.psql_history
+.wget-hsts
+db_password
+pass
+pass1

@@ -15,12 +15,12 @@ services:
     environment:
       - DISPLAY=:1
       - QT_DEBUG_PLUGINS=1
-      - TZ=Australia/Brisbane
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=appuser
-      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
-      - POSTGRES_DB=stock_data
+      # - TZ=Australia/Brisbane
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=appuser
+      - PGPASSFILE=/run/secrets/pg_pass_file
+      - PGDATABASE=stock_data
     privileged: true
     devices:
       - "/dev/dri/card0:/dev/dri/card0"
@@ -31,15 +31,17 @@ services:
     networks:
       - overlay_network
     secrets:
-      - db_password
+      - source: pg_pass_file
+        target: pg_pass_file
+        mode: 0400
 
   postgres:
     image: postgres
     restart: always
     environment:
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      POSTGRES_DB: stock_data
+      PGUSER: appuser
+      PGPASSWORD_FILE: /run/secrets/pg_pass_file
+      PGDATABASE: stock_data
     ports:
       - "5432:5432"
     volumes:
@@ -49,10 +51,12 @@ services:
     networks:
       - overlay_network
     secrets:
-      - db_password
+      - pg_pass_file
 
 secrets:
-  db_password:
+  pg_pass_file:
+    # generated from docker secret command
+    # echo "password" | docker secret create pg_pass_file -
     external: true
 
 networks:
