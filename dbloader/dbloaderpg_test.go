@@ -17,9 +17,9 @@ func TestPGLoader_Load(t *testing.T) {
 		{
 			name: "PGLoader_Load",
 			args: args{
-				url: "http://api.marketstack.com/v1/tickers?access_key=eb6471557c8bebc9fcbcec3667c752dc&exchange=XNAS&limit=10",
+				url: "http://api.marketstack.com/v1/tickers?access_key=eb6471557c8bebc9fcbcec3667c752dc&exchange=XNAS&limit=1000",
 			},
-			want: 11,
+			want: 1001,
 		},
 	}
 	for _, tt := range tests {

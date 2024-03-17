@@ -146,7 +146,7 @@ func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) 
 		colType = "timestamp"
 	case string:
 		if len(v) <= MAX_CHAR_SIZE {
-			colType = "vchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+			colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
 		} else {
 			colType = "text"
 		}

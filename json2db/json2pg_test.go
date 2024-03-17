@@ -60,7 +60,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson(t *testing.T) {
 			name:    "CreateTableSQL",
 			fields:  fields{tableFieldsMap: make(map[string][]string)},
 			args:    args{jsonText: string(testJsonText), tableName: "sdc_tickers"},
-			wantSql: `CREATE TABLE sdc_tickers (country text, has_eod boolean, has_intraday boolean, name vchar(1024), stock_exchange vchar(1024), symbol vchar(1024));`,
+			wantSql: `CREATE TABLE IF NOT EXISTS sdc_tickers (country text, has_eod boolean, has_intraday boolean, name varchar(1024), stock_exchange varchar(1024), symbol varchar(1024));`,
 		},
 	}
 	for _, tt := range tests {
