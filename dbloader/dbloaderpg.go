@@ -65,7 +65,7 @@ func (loader PGLoader) Load(url string) int {
 		numAllObjs += len(objs)
 	}
 	for tbl, objs := range allObjs {
-		insertSQL, allRows := converter.GenBulkInsertRowsSQLByObjs(objs, tbl)
+		insertSQL, allRows := converter.GenInsertSQLByJsonObjs(objs, tbl)
 
 		for _, bindRow := range allRows {
 

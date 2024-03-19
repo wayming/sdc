@@ -41,6 +41,10 @@ var JSON_OBJS = [2]JsonObject{
 	},
 }
 
+var JSON_FIELDS_MAP = map[string][]string{
+	"sdc_tickers": {"country", "has_eod", "has_intraday", "name", "stock_exchange", "symbol"},
+}
+
 func TestJsonToPGSQLConverter_GenCreateTableSQLByJson(t *testing.T) {
 	type fields struct {
 		tableFieldsMap map[string][]string
@@ -75,7 +79,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson(t *testing.T) {
 	}
 }
 
-func TestJsonToPGSQLConverter_GenBulkInsertRowsSQLByJson(t *testing.T) {
+func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 	type fields struct {
 		tableFieldsMap map[string][]string
 	}
@@ -116,13 +120,13 @@ func TestJsonToPGSQLConverter_GenBulkInsertRowsSQLByJson(t *testing.T) {
 			d := &JsonToPGSQLConverter{
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			gotSql, gotBindVariables := d.GenBulkInsertRowsSQLByJson(tt.args.jsonText, tt.args.tableName)
+			gotSql, gotBindVariables := d.GenInsertSQL(tt.args.jsonText, tt.args.tableName)
 			if gotSql != tt.wantSql {
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsertRowsSQLByJson() gotSql = %v, wantSql %v", gotSql, tt.wantSql)
+				t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotSql = %v, wantSql %v", gotSql, tt.wantSql)
 			}
 			if !reflect.DeepEqual(gotBindVariables, tt.wantBindVariables) {
 
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsertRowsSQLByJson() gotBindVariables = %v, wantBindVariables %v", gotBindVariables, tt.wantBindVariables)
+				t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotBindVariables = %v, wantBindVariables %v", gotBindVariables, tt.wantBindVariables)
 			}
 		})
 	}
@@ -160,6 +164,42 @@ func TestJsonToPGSQLConverter_FlattenJsonArrayText(t *testing.T) {
 			got := d.FlattenJsonArrayText(tt.args.jsonText, tt.args.rootTable)
 			if !reflect.DeepEqual(got, tt.wantJsonObjs) {
 				t.Errorf("JsonToPGSQLConverter.FlattenJsonArray() got = %v, want %v", got, tt.wantJsonObjs)
+			}
+		})
+	}
+}
+
+func TestJsonToPGSQLConverter_GenBulkInsertSQLByJsonObjs(t *testing.T) {
+	type fields struct {
+		tableFieldsMap map[string][]string
+	}
+	type args struct {
+		jsonObjs  []JsonObject
+		tableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "GenBulkInsertSQLByJsonObjs",
+			fields: fields{JSON_FIELDS_MAP},
+			args: args{
+				jsonObjs:  JSON_OBJS[:],
+				tableName: "sdc_tickers",
+			},
+			want: "COPY sdc_tickers FROM 'sdc_tickers.csv' DELIMITER ',' CSV",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &JsonToPGSQLConverter{
+				tableFieldsMap: tt.fields.tableFieldsMap,
+			}
+			if got := d.GenBulkInsertSQLByJsonObjs(tt.args.jsonObjs, tt.args.tableName); got != tt.want {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQLByJsonObjs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

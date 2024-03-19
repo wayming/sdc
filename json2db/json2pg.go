@@ -1,10 +1,12 @@
 package json2db
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -54,17 +56,17 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByObj(obj JsonObject, tableName 
 }
 
 // Assume a flat json text string for the same table
-func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByJson(jsonText string, tableName string) (string, [][]interface{}) {
+func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string) (string, [][]interface{}) {
 	var objs []JsonObject
 	err := json.Unmarshal([]byte(jsonText), &objs)
 	if err != nil {
 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
 	}
 
-	return d.GenBulkInsertRowsSQLByObjs(objs, tableName)
+	return d.GenInsertSQLByJsonObjs(objs, tableName)
 }
 
-func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{}) {
+func (d *JsonToPGSQLConverter) GenInsertSQLByJsonObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{}) {
 	// Generage SQL
 	fields := d.tableFieldsMap[tableName]
 	sql := "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
@@ -88,6 +90,37 @@ func (d *JsonToPGSQLConverter) GenBulkInsertRowsSQLByObjs(jsonObjs []JsonObject,
 
 	return sql, bindVars
 }
+
+func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonObjs(jsonObjs []JsonObject, tableName string) string {
+	// Generage SQL
+	fields := d.tableFieldsMap[tableName]
+	tableFileName := tableName + ".csv"
+	sql := "COPY " + tableName + " FROM '" + tableFileName + "' DELIMITER ',' CSV"
+
+	file, err := os.Create(tableFileName)
+	if err != nil {
+		log.Fatal("Failed to creatge file ", tableFileName, ". Error ", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Generate Bind Variables
+	for _, obj := range jsonObjs {
+		var record []string
+		for _, field := range fields {
+			record = append(record, fmt.Sprintf("%v", NVL(obj[field], "")))
+		}
+
+		if err := writer.Write(record); err != nil {
+			log.Fatal("Faield to insert record ", record, ". Error ", err)
+		}
+	}
+
+	return sql
+}
+
 func (d *JsonToPGSQLConverter) FlattenJsonArrayText(jsonText string, rootTable string) map[string][]JsonObject {
 	var objs []JsonObject
 	var allObjs map[string][]JsonObject
@@ -166,4 +199,11 @@ func orderedKeys(m JsonObject) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func NVL(val interface{}, defaultVal interface{}) interface{} {
+	if val == nil {
+		return defaultVal
+	}
+	return val
 }
