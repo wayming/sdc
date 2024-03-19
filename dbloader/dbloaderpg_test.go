@@ -5,9 +5,37 @@ import (
 	"testing"
 )
 
-func TestPGLoader_Load(t *testing.T) {
+const JSON_TEXT = `{
+    "pagination": {
+        "limit": 10000,
+        "offset": 0,
+        "count": 250,
+        "total": 250
+    },
+    "data": [
+        {
+            "name": "Microsoft Corporation",
+            "symbol": "MSFT",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        }
+    ]
+}`
+
+func TestPGLoader_LoadByJsonResponse(t *testing.T) {
 	type args struct {
-		url string
+		JsonResponse string
+		tableName    string
 	}
 	tests := []struct {
 		name string
@@ -17,9 +45,10 @@ func TestPGLoader_Load(t *testing.T) {
 		{
 			name: "PGLoader_Load",
 			args: args{
-				url: "http://api.marketstack.com/v1/tickers?access_key=eb6471557c8bebc9fcbcec3667c752dc&exchange=XNAS&limit=1000",
+				JsonResponse: JSON_TEXT,
+				tableName:    "sdc_tickers",
 			},
-			want: 1001,
+			want: 2,
 		},
 	}
 	for _, tt := range tests {
@@ -31,7 +60,7 @@ func TestPGLoader_Load(t *testing.T) {
 				os.Getenv("PGPASSWORD"),
 				os.Getenv("PGDATABASE"))
 			defer loader.Disconnect()
-			if got := loader.Load(tt.args.url); got != tt.want {
+			if got := loader.LoadByJsonResponse(tt.args.JsonResponse, tt.args.tableName); got != tt.want {
 				t.Errorf("PGLoader.Load() = %v, want %v", got, tt.want)
 			}
 		})
