@@ -54,7 +54,7 @@ func (loader PGLoader) LoadByURL(url string, tableName string) int {
 		log.Fatal("Failed to decode response. Error: ", err)
 	}
 
-	return loader.loadJsonResponse(jsonResponse, tableName)
+	return loader.loadJsonResponseObj(jsonResponse, tableName)
 }
 
 func (loader PGLoader) LoadByJsonResponse(JsonResponse string, tableName string) int {
@@ -63,10 +63,10 @@ func (loader PGLoader) LoadByJsonResponse(JsonResponse string, tableName string)
 	if err != nil {
 		log.Fatal("Failed to decode response. Error: ", err)
 	}
-	return loader.loadJsonResponse(jsonResponse, tableName)
+	return loader.loadJsonResponseObj(jsonResponse, tableName)
 }
 
-func (loader PGLoader) loadJsonResponse(resp Response, tableName string) int {
+func (loader PGLoader) loadJsonResponseObj(resp Response, tableName string) int {
 	converter := json2db.NewJsonToPGSQLConverter()
 	allObjs := converter.FlattenJsonArrayObjs(resp.Data, tableName)
 	numAllObjs := 0
