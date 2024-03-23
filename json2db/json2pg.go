@@ -17,12 +17,25 @@ import (
 const MAX_CHAR_SIZE = 1024
 
 type JsonToPGSQLConverter struct {
+	schema         string
 	tableFieldsMap map[string][]string
 }
 
 func NewJsonToPGSQLConverter() *JsonToPGSQLConverter {
 	log.SetFlags(log.Ldate | log.Ltime)
 	return &JsonToPGSQLConverter{tableFieldsMap: make(map[string][]string)}
+}
+
+func (d *JsonToPGSQLConverter) GenCreateSchema(schema string) string {
+	d.schema = schema
+	sql := "CREATE SCHEMA IF NOT EXISTS " + schema
+	return sql
+}
+
+func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
+	d.schema = schema
+	sql := "DROP SCHEMA IF EXISTS " + schema + " CASCADE"
+	return sql
 }
 
 // Assume a flat json text string
@@ -76,7 +89,7 @@ func (d *JsonToPGSQLConverter) GenInsertSQLByJsonObjs(jsonObjs []JsonObject, tab
 		}
 		sql = sql + "$" + strconv.Itoa(index+1)
 	}
-	sql = sql + ")"
+	sql = sql + ") ON CONFLICT DO NOTHING"
 
 	// Generate Bind Variables
 	var bindVars [][]interface{}
@@ -171,8 +184,8 @@ func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) 
 	switch v := value.(type) {
 	case int:
 		colType = "integer"
-	case float64:
-		colType = "double"
+	case float32:
+		colType = "real"
 	case bool:
 		colType = "boolean"
 	case time.Time:

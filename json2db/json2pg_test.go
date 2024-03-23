@@ -104,7 +104,7 @@ func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 				},
 			},
 			args:    args{jsonText: string(testJsonText), tableName: "sdc_tickers"},
-			wantSql: `INSERT INTO sdc_tickers (country, has_eod, has_intraday, name, stock_exchange, symbol) VALUES ($1, $2, $3, $4, $5, $6)`,
+			wantSql: `INSERT INTO sdc_tickers (country, has_eod, has_intraday, name, stock_exchange, symbol) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
 			wantBindVariables: [][]interface{}{
 				{
 					nil, true, false, "Microsoft Corporation", "NASDAQ Stock Exchange", "MSFT",
