@@ -16,6 +16,7 @@ type PGLoader struct {
 	schema       string
 	sqlConverter json2db.JsonToSQLConverter
 	logger       *log.Logger
+	apiKey       string
 }
 
 type Response struct {

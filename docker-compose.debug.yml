@@ -21,6 +21,7 @@ services:
       - PGUSER=appuser
       - PGPASSFILE=/run/secrets/pg_pass_file
       - PGDATABASE=stock_data
+      - MSACCESSKEYFILE=/run/secrets/market_stack_access_key
     privileged: true
     devices:
       - "/dev/dri/card0:/dev/dri/card0"
@@ -35,7 +36,12 @@ services:
         target: pg_pass_file
         mode: 0400
         uid: '1000'  # appuser
-        gid: '1000'  #appuser
+        gid: '1000'  # appuser
+      - source: market_stack_access_key
+        target: market_stack_access_key
+        mode: 0400
+        uid: '1000'  # appuser
+        gid: '1000'  # appuser
 
   postgres:
     image: postgres
@@ -87,6 +93,10 @@ secrets:
   pgadmin_pass_file:
     # generated from docker secret command
     # echo "password" | docker secret create pgadmin_pass_file -
+    external: true
+  market_stack_access_key:
+    # generated from docker secret command
+    # echo "accesskey" | docker secret create market_stack_access_key -
     external: true
 
 networks:
