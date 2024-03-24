@@ -5,7 +5,7 @@ type Tickers struct {
 	Symbol        string `json:"symbol"`
 	HasIntraday   bool   `json:"has_intraday"`
 	HasEod        bool   `json:"has_eod"`
-	Country       string `json:"country,omitempty"`
+	Country       string `json:"country"`
 	StockExchange struct {
 		Name        string `json:"name"`
 		Acronym     string `json:"acronym"`

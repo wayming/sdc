@@ -53,9 +53,16 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableNa
 			d.tableFieldsMap[tableName] = make([]string, 0)
 		}
 		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], fieldName)
-		fieldValue := reflect.ValueOf(sliceVal.Index(0)).FieldByName(fieldName)
-		fieldType := reflect.TypeOf(fieldValue)
-		fmt.Println("fieldType=", fieldType, "fieldValue=", fieldValue)
+		fieldValue := sliceVal.Index(0).FieldByName(fieldName)
+
+		// Check if the field value is valid before proceeding
+		if !fieldValue.IsValid() {
+			log.Println("Field value is invalid for field:", fieldName)
+			continue
+		}
+
+		fieldType := fieldValue.Type()
+		fmt.Println("fieldName", fieldName, "fieldType=", fieldType.Kind(), "fieldValue=", fieldValue.Interface())
 		colType, err := d.deriveColType2(fieldType)
 		if err != nil {
 			log.Fatal("Failed to derive type for ", fieldValue, ", error ", err)
@@ -256,7 +263,9 @@ func (d *JsonToPGSQLConverter) deriveColType2(rtype reflect.Type) (string, error
 		if rtype == reflect.TypeOf(time.Time{}) {
 			colType = "timestamp"
 		} else {
-			err = errors.New("unsupported struct type")
+			// nested Json objects. the value is the name of the nested object,
+			// thus the varchar type.
+			colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
 		}
 	default:
 		err = errors.New("unknown type")

@@ -7,20 +7,20 @@ import (
 )
 
 const JSON_TEXT = `[{
-	"name": "Microsoft Corporation",
-	"symbol": "MSFT",
-	"has_intraday": false,
-	"has_eod": true,
-	"country": null,
-	"stock_exchange": {
-		"name": "NASDAQ Stock Exchange",
-		"acronym": "NASDAQ",
-		"mic": "XNAS",
-		"country": "USA",
-		"country_code": "US",
-		"city": "New York",
-		"website": "www.nasdaq.com"
-	}}]`
+		"name": "Microsoft Corporation",
+		"symbol": "MSFT",
+		"has_intraday": false,
+		"has_eod": true,
+		"country": "US",
+		"stock_exchange": {
+			"name": "NASDAQ Stock Exchange",
+			"acronym": "NASDAQ",
+			"mic": "XNAS",
+			"country": "USA",
+			"country_code": "US",
+			"city": "New York",
+			"website": "www.nasdaq.com"
+		}}]`
 
 const TEST_SCHEMA = "sdc_test"
 
@@ -232,7 +232,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
 				tableName:    "sdc_tickers",
 				responseType: reflect.TypeOf(tickersObj),
 			},
-			want: "INSERT ....",
+			want: "CREATE TABLE IF NOT EXISTS sdc_tickers (Country varchar(1024), HasEod boolean, HasIntraday boolean, Name varchar(1024), StockExchange varchar(1024), Symbol varchar(1024));",
 		},
 	}
 	for _, tt := range tests {
