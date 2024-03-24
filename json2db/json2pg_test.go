@@ -22,6 +22,8 @@ const JSON_TEXT = `[{
 		"website": "www.nasdaq.com"
 	}}]`
 
+const TEST_SCHEMA = "sdc_test"
+
 var JSON_OBJS = [2]JsonObject{
 	{
 		"country":        nil,
@@ -200,6 +202,47 @@ func TestJsonToPGSQLConverter_GenBulkInsertSQLByJsonObjs(t *testing.T) {
 			}
 			if got := d.GenBulkInsertSQLByJsonObjs(tt.args.jsonObjs, tt.args.tableName); got != tt.want {
 				t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQLByJsonObjs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
+	type fields struct {
+		schema         string
+		tableFieldsMap map[string][]string
+	}
+	type args struct {
+		jsonText     string
+		tableName    string
+		responseType reflect.Type
+	}
+	var tickersObj Tickers
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "GenCreateTableSQLByJson2",
+			fields: fields{TEST_SCHEMA, JSON_FIELDS_MAP},
+			args: args{
+				jsonText:     JSON_TEXT,
+				tableName:    "sdc_tickers",
+				responseType: reflect.TypeOf(tickersObj),
+			},
+			want: "INSERT ....",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &JsonToPGSQLConverter{
+				schema:         tt.fields.schema,
+				tableFieldsMap: tt.fields.tableFieldsMap,
+			}
+			if got := d.GenCreateTableSQLByJson2(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
+				t.Errorf("JsonToPGSQLConverter.GenCreateTableSQLByJson2() = %v, want %v", got, tt.want)
 			}
 		})
 	}

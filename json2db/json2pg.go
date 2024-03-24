@@ -38,6 +38,36 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 	return sql
 }
 
+func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableName string, responseType reflect.Type) string {
+	sliceType := reflect.SliceOf(responseType)
+	slicePtr := reflect.New(sliceType)
+	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
+	sliceVal := slicePtr.Elem()
+	if err != nil || sliceVal.Len() == 0 {
+		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
+	}
+
+	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
+	for _, fieldName := range orderedFields(responseType) {
+		if _, ok := d.tableFieldsMap[tableName]; !ok {
+			d.tableFieldsMap[tableName] = make([]string, 0)
+		}
+		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], fieldName)
+		fieldValue := reflect.ValueOf(sliceVal.Index(0)).FieldByName(fieldName)
+		fieldType := reflect.TypeOf(fieldValue)
+		fmt.Println("fieldType=", fieldType, "fieldValue=", fieldValue)
+		colType, err := d.deriveColType2(fieldType)
+		if err != nil {
+			log.Fatal("Failed to derive type for ", fieldValue, ", error ", err)
+			return ""
+		}
+		ddl += fieldName + " " + colType + ", "
+	}
+	ddl = ddl[:len(ddl)-2] + ");"
+
+	return ddl
+}
+
 // Assume a flat json text string
 func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson(jsonText string, tableName string) string {
 	var obj JsonObject
@@ -205,10 +235,49 @@ func (d *JsonToPGSQLConverter) deriveColType(value interface{}) (string, error) 
 	return colType, err
 }
 
+func (d *JsonToPGSQLConverter) deriveColType2(rtype reflect.Type) (string, error) {
+	var err error
+	var colType string
+	switch rtype.Kind() {
+	case reflect.Int:
+		colType = "integer"
+	case reflect.Float32:
+		colType = "real"
+	case reflect.Bool:
+		colType = "boolean"
+	case reflect.String:
+		// if len(v) <= MAX_CHAR_SIZE {
+		// 	colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+		// } else {
+		// 	colType = "text"
+		// }
+		colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+	case reflect.Struct:
+		if rtype == reflect.TypeOf(time.Time{}) {
+			colType = "timestamp"
+		} else {
+			err = errors.New("unsupported struct type")
+		}
+	default:
+		err = errors.New("unknown type")
+	}
+
+	return colType, err
+}
+
 func orderedKeys(m JsonObject) []string {
 	var keys []string
 	for key := range m {
 		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func orderedFields(rtype reflect.Type) []string {
+	var keys []string
+	for idx := 0; idx < rtype.NumField(); idx++ {
+		keys = append(keys, rtype.Field(idx).Name)
 	}
 	sort.Strings(keys)
 	return keys
