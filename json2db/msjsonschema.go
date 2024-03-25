@@ -7,14 +7,18 @@ type Tickers struct {
 	HasEod        bool   `json:"has_eod"`
 	Country       string `json:"country"`
 	StockExchange struct {
-		Name        string `json:"name"`
-		Acronym     string `json:"acronym"`
-		Mic         string `json:"mic"`
-		Country     string `json:"country"`
-		CountryCode string `json:"country_code"`
-		City        string `json:"city"`
-		Website     string `json:"website"`
+		Name string `json:"name"`
 	} `json:"stock_exchange"`
+}
+
+type StockExchange struct {
+	Name        string `json:"name"`
+	Acronym     string `json:"acronym"`
+	Mic         string `json:"mic"`
+	Country     string `json:"country"`
+	CountryCode string `json:"country_code"`
+	City        string `json:"city"`
+	Website     string `json:"website"`
 }
 
 type Intraday struct {

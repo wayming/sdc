@@ -21,6 +21,40 @@ const JSON_TEXT = `[{
 			"city": "New York",
 			"website": "www.nasdaq.com"
 		}}]`
+const JSON_TEXT2 = `[
+	{
+	  "name": "Microsoft Corporation",
+	  "symbol": "MSFT",
+	  "has_intraday": false,
+	  "has_eod": true,
+	  "country": null,
+	  "stock_exchange": {
+		"name": "NASDAQ Stock Exchange",
+		"acronym": "NASDAQ",
+		"mic": "XNAS",
+		"country": "USA",
+		"country_code": "US",
+		"city": "New York",
+		"website": "www.nasdaq.com"
+	  }
+	},
+	{
+	  "name": "Apple Inc",
+	  "symbol": "AAPL",
+	  "has_intraday": false,
+	  "has_eod": true,
+	  "country": null,
+	  "stock_exchange": {
+		"name": "NASDAQ Stock Exchange",
+		"acronym": "NASDAQ",
+		"mic": "XNAS",
+		"country": "USA",
+		"country_code": "US",
+		"city": "New York",
+		"website": "www.nasdaq.com"
+	  }
+	}
+  ]`
 
 const TEST_SCHEMA = "sdc_test"
 
@@ -243,6 +277,50 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
 			}
 			if got := d.GenCreateTableSQLByJson2(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
 				t.Errorf("JsonToPGSQLConverter.GenCreateTableSQLByJson2() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestJsonToPGSQLConverter_GenBulkInsertSQLByJsonText(t *testing.T) {
+	type fields struct {
+		schema         string
+		tableFieldsMap map[string][]string
+	}
+	type args struct {
+		jsonText     string
+		tableName    string
+		responseType reflect.Type
+	}
+	var responseObj Tickers
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "GenBulkInsertSQLByJsonText",
+			fields:  fields{schema: "sdc_test", tableFieldsMap: make(map[string][]string)},
+			args:    args{jsonText: JSON_TEXT2, tableName: "sdc_tickers", responseType: reflect.TypeOf(responseObj)},
+			want:    "COPY sdc_tickers FROM 'sdc_tickers.csv' DELIMITER ',' CSV",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &JsonToPGSQLConverter{
+				schema:         tt.fields.schema,
+				tableFieldsMap: tt.fields.tableFieldsMap,
+			}
+			got, err := d.GenBulkInsertSQLByJsonText(tt.args.jsonText, tt.args.tableName, tt.args.responseType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQLByJsonText() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQLByJsonText() = %v, want %v", got, tt.want)
 			}
 		})
 	}

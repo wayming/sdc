@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Microsoft Corporation",
+    "symbol": "MSFT",
+    "has_intraday": false,
+    "has_eod": true,
+    "country": null,
+    "stock_exchange": {
+      "name": "NASDAQ Stock Exchange",
+      "acronym": "NASDAQ",
+      "mic": "XNAS",
+      "country": "USA",
+      "country_code": "US",
+      "city": "New York",
+      "website": "www.nasdaq.com"
+    }
+  },
+  {
+    "name": "Apple Inc",
+    "symbol": "AAPL",
+    "has_intraday": false,
+    "has_eod": true,
+    "country": null,
+    "stock_exchange": {
+      "name": "NASDAQ Stock Exchange",
+      "acronym": "NASDAQ",
+      "mic": "XNAS",
+      "country": "USA",
+      "country_code": "US",
+      "city": "New York",
+      "website": "www.nasdaq.com"
+    }
+  }
+]

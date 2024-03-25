@@ -171,6 +171,52 @@ func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonObjs(jsonObjs []JsonObject,
 	return sql
 }
 
+func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonText(jsonText string, tableName string, responseType reflect.Type) (string, error) {
+	var sql string
+	sliceType := reflect.SliceOf(responseType)
+	slicePtr := reflect.New(sliceType)
+
+	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
+	sliceVal := slicePtr.Elem()
+	if err != nil || sliceVal.Len() == 0 {
+		return sql, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+	}
+
+	// Generage SQL
+	tableFileName := tableName + ".csv"
+	sql = "COPY " + tableName + " FROM '" + tableFileName + "' DELIMITER ',' CSV"
+
+	file, err := os.Create(tableFileName)
+	if err != nil {
+		log.Fatal("Failed to creatge file ", tableFileName, ". Error ", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Generate Bind Variables
+	for idx := 0; idx < sliceVal.Len(); idx++ {
+		var record []string
+		for _, fieldName := range orderedFields((responseType)) {
+			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
+			if fieldValue.Type().Kind() == reflect.Struct {
+				nestedFieldValue := fieldValue.FieldByName("Name")
+				record = append(record, fmt.Sprintf("%v", NVL(nestedFieldValue.Interface(), "")))
+			} else {
+				record = append(record, fmt.Sprintf("%v", NVL(fieldValue.Interface(), "")))
+			}
+		}
+
+		if err := writer.Write(record); err != nil {
+			return sql, errors.New(
+				"Faield to write record " + strings.Join(record, ",") +
+					" to file " + tableFileName + ". Error " + err.Error())
+		}
+	}
+	return sql, nil
+}
+
 func (d *JsonToPGSQLConverter) FlattenJsonArrayText(jsonText string, rootTable string) map[string][]JsonObject {
 	var objs []JsonObject
 	var allObjs map[string][]JsonObject
@@ -253,19 +299,18 @@ func (d *JsonToPGSQLConverter) deriveColType2(rtype reflect.Type) (string, error
 	case reflect.Bool:
 		colType = "boolean"
 	case reflect.String:
-		// if len(v) <= MAX_CHAR_SIZE {
-		// 	colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
-		// } else {
-		// 	colType = "text"
-		// }
 		colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
 	case reflect.Struct:
 		if rtype == reflect.TypeOf(time.Time{}) {
 			colType = "timestamp"
 		} else {
-			// nested Json objects. the value is the name of the nested object,
-			// thus the varchar type.
-			colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+			if _, ok := rtype.FieldByName("Name"); ok {
+				// Use the "Name" field as the value of the nested struct,
+				// thus create the field with the varchar type.
+				colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
+			} else {
+				err = errors.New("Unknown struct type for field " + rtype.Name())
+			}
 		}
 	default:
 		err = errors.New("unknown type")
