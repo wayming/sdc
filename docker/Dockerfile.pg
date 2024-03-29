@@ -1,0 +1,4 @@
+FROM postgres:latest
+
+RUN groupmod -g 1000 postgres
+RUN usermod -u 1000 -G 1000 postgres

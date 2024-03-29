@@ -17,3 +17,5 @@ dbloader/__debug_bin3458741688
 logs/sdc.log
 dbloader/logs/dbloaderpg_test.log
 json2db/__debug_bin1212110847
+docker/pglog
+docker/pgdata

@@ -2,11 +2,14 @@ package dbloader
 
 import (
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"reflect"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/wayming/sdc/json2db"
 )
@@ -72,67 +75,181 @@ func (loader *PGLoader) DropSchema(schema string) {
 	}
 }
 
-func (loader *PGLoader) LoadByURL(url string, tableName string) int {
+func (loader *PGLoader) LoadByURL(url string, tableName string, jsonStructType reflect.Type) (int64, error) {
+	var ret int64
+
 	if loader.schema == "" {
-		loader.logger.Fatal("Schema must be created first")
+		return ret, errors.New("schema must be created first")
 	}
+
 	resp, err := http.Get(url)
 	if err != nil {
-		loader.logger.Fatal("Failed to access the url, Error: ", err)
+		return ret, errors.New("Failed to access the url, Error: " + err.Error())
 	}
 	defer resp.Body.Close()
 
-	var jsonResponse Response
-	err = json.NewDecoder(resp.Body).Decode(&jsonResponse)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		loader.logger.Fatal("Failed to decode response. Error: ", err)
+		return ret, err
 	}
 
 	tableName = loader.schema + "." + tableName
-	return loader.loadJsonResponseObj(jsonResponse, tableName)
+	return loader.LoadByJsonText(string(body), tableName, jsonStructType)
 }
 
-func (loader *PGLoader) LoadByJsonResponse(JsonResponse string, tableName string) int {
+func NVL(val interface{}, defaultVal interface{}) interface{} {
+	if val == nil {
+		return defaultVal
+	}
+	return val
+}
+
+func interfaceSliceToStringSlice(input []interface{}) []string {
+	var result []string
+	for _, v := range input {
+		// Convert each interface{} value to string
+		strVal := fmt.Sprintf("%v", NVL(v, ""))
+		result = append(result, strVal)
+	}
+	return result
+}
+
+func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
+	var rowsInserted int64
+
 	if loader.schema == "" {
 		loader.logger.Fatal("Schema must be created first")
 	}
-	var jsonResponse Response
-	err := json.Unmarshal([]byte(JsonResponse), &jsonResponse)
-	if err != nil {
-		loader.logger.Fatal("Failed to decode response. Error: ", err)
-	}
-	tableName = loader.schema + "." + tableName
-	return loader.loadJsonResponseObj(jsonResponse, tableName)
-}
 
-func (loader *PGLoader) loadJsonResponseObj(resp Response, tableName string) int {
 	converter := json2db.NewJsonToPGSQLConverter()
-	allObjs := converter.FlattenJsonArrayObjs(resp.Data, tableName)
-	numAllObjs := 0
-	for tbl, objs := range allObjs {
-		tableCreateSQL := converter.GenCreateTableSQLByObj(objs[0], tbl)
-		if _, err := loader.db.Exec(tableCreateSQL); err != nil {
-			loader.logger.Fatal("Failed to execute SQL ", tableCreateSQL, ". Error ", err)
-		} else {
-			loader.logger.Println("Execute SQL: ", tableCreateSQL)
-		}
-		numAllObjs += len(objs)
+
+	// Create table
+	tableCreateSQL, err := converter.GenCreateTableSQLByJson2(jsonText, loader.schema+"."+tableName, jsonStructType)
+	if err != nil {
+		return rowsInserted, err
 	}
-	for tbl, objs := range allObjs {
-		insertSQL, allRows := converter.GenInsertSQLByJsonObjs(objs, tbl)
+	log.Println("SQL=", tableCreateSQL)
 
-		for _, bindRow := range allRows {
+	// _, err = loader.db.Exec(createSQL)
+	// if err != nil {
+	// 	return 0, errors.New("Failed to execute SQL " + createSQL + ". Error: " + err.Error())
+	// }
 
-			if _, err := loader.db.Exec(insertSQL, bindRow...); err != nil {
-				loader.logger.Fatal("Failed to execute SQL ", insertSQL, ". Bind parameters ", bindParamsAsString(bindRow), ". Error ", err)
-			} else {
-				loader.logger.Println("Execute SQL: ", insertSQL)
-			}
+	// // Insert
+	// fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
+	// if err != nil {
+	// 	return 0, err
+	// }
+
+	// // Generate SQL
+	// sql := "COPY " + tableName + " ("
+	// for idx, field := range fields {
+	// 	sql += field
+	// 	if idx < len(fields)-1 {
+	// 		sql += ","
+	// 	}
+	// }
+	// sql += ") FROM STDIN WITH CSV"
+	// // Prepare the COPY data as CSV format
+	// copyDataCSV := ""
+	// for _, row := range rows {
+	// 	copyDataCSV += strings.Join(interfaceSliceToStringSlice(row), ",")
+	// 	copyDataCSV += "\n"
+	// }
+
+	// log.Println("SQL=", sql)
+	// log.Println("CSV", copyDataCSV)
+
+	// result, err := loader.db.Exec(sql, copyDataCSV)
+	// if err != nil {
+	// 	return 0, errors.New("Failed to execute SQL " + sql +
+	// 		". CSV: " + copyDataCSV + ". Error: " + err.Error())
+	// }
+	// rowsInserted, _ = result.RowsAffected()
+	// loader.logger.Println("Execute SQL: ", sql, ". Inserted rows ", rowsInserted)
+	// return rowsInserted, nil
+
+	tx, _ := loader.db.Begin()
+	if _, err := tx.Exec(tableCreateSQL); err != nil {
+		return 0, errors.New("Failed to execute SQL " + tableCreateSQL + ". Error: " + err.Error())
+	} else {
+		loader.logger.Println("Execute SQL: ", tableCreateSQL)
+	}
+	tx.Commit()
+
+	// Insert
+	fields, rows, err := converter.GenBulkInsert(jsonText, loader.schema+"."+tableName, jsonStructType)
+	if err != nil {
+		return 0, err
+	}
+
+	// Start a transaction
+	tx, err = loader.db.Begin()
+	if err != nil {
+		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
+	}
+
+	stmt, err := tx.Prepare(pq.CopyInSchema(loader.schema, tableName, fields...))
+	if err != nil {
+		tx.Rollback()
+		return 0, errors.New("Failed to prepare CopyIn statement. Error: " + err.Error())
+	}
+
+	for _, row := range rows {
+		_, err := stmt.Exec(row...)
+		if err != nil {
+			tx.Rollback()
+			return 0, errors.New("Failed to Exec row " + ". Error: " + err.Error())
 		}
 	}
 
-	return numAllObjs
+	// Flush
+	_, err = stmt.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return 0, errors.New("Failed to commit CopyIn statement. Error: " + err.Error())
+	}
+	return int64(len(rows)), nil
 }
+
+// func (loader *PGLoader) loadJsonResponseObj(resp Response, tableName string) int {
+// 	converter := json2db.NewJsonToPGSQLConverter()
+// 	allObjs := converter.FlattenJsonArrayObjs(resp.Data, tableName)
+// 	numAllObjs := 0
+// 	for tbl, objs := range allObjs {
+// 		tableCreateSQL := converter.GenCreateTableSQLByObj(objs[0], tbl)
+// 		if _, err := loader.db.Exec(tableCreateSQL); err != nil {
+// 			loader.logger.Fatal("Failed to execute SQL ", tableCreateSQL, ". Error ", err)
+// 		} else {
+// 			loader.logger.Println("Execute SQL: ", tableCreateSQL)
+// 		}
+// 		numAllObjs += len(objs)
+// 	}
+// 	for tbl, objs := range allObjs {
+// 		insertSQL, allRows := converter.GenInsertSQLByJsonObjs(objs, tbl)
+
+// 		for _, bindRow := range allRows {
+
+// 			if _, err := loader.db.Exec(insertSQL, bindRow...); err != nil {
+// 				loader.logger.Fatal("Failed to execute SQL ", insertSQL, ". Bind parameters ", bindParamsAsString(bindRow), ". Error ", err)
+// 			} else {
+// 				loader.logger.Println("Execute SQL: ", insertSQL)
+// 			}
+// 		}
+// 	}
+
+// 	return numAllObjs
+// }
 
 func bindParamsAsString(binds []interface{}) string {
 	bindString := "["

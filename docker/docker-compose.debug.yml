@@ -5,7 +5,7 @@ services:
     image: stock_data_collector
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile.sdc
     volumes:
       - .:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
@@ -44,16 +44,22 @@ services:
         gid: '1000'  # appuser
 
   postgres:
-    image: postgres
+    image: postgres_sdc
+    # build:
+    #   context: .
+      # dockerfile: ./Dockerfile.pg
     restart: always
     environment:
       - PGUSER=appuser
       - PGPASSWORD_FILE=/run/secrets/pg_pass_file
       - PGDATABASE=stock_data
+      - PGID=1000
+      - PGGID=1000
     ports:
       - "5432:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+      - ./pglog:/var/log/postgresql
     deploy:
       replicas: 1
     networks:
@@ -72,6 +78,7 @@ services:
       - PGADMIN_LISTEN_ADDRESS=0.0.0.0
       - PGADMIN_DEFAULT_SERVER=postgres
       - PGADMIN_DEFAULT_SERVER_GROUP=Servers
+
     depends_on:
       - postgres
     deploy:

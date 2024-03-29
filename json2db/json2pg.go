@@ -38,13 +38,14 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 	return sql
 }
 
-func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableName string, responseType reflect.Type) string {
+func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableName string, responseType reflect.Type) (string, error) {
 	sliceType := reflect.SliceOf(responseType)
 	slicePtr := reflect.New(sliceType)
 	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
-		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
+		err := errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+		return "", err
 	}
 
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
@@ -52,7 +53,7 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableNa
 		if _, ok := d.tableFieldsMap[tableName]; !ok {
 			d.tableFieldsMap[tableName] = make([]string, 0)
 		}
-		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], fieldName)
+		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], strings.ToLower(fieldName))
 		fieldValue := sliceVal.Index(0).FieldByName(fieldName)
 
 		// Check if the field value is valid before proceeding
@@ -65,14 +66,14 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableNa
 		fmt.Println("fieldName", fieldName, "fieldType=", fieldType.Kind(), "fieldValue=", fieldValue.Interface())
 		colType, err := d.deriveColType2(fieldType)
 		if err != nil {
-			log.Fatal("Failed to derive type for ", fieldValue, ", error ", err)
-			return ""
+			err := errors.New("Failed to derive type for " + fieldValue.String() + ", error " + err.Error())
+			return "", err
 		}
 		ddl += fieldName + " " + colType + ", "
 	}
 	ddl = ddl[:len(ddl)-2] + ");"
 
-	return ddl
+	return ddl, nil
 }
 
 // Assume a flat json text string
@@ -105,46 +106,47 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByObj(obj JsonObject, tableName 
 	return ddl
 }
 
-// Assume a flat json text string for the same table
-func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string) (string, [][]interface{}) {
-	var objs []JsonObject
-	err := json.Unmarshal([]byte(jsonText), &objs)
-	if err != nil {
-		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
-	}
+// // Assume a flat json text string for the same table
+// func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string) (string, [][]interface{}) {
+// 	var objs []JsonObject
+// 	err := json.Unmarshal([]byte(jsonText), &objs)
+// 	if err != nil {
+// 		log.Fatal("Failed to parse json string ", jsonText, ", error ", err)
+// 	}
 
-	return d.GenInsertSQLByJsonObjs(objs, tableName)
-}
+// 	return d.GenInsertSQLByJsonObjs(objs, tableName)
+// }
 
-func (d *JsonToPGSQLConverter) GenInsertSQLByJsonObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{}) {
-	// Generage SQL
-	fields := d.tableFieldsMap[tableName]
-	sql := "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
-	for index := range fields {
-		if index > 0 {
-			sql = sql + ", "
-		}
-		sql = sql + "$" + strconv.Itoa(index+1)
-	}
-	sql = sql + ") ON CONFLICT DO NOTHING"
+// func (d *JsonToPGSQLConverter) GenInsertSQLByJsonObjs(jsonObjs []JsonObject, tableName string) (string, [][]interface{}) {
+// 	// Generage SQL
+// 	fields := d.tableFieldsMap[tableName]
+// 	sql := "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
+// 	for index := range fields {
+// 		if index > 0 {
+// 			sql = sql + ", "
+// 		}
+// 		sql = sql + "$" + strconv.Itoa(index+1)
+// 	}
+// 	sql = sql + ") ON CONFLICT DO NOTHING"
 
-	// Generate Bind Variables
-	var bindVars [][]interface{}
-	for _, obj := range jsonObjs {
-		var bindVarsForObj []interface{}
-		for _, field := range fields {
-			bindVarsForObj = append(bindVarsForObj, obj[field])
-		}
-		bindVars = append(bindVars, bindVarsForObj)
-	}
+// 	// Generate Bind Variables
+// 	var bindVars [][]interface{}
+// 	for _, obj := range jsonObjs {
+// 		var bindVarsForObj []interface{}
+// 		for _, field := range fields {
+// 			bindVarsForObj = append(bindVarsForObj, obj[field])
+// 		}
+// 		bindVars = append(bindVars, bindVarsForObj)
+// 	}
 
-	return sql, bindVars
-}
+// 	return sql, bindVars
+// }
 
 func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonObjs(jsonObjs []JsonObject, tableName string) string {
 	// Generage SQL
 	fields := d.tableFieldsMap[tableName]
-	tableFileName := tableName + ".csv"
+	cwd, _ := os.Getwd()
+	tableFileName := cwd + "/" + tableName + ".csv"
 	sql := "COPY " + tableName + " FROM '" + tableFileName + "' DELIMITER ',' CSV"
 
 	file, err := os.Create(tableFileName)
@@ -183,8 +185,9 @@ func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonText(jsonText string, table
 	}
 
 	// Generage SQL
-	tableFileName := tableName + ".csv"
-	sql = "COPY " + tableName + " FROM '" + tableFileName + "' DELIMITER ',' CSV"
+	cwd, _ := os.Getwd()
+	tableFileName := cwd + "/" + tableName + ".csv"
+	sql = "COPY " + tableName + " FROM '" + tableFileName + "' WITH CSV"
 
 	file, err := os.Create(tableFileName)
 	if err != nil {
@@ -217,6 +220,78 @@ func (d *JsonToPGSQLConverter) GenBulkInsertSQLByJsonText(jsonText string, table
 	return sql, nil
 }
 
+func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, jsonStructType reflect.Type) ([]string, [][]interface{}, error) {
+	var rows [][]interface{}
+	fields := d.tableFieldsMap[tableName]
+
+	sliceType := reflect.SliceOf(jsonStructType)
+	slicePtr := reflect.New(sliceType)
+
+	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
+	sliceVal := slicePtr.Elem()
+	if err != nil || sliceVal.Len() == 0 {
+		return fields, rows, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+	}
+
+	// Generate Bind Variables
+	for idx := 0; idx < sliceVal.Len(); idx++ {
+		var row []interface{}
+		for _, fieldName := range orderedFields(jsonStructType) {
+			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
+			if fieldValue.Type().Kind() == reflect.Struct {
+				nestedFieldValue := fieldValue.FieldByName("Name")
+				row = append(row, nestedFieldValue.Interface())
+			} else {
+				row = append(row, fieldValue.Interface())
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	return fields, rows, nil
+}
+
+func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, jsonStructType reflect.Type) (string, [][]interface{}, error) {
+	var sql string
+	var rows [][]interface{}
+
+	sliceType := reflect.SliceOf(jsonStructType)
+	slicePtr := reflect.New(sliceType)
+
+	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
+	sliceVal := slicePtr.Elem()
+	if err != nil || sliceVal.Len() == 0 {
+		return sql, rows, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+	}
+
+	// Generage SQL
+	fields := d.tableFieldsMap[tableName]
+	sql = "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
+	for index := range fields {
+		if index > 0 {
+			sql = sql + ", "
+		}
+		sql = sql + "$" + strconv.Itoa(index+1)
+	}
+	sql = sql + ") ON CONFLICT DO NOTHING"
+
+	// Generate Bind Variables
+	for idx := 0; idx < sliceVal.Len(); idx++ {
+		var row []interface{}
+		for _, fieldName := range orderedFields(jsonStructType) {
+			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
+			if fieldValue.Type().Kind() == reflect.Struct {
+				nestedFieldValue := fieldValue.FieldByName("Name")
+				row = append(row, nestedFieldValue.Interface())
+			} else {
+				row = append(row, fieldValue.Interface())
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	return sql, rows, nil
+}
 func (d *JsonToPGSQLConverter) FlattenJsonArrayText(jsonText string, rootTable string) map[string][]JsonObject {
 	var objs []JsonObject
 	var allObjs map[string][]JsonObject

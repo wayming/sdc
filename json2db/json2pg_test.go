@@ -275,7 +275,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
 				schema:         tt.fields.schema,
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			if got := d.GenCreateTableSQLByJson2(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
+			if got, _ := d.GenCreateTableSQLByJson2(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
 				t.Errorf("JsonToPGSQLConverter.GenCreateTableSQLByJson2() = %v, want %v", got, tt.want)
 			}
 		})
