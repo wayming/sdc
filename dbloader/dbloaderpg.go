@@ -4,9 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"reflect"
 
 	"github.com/lib/pq"
@@ -73,28 +71,6 @@ func (loader *PGLoader) DropSchema(schema string) {
 	} else {
 		loader.logger.Println("Execute SQL: ", DropSchemaSQL)
 	}
-}
-
-func (loader *PGLoader) LoadByURL(url string, tableName string, jsonStructType reflect.Type) (int64, error) {
-	var ret int64
-
-	if loader.schema == "" {
-		return ret, errors.New("schema must be created first")
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return ret, errors.New("Failed to access the url, Error: " + err.Error())
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return ret, err
-	}
-
-	tableName = loader.schema + "." + tableName
-	return loader.LoadByJsonText(string(body), tableName, jsonStructType)
 }
 
 func NVL(val interface{}, defaultVal interface{}) interface{} {

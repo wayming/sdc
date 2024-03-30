@@ -7,9 +7,9 @@ services:
       context: .
       dockerfile: ./Dockerfile.sdc
     volumes:
-      - .:/home/appuser
+      - ..:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
-    command: ["bash", "stock_data_collector_init.sh"]
+    command: ["bash", "docker/stock_data_collector_init.sh"]
     ports:
       - "5001:5001"
     environment:

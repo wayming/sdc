@@ -196,7 +196,7 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 		{
 			name: "LoadByJsonText",
 			args: args{
-				jsonText:       JSON_TEXT2,
+				jsonText:       JSON_TEXT,
 				tableName:      "sdc_tickers",
 				jsonStructType: reflect.TypeOf(jsonStruct),
 			},

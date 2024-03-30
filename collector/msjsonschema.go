@@ -1,4 +1,4 @@
-package json2db
+package collector
 
 type Tickers struct {
 	Name          string `json:"name"`
@@ -49,4 +49,14 @@ type EOD struct {
 	Symbol      string  `json:"symbol"`
 	Exchange    string  `json:"exchange"`
 	Date        string  `json:"date"`
+}
+
+type Pagination struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Count  int `json:"count"`
+	Total  int `json:"total"`
+}
+type TickersBody struct {
+	Data []Tickers `json:"data"`
 }

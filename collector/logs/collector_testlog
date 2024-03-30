@@ -1,0 +1,4 @@
+mscollectortest: 2024/03/30 10:16:40 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
+mscollectortest: 2024/03/30 10:16:40 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
+mscollectortest: 2024/03/30 10:16:42 Execute SQL:  CREATE TABLE IF NOT EXISTS sdc_test.sdc_tickers (Country varchar(1024), HasEod boolean, HasIntraday boolean, Name varchar(1024), StockExchange varchar(1024), Symbol varchar(1024));
+mscollectortest: 2024/03/30 10:16:42 100 rows were loaded into  sdc_test :sdc_tickers table
