@@ -73,6 +73,31 @@ func (loader *PGLoader) DropSchema(schema string) {
 	}
 }
 
+func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error) {
+	rows, err := loader.db.Query(sql)
+	if err != nil {
+		argsStr := fmt.Sprintf("%v", args)
+		return nil, errors.New("Failed to run query [" + sql + "] with parameters " + argsStr + ". Error: " + err.Error())
+	}
+	defer rows.Close()
+
+	sliceType := reflect.SliceOf(structType)
+	sliceValue := reflect.MakeSlice(sliceType, 0, 0)
+	for rows.Next() {
+		rowStruct := reflect.New(structType).Elem()
+		fields := make([]interface{}, rowStruct.NumField())
+		for i := 0; i < len(fields); i++ {
+			fields[i] = rowStruct.Field(i).Addr().Interface()
+		}
+
+		if err := rows.Scan(fields...); err != nil {
+			return nil, errors.New("Failed to extract fields from the query result. Error: " + err.Error())
+		}
+		sliceValue = reflect.Append(sliceValue, rowStruct)
+	}
+	return sliceValue.Interface(), nil
+}
+
 func NVL(val interface{}, defaultVal interface{}) interface{} {
 	if val == nil {
 		return defaultVal

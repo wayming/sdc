@@ -98,3 +98,48 @@ func (collector *MSCollector) CollectTickers() error {
 	collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
 	return nil
 }
+
+func (collector *MSCollector) CollectEOD() error {
+	type queryResult struct {
+		Symbol string
+	}
+	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "sdc_tickers"
+	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult](), nil)
+	if err != nil {
+		return errors.New("Failed to run query " + sqlQuerySymbol + ". Error: " + err.Error())
+	}
+	queryResults, ok := results.([]queryResult)
+	if !ok {
+		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
+
+	}
+
+	for _, row := range queryResults {
+		collector.logger.Println(row.Symbol)
+	}
+
+	return nil
+	// apiURL := "http://api.marketstack.com/v1/eod"
+	// tickersTable := "sdc_eod"
+	// jsonText, err := collector.ReadURL(apiURL)
+	// if err != nil {
+	// 	return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
+	// }
+
+	// var data EOD
+	// if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
+	// 	return errors.New("Failed to unmarshal json text, Error: " + err.Error())
+	// }
+	// dataJsonText, err := json.Marshal(data.Data)
+	// if err != nil {
+	// 	return errors.New("Failed to marshal json struct, Error: " + err.Error())
+	// }
+
+	// var tickers Tickers
+	// numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJsonText), tickersTable, reflect.TypeOf(tickers))
+	// if err != nil {
+	// 	return errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
+	// }
+	// collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
+	return nil
+}
