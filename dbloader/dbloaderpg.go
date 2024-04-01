@@ -98,23 +98,6 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 	return sliceValue.Interface(), nil
 }
 
-func NVL(val interface{}, defaultVal interface{}) interface{} {
-	if val == nil {
-		return defaultVal
-	}
-	return val
-}
-
-func interfaceSliceToStringSlice(input []interface{}) []string {
-	var result []string
-	for _, v := range input {
-		// Convert each interface{} value to string
-		strVal := fmt.Sprintf("%v", NVL(v, ""))
-		result = append(result, strVal)
-	}
-	return result
-}
-
 func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
 	var rowsInserted int64
 
@@ -127,50 +110,11 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Create table
-	tableCreateSQL, err := converter.GenCreateTableSQLByJson2(jsonText, loader.schema+"."+tableName, jsonStructType)
+	tableCreateSQL, err := converter.GenCreateTable(jsonText, loader.schema+"."+tableName, jsonStructType)
 	if err != nil {
 		return rowsInserted, err
 	}
 	log.Println("SQL=", tableCreateSQL)
-
-	// _, err = loader.db.Exec(createSQL)
-	// if err != nil {
-	// 	return 0, errors.New("Failed to execute SQL " + createSQL + ". Error: " + err.Error())
-	// }
-
-	// // Insert
-	// fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
-	// if err != nil {
-	// 	return 0, err
-	// }
-
-	// // Generate SQL
-	// sql := "COPY " + tableName + " ("
-	// for idx, field := range fields {
-	// 	sql += field
-	// 	if idx < len(fields)-1 {
-	// 		sql += ","
-	// 	}
-	// }
-	// sql += ") FROM STDIN WITH CSV"
-	// // Prepare the COPY data as CSV format
-	// copyDataCSV := ""
-	// for _, row := range rows {
-	// 	copyDataCSV += strings.Join(interfaceSliceToStringSlice(row), ",")
-	// 	copyDataCSV += "\n"
-	// }
-
-	// log.Println("SQL=", sql)
-	// log.Println("CSV", copyDataCSV)
-
-	// result, err := loader.db.Exec(sql, copyDataCSV)
-	// if err != nil {
-	// 	return 0, errors.New("Failed to execute SQL " + sql +
-	// 		". CSV: " + copyDataCSV + ". Error: " + err.Error())
-	// }
-	// rowsInserted, _ = result.RowsAffected()
-	// loader.logger.Println("Execute SQL: ", sql, ". Inserted rows ", rowsInserted)
-	// return rowsInserted, nil
 
 	tx, _ := loader.db.Begin()
 	if _, err := tx.Exec(tableCreateSQL); err != nil {
@@ -223,44 +167,4 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, errors.New("Failed to commit CopyIn statement. Error: " + err.Error())
 	}
 	return int64(len(rows)), nil
-}
-
-// func (loader *PGLoader) loadJsonResponseObj(resp Response, tableName string) int {
-// 	converter := json2db.NewJsonToPGSQLConverter()
-// 	allObjs := converter.FlattenJsonArrayObjs(resp.Data, tableName)
-// 	numAllObjs := 0
-// 	for tbl, objs := range allObjs {
-// 		tableCreateSQL := converter.GenCreateTableSQLByObj(objs[0], tbl)
-// 		if _, err := loader.db.Exec(tableCreateSQL); err != nil {
-// 			loader.logger.Fatal("Failed to execute SQL ", tableCreateSQL, ". Error ", err)
-// 		} else {
-// 			loader.logger.Println("Execute SQL: ", tableCreateSQL)
-// 		}
-// 		numAllObjs += len(objs)
-// 	}
-// 	for tbl, objs := range allObjs {
-// 		insertSQL, allRows := converter.GenInsertSQLByJsonObjs(objs, tbl)
-
-// 		for _, bindRow := range allRows {
-
-// 			if _, err := loader.db.Exec(insertSQL, bindRow...); err != nil {
-// 				loader.logger.Fatal("Failed to execute SQL ", insertSQL, ". Bind parameters ", bindParamsAsString(bindRow), ". Error ", err)
-// 			} else {
-// 				loader.logger.Println("Execute SQL: ", insertSQL)
-// 			}
-// 		}
-// 	}
-
-// 	return numAllObjs
-// }
-
-func bindParamsAsString(binds []interface{}) string {
-	bindString := "["
-	for idx, bind := range binds {
-		bindString += fmt.Sprintf("%v", bind)
-		if idx < len(binds)-1 {
-			bindString += ", "
-		}
-	}
-	return bindString + "]"
 }

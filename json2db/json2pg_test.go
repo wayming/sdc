@@ -115,7 +115,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson(t *testing.T) {
 	}
 }
 
-func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
+func TestJsonToPGSQLConverter_GenInsert(t *testing.T) {
 	type fields struct {
 		tableFieldsMap map[string][]string
 	}
@@ -156,13 +156,13 @@ func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 			d := &JsonToPGSQLConverter{
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			gotSql, gotBindVariables := d.GenInsertSQL(tt.args.jsonText, tt.args.tableName)
+			gotSql, gotBindVariables := d.GenInsert(tt.args.jsonText, tt.args.tableName)
 			if gotSql != tt.wantSql {
-				t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotSql = %v, wantSql %v", gotSql, tt.wantSql)
+				t.Errorf("JsonToPGSQLConverter.GenInsert() gotSql = %v, wantSql %v", gotSql, tt.wantSql)
 			}
 			if !reflect.DeepEqual(gotBindVariables, tt.wantBindVariables) {
 
-				t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotBindVariables = %v, wantBindVariables %v", gotBindVariables, tt.wantBindVariables)
+				t.Errorf("JsonToPGSQLConverter.GenInsert() gotBindVariables = %v, wantBindVariables %v", gotBindVariables, tt.wantBindVariables)
 			}
 		})
 	}
@@ -241,7 +241,7 @@ func TestJsonToPGSQLConverter_GenBulkInsertSQLByJsonObjs(t *testing.T) {
 	}
 }
 
-func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
+func TestJsonToPGSQLConverter_GenCreateTable(t *testing.T) {
 	type fields struct {
 		schema         string
 		tableFieldsMap map[string][]string
@@ -259,7 +259,7 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "GenCreateTableSQLByJson2",
+			name:   "GenCreateTable",
 			fields: fields{TEST_SCHEMA, JSON_FIELDS_MAP},
 			args: args{
 				jsonText:     JSON_TEXT,
@@ -275,8 +275,8 @@ func TestJsonToPGSQLConverter_GenCreateTableSQLByJson2(t *testing.T) {
 				schema:         tt.fields.schema,
 				tableFieldsMap: tt.fields.tableFieldsMap,
 			}
-			if got, _ := d.GenCreateTableSQLByJson2(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
-				t.Errorf("JsonToPGSQLConverter.GenCreateTableSQLByJson2() = %v, want %v", got, tt.want)
+			if got, _ := d.GenCreateTable(tt.args.jsonText, tt.args.tableName, tt.args.responseType); got != tt.want {
+				t.Errorf("JsonToPGSQLConverter.GenCreateTable() = %v, want %v", got, tt.want)
 			}
 		})
 	}
