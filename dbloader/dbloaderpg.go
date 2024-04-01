@@ -24,11 +24,11 @@ type Response struct {
 	Data []json2db.JsonObject `json:"data"`
 }
 
-func NewPGLoader(logger *log.Logger) *PGLoader {
+func NewPGLoader(logger *log.Logger, dbSchema string) *PGLoader {
 	// log.SetFlags(log.Ldate | log.Ltime)
 
 	loader := PGLoader{
-		db: nil, schema: "", logger: logger,
+		db: nil, schema: dbSchema, logger: logger,
 		sqlConverter: json2db.NewJsonToPGSQLConverter()}
 
 	return &loader
@@ -117,6 +117,8 @@ func interfaceSliceToStringSlice(input []interface{}) []string {
 
 func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
 	var rowsInserted int64
+
+	loader.logger.Println("Load JSON text:", jsonText)
 
 	if loader.schema == "" {
 		loader.logger.Fatal("Schema must be created first")

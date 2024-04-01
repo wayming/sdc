@@ -63,7 +63,7 @@ func (d *JsonToPGSQLConverter) GenCreateTableSQLByJson2(jsonText string, tableNa
 		}
 
 		fieldType := fieldValue.Type()
-		fmt.Println("fieldName", fieldName, "fieldType=", fieldType.Kind(), "fieldValue=", fieldValue.Interface())
+		fmt.Println("fieldName=", fieldName, "fieldType=", fieldType.Kind(), "fieldValue=", fieldValue.Interface())
 		colType, err := d.deriveColType2(fieldType)
 		if err != nil {
 			err := errors.New("Failed to derive type for " + fieldValue.String() + ", error " + err.Error())
@@ -371,6 +371,8 @@ func (d *JsonToPGSQLConverter) deriveColType2(rtype reflect.Type) (string, error
 		colType = "integer"
 	case reflect.Float32:
 		colType = "real"
+	case reflect.Float64:
+		colType = "double precision"
 	case reflect.Bool:
 		colType = "boolean"
 	case reflect.String:
@@ -388,7 +390,7 @@ func (d *JsonToPGSQLConverter) deriveColType2(rtype reflect.Type) (string, error
 			}
 		}
 	default:
-		err = errors.New("unknown type")
+		err = errors.New("unknown type " + rtype.Kind().String())
 	}
 
 	return colType, err

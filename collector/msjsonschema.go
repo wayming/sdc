@@ -60,3 +60,6 @@ type Pagination struct {
 type TickersBody struct {
 	Data []Tickers `json:"data"`
 }
+type EODBody struct {
+	Data []EOD `json:"data"`
+}

@@ -19,7 +19,7 @@ func setup() {
 	file, _ := os.OpenFile(TEST_LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
 	logger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
-	dbLoader = dbloader.NewPGLoader(logger)
+	dbLoader = dbloader.NewPGLoader(logger, TEST_SCHEMA_NAME)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),

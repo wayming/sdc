@@ -28,7 +28,7 @@ func NewMSCollector() *MSCollector {
 		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
 	}
 	logger := log.New(file, "mscollector: ", log.Ldate|log.Ltime)
-	dbLoader := dbloader.NewPGLoader(logger)
+	dbLoader := dbloader.NewPGLoader(logger, SCHEMA_NAME)
 
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -47,7 +47,7 @@ func NewMSCollector() *MSCollector {
 	return &collector
 }
 
-func (collector *MSCollector) ReadURL(url string) (string, error) {
+func (collector *MSCollector) ReadURL(url string, params map[string]string) (string, error) {
 	var jsonBody string
 
 	httpClient := http.Client{}
@@ -58,6 +58,9 @@ func (collector *MSCollector) ReadURL(url string) (string, error) {
 
 	q := req.URL.Query()
 	q.Add("access_key", collector.msAccessKey)
+	for key, val := range params {
+		q.Add(key, val)
+	}
 	req.URL.RawQuery = q.Encode()
 
 	res, err := httpClient.Do(req)
@@ -76,7 +79,7 @@ func (collector *MSCollector) ReadURL(url string) (string, error) {
 func (collector *MSCollector) CollectTickers() error {
 	apiURL := "http://api.marketstack.com/v1/tickers"
 	tickersTable := "sdc_tickers"
-	jsonText, err := collector.ReadURL(apiURL)
+	jsonText, err := collector.ReadURL(apiURL, nil)
 	if err != nil {
 		return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
@@ -103,7 +106,11 @@ func (collector *MSCollector) CollectEOD() error {
 	type queryResult struct {
 		Symbol string
 	}
-	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "sdc_tickers"
+
+	apiURL := "http://api.marketstack.com/v1/eod"
+	eodTable := "sdc_eod"
+
+	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "sdc_tickers limit 20"
 	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult](), nil)
 	if err != nil {
 		return errors.New("Failed to run query " + sqlQuerySymbol + ". Error: " + err.Error())
@@ -115,31 +122,34 @@ func (collector *MSCollector) CollectEOD() error {
 	}
 
 	for _, row := range queryResults {
-		collector.logger.Println(row.Symbol)
+		collector.logger.Println("Load EDO for symbool", row.Symbol)
+		jsonText, err := collector.ReadURL(apiURL, map[string]string{"symbols": row.Symbol})
+		if err != nil {
+			return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
+		}
+		var data EODBody
+		if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
+			return errors.New("Failed to unmarshal json text, Error: " + err.Error())
+		}
+
+		if len(data.Data) > 0 {
+
+			dataJsonText, err := json.Marshal(data.Data)
+			if err != nil {
+				return errors.New("Failed to marshal json struct, Error: " + err.Error())
+			}
+
+			var eod EOD
+			numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJsonText), eodTable, reflect.TypeOf(eod))
+			if err != nil {
+				return errors.New("Failed to load json text to table " + eodTable + ". Error: " + err.Error())
+			}
+			collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+eodTable+" table")
+		} else {
+			collector.logger.Println("No data found for symbol", row.Symbol)
+		}
+
 	}
 
-	return nil
-	// apiURL := "http://api.marketstack.com/v1/eod"
-	// tickersTable := "sdc_eod"
-	// jsonText, err := collector.ReadURL(apiURL)
-	// if err != nil {
-	// 	return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
-	// }
-
-	// var data EOD
-	// if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
-	// 	return errors.New("Failed to unmarshal json text, Error: " + err.Error())
-	// }
-	// dataJsonText, err := json.Marshal(data.Data)
-	// if err != nil {
-	// 	return errors.New("Failed to marshal json struct, Error: " + err.Error())
-	// }
-
-	// var tickers Tickers
-	// numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJsonText), tickersTable, reflect.TypeOf(tickers))
-	// if err != nil {
-	// 	return errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
-	// }
-	// collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
 	return nil
 }
