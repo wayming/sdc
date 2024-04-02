@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -15,56 +14,36 @@ import (
 const MAX_CHAR_SIZE = 1024
 
 type JsonToPGSQLConverter struct {
-	schema         string
-	tableFieldsMap map[string][]string
 }
 
 func NewJsonToPGSQLConverter() *JsonToPGSQLConverter {
-	log.SetFlags(log.Ldate | log.Ltime)
-	return &JsonToPGSQLConverter{tableFieldsMap: make(map[string][]string)}
+	return &JsonToPGSQLConverter{}
 }
 
 func (d *JsonToPGSQLConverter) GenCreateSchema(schema string) string {
-	d.schema = schema
 	sql := "CREATE SCHEMA IF NOT EXISTS " + schema
 	return sql
 }
 
 func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
-	d.schema = schema
 	sql := "DROP SCHEMA IF EXISTS " + schema + " CASCADE"
 	return sql
 }
 
-func (d *JsonToPGSQLConverter) GenCreateTable(jsonText string, tableName string, responseType reflect.Type) (string, error) {
-	sliceType := reflect.SliceOf(responseType)
-	slicePtr := reflect.New(sliceType)
-	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
-	sliceVal := slicePtr.Elem()
-	if err != nil || sliceVal.Len() == 0 {
-		err := errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
-		return "", err
-	}
-
+// Generate table creation SQL
+func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, responseType reflect.Type) (string, error) {
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
 	for _, fieldName := range orderedFields(responseType) {
-		if _, ok := d.tableFieldsMap[tableName]; !ok {
-			d.tableFieldsMap[tableName] = make([]string, 0)
-		}
-		d.tableFieldsMap[tableName] = append(d.tableFieldsMap[tableName], strings.ToLower(fieldName))
-		fieldValue := sliceVal.Index(0).FieldByName(fieldName)
 
-		// Check if the field value is valid before proceeding
-		if !fieldValue.IsValid() {
-			log.Println("Field value is invalid for field:", fieldName)
-			continue
+		field, ok := responseType.FieldByName(fieldName)
+		if !ok {
+			return "", errors.New("Failed to get field " + fieldName + " from entity type " + responseType.Name())
 		}
-
-		fieldType := fieldValue.Type()
-		fmt.Println("fieldName=", fieldName, "fieldType=", fieldType.Kind(), "fieldValue=", fieldValue.Interface())
-		colType, err := d.deriveColType(fieldType)
+		colType, err := d.deriveColType(field.Type)
 		if err != nil {
-			err := errors.New("Failed to derive type for " + fieldValue.String() + ", error " + err.Error())
+			err := errors.New(
+				"Failed to derive type for field " + fieldName +
+					", field value type is  " + field.Type.Name() + ". Error: " + err.Error())
 			return "", err
 		}
 		ddl += fieldName + " " + colType + ", "
@@ -74,23 +53,25 @@ func (d *JsonToPGSQLConverter) GenCreateTable(jsonText string, tableName string,
 	return ddl, nil
 }
 
-func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, jsonStructType reflect.Type) ([]string, [][]interface{}, error) {
+// Unmarshals the specified JSON text that represents array of entities.
+// Returns a slice of column names and a slice of rows. These artifacts can be used as the input for the bulk insert interfaces.
+func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, entityStructType reflect.Type) ([]string, [][]interface{}, error) {
 	var rows [][]interface{}
-	fields := d.tableFieldsMap[tableName]
 
-	sliceType := reflect.SliceOf(jsonStructType)
+	// Unmarshal the JSON text.
+	sliceType := reflect.SliceOf(entityStructType)
 	slicePtr := reflect.New(sliceType)
-
 	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
-		return fields, rows, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+		return nil, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
 	}
 
 	// Generate Bind Variables
+	fields := orderedFields(entityStructType)
 	for idx := 0; idx < sliceVal.Len(); idx++ {
 		var row []interface{}
-		for _, fieldName := range orderedFields(jsonStructType) {
+		for _, fieldName := range fields {
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
 			if fieldValue.Type().Kind() == reflect.Struct {
 				nestedFieldValue := fieldValue.FieldByName("Name")
@@ -105,21 +86,22 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 	return fields, rows, nil
 }
 
-func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, jsonStructType reflect.Type) (string, [][]interface{}, error) {
+// Unmarshals the specified JSON text that represents array of entities.
+// Returns insert SQL with slice of rows. Each row is a slice with each element represents a field value.
+func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, entityStructType reflect.Type) (string, [][]interface{}, error) {
 	var sql string
 	var rows [][]interface{}
 
-	sliceType := reflect.SliceOf(jsonStructType)
+	sliceType := reflect.SliceOf(entityStructType)
 	slicePtr := reflect.New(sliceType)
-
 	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
-		return sql, rows, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+		return sql, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
 	}
 
 	// Generage SQL
-	fields := d.tableFieldsMap[tableName]
+	fields := orderedFields(entityStructType)
 	sql = "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
 	for index := range fields {
 		if index > 0 {
@@ -132,7 +114,7 @@ func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, json
 	// Generate Bind Variables
 	for idx := 0; idx < sliceVal.Len(); idx++ {
 		var row []interface{}
-		for _, fieldName := range orderedFields(jsonStructType) {
+		for _, fieldName := range fields {
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
 			if fieldValue.Type().Kind() == reflect.Struct {
 				nestedFieldValue := fieldValue.FieldByName("Name")
