@@ -96,7 +96,7 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 				tableName:        TEST_TABLE,
 				entityStructType: reflect.TypeFor[JsonEntityStruct](),
 			},
-			wantFields: []string{"Field1", "Field2", "Field3", "Field4", "Field5"},
+			wantFields: []string{"field1", "field2", "field3", "field4", "field5"},
 			wantValues: [][]interface{}{
 				{"strVal", 10, 1.0, false, "strVal2"},
 				{"strVal3", 20, 2.0, true, "strVal2"},
@@ -143,7 +143,7 @@ func TestJsonToPGSQLConverter_GenInsert(t *testing.T) {
 				tableName:        TEST_TABLE,
 				entityStructType: reflect.TypeFor[JsonEntityStruct](),
 			},
-			wantSQL: "INSERT INTO json2pg_test (Field1, Field2, Field3, Field4, Field5) " +
+			wantSQL: "INSERT INTO json2pg_test (field1, field2, field3, field4, field5) " +
 				"VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
 			wantFieldValues: [][]interface{}{
 				{"strVal", 10, 1.0, false, "strVal2"},

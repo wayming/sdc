@@ -17,16 +17,13 @@ type PGLoader struct {
 	schema       string
 	sqlConverter json2db.JsonToSQLConverter
 	logger       *log.Logger
-	apiKey       string
 }
 
 type Response struct {
 	Data []json2db.JsonObject `json:"data"`
 }
 
-func NewPGLoader(logger *log.Logger, dbSchema string) *PGLoader {
-	// log.SetFlags(log.Ldate | log.Ltime)
-
+func NewPGLoader(dbSchema string, logger *log.Logger) *PGLoader {
 	loader := PGLoader{
 		db: nil, schema: dbSchema, logger: logger,
 		sqlConverter: json2db.NewJsonToPGSQLConverter()}
@@ -60,6 +57,13 @@ func (loader *PGLoader) CreateSchema(schema string) {
 		loader.logger.Fatal("Failed to execute SQL ", createSchemaSQL, ". Error ", err)
 	} else {
 		loader.logger.Println("Execute SQL: ", createSchemaSQL)
+	}
+
+	setPathSQL := "SET search_path TO " + schema
+	if _, err := loader.db.Exec(setPathSQL); err != nil {
+		loader.logger.Fatal("Failed to execute SQL ", setPathSQL, ". Error ", err)
+	} else {
+		loader.logger.Println("Execute SQL: ", setPathSQL)
 	}
 }
 
@@ -110,7 +114,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Create table
-	tableCreateSQL, err := converter.GenCreateTable(jsonText, loader.schema+"."+tableName, jsonStructType)
+	tableCreateSQL, err := converter.GenCreateTable(tableName, jsonStructType)
 	if err != nil {
 		return rowsInserted, err
 	}
@@ -125,7 +129,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	tx.Commit()
 
 	// Insert
-	fields, rows, err := converter.GenBulkInsert(jsonText, loader.schema+"."+tableName, jsonStructType)
+	fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
 	if err != nil {
 		return 0, err
 	}
@@ -136,7 +140,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}
 
-	stmt, err := tx.Prepare(pq.CopyInSchema(loader.schema, tableName, fields...))
+	stmt, err := tx.Prepare(pq.CopyIn(tableName, fields...))
 	if err != nil {
 		tx.Rollback()
 		return 0, errors.New("Failed to prepare CopyIn statement. Error: " + err.Error())

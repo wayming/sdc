@@ -83,7 +83,12 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 		rows = append(rows, row)
 	}
 
-	return fields, rows, nil
+	// Column names are in lower case
+	var cols []string
+	for _, field := range fields {
+		cols = append(cols, strings.ToLower(field))
+	}
+	return cols, rows, nil
 }
 
 // Unmarshals the specified JSON text that represents array of entities.
@@ -102,7 +107,7 @@ func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, enti
 
 	// Generage SQL
 	fields := orderedFields(entityStructType)
-	sql = "INSERT INTO " + tableName + " (" + strings.Join(fields, ", ") + ") VALUES ("
+	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(fields, ", ")) + ") VALUES ("
 	for index := range fields {
 		if index > 0 {
 			sql = sql + ", "

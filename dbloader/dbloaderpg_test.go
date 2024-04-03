@@ -1,14 +1,12 @@
 package dbloader
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"reflect"
 	"testing"
 
 	_ "github.com/lib/pq"
-	"github.com/wayming/sdc/json2db"
 )
 
 const JSON_TEXT = `{
@@ -89,7 +87,18 @@ const JSON_TEXT2 = `[
 	}
   ]`
 
-const SCHEMA_NAME = "sdc-test"
+type Tickers struct {
+	Name          string `json:"name"`
+	Symbol        string `json:"symbol"`
+	HasIntraday   bool   `json:"has_intraday"`
+	HasEod        bool   `json:"has_eod"`
+	Country       string `json:"country"`
+	StockExchange struct {
+		Name string `json:"name"`
+	} `json:"stock_exchange"`
+}
+
+const SCHEMA_NAME = "sdc_test"
 const LOG_FILE = "logs/dbloaderpg_test.log"
 
 var logger *log.Logger
@@ -101,23 +110,23 @@ func setup() {
 	if err != nil {
 		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
 	}
-	logger = log.New(file, "sdc-test: ", log.Ldate|log.Ltime)
+	logger = log.New(file, "sdctest: ", log.Ldate|log.Ltime)
 	logger.Println("Recreate test schema", SCHEMA_NAME)
 
-	loader = NewPGLoader(logger)
+	loader = NewPGLoader(SCHEMA_NAME, logger)
 	loader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	loader.DropSchema("sdc_test")
-	loader.CreateSchema("sdc_test")
+	loader.DropSchema(SCHEMA_NAME)
+	loader.CreateSchema(SCHEMA_NAME)
 }
 
 func teardown() {
 	defer loader.Disconnect()
 	logger.Println("Drop schema", SCHEMA_NAME, "if exists")
-	// loader.DropSchema("sdc_test")
+	loader.DropSchema(SCHEMA_NAME)
 }
 
 func TestMain(m *testing.M) {
@@ -127,66 +136,12 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func readFromCSV(csvData string) *os.File {
-	f, err := os.CreateTemp("", "csvdata*.csv")
-	if err != nil {
-		fmt.Println("Error creating temporary file:", err)
-		return nil
-	}
-	defer f.Close()
-
-	_, err = f.WriteString(csvData)
-	if err != nil {
-		fmt.Println("Error writing to temporary file:", err)
-		return nil
-	}
-
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		fmt.Println("Error seeking to the beginning of the file:", err)
-		return nil
-	}
-
-	return f
-}
-
-func TestPGLoader_LoadByJsonText2(t *testing.T) {
-	db := loader.db
-
-	copyData := [][]string{
-		{"1", "John"},
-		{"2", "Jane"},
-		{"3", "Alice"},
-	}
-
-	// Prepare the COPY data as CSV format
-	copyDataCSV := ""
-	for _, row := range copyData {
-		copyDataCSV += fmt.Sprintf("%s,%s\n", row[0], row[1])
-	}
-
-	copyDataCSV = `
-	1,John
-	2,Jane
-	3,Alice
-	`
-	_, err := db.Exec("COPY sdc_test.target_table(id, name) FROM STDIN WITH CSV", readFromCSV(copyDataCSV))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Bulk insert using COPY command executed successfully!")
-
-	fmt.Println("COPY command executed successfully!")
-}
-
 func TestPGLoader_LoadByJsonText(t *testing.T) {
 	type args struct {
 		jsonText       string
 		tableName      string
 		jsonStructType reflect.Type
 	}
-	var jsonStruct json2db.Tickers
 	tests := []struct {
 		name    string
 		args    args
@@ -196,9 +151,9 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 		{
 			name: "LoadByJsonText",
 			args: args{
-				jsonText:       JSON_TEXT,
+				jsonText:       JSON_TEXT2,
 				tableName:      "sdc_tickers",
-				jsonStructType: reflect.TypeOf(jsonStruct),
+				jsonStructType: reflect.TypeFor[Tickers](),
 			},
 			want:    2,
 			wantErr: false,

@@ -7,7 +7,7 @@ type JsonObject map[string]interface{}
 type JsonToSQLConverter interface {
 	GenCreateSchema(schema string) string
 	GenDropSchema(schema string) string
-	GenCreateTable(jsonText string, tableName string, responseType reflect.Type) (string, error)
+	GenCreateTable(tableName string, responseType reflect.Type) (string, error)
 	GenBulkInsert(jsonText string, tableName string, jsonStructType reflect.Type) ([]string, [][]interface{}, error)
 	GenInsert(jsonText string, tableName string, jsonStructType reflect.Type) (string, [][]interface{}, error)
 }
