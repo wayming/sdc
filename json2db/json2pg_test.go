@@ -5,15 +5,28 @@ import (
 	"testing"
 )
 
-const JSON_TEXT = `[{
-	"field1": "strVal",
-	"field2": 10,
-	"field3": 1.0,
-	"field4": false,
-	"field5": {
-		"name": "strVal2",
-		"nestedField2": 100
-	}}]`
+const JSON_TEXT = `[
+    {
+        "field1": "strVal",
+        "field2": 10,
+        "field3": 1,
+        "field4": false,
+        "field5": {
+            "name": "strVal2",
+            "nestedField2": 100
+        }
+    },
+    {
+        "field1": "strVal3",
+        "field2": 20,
+        "field3": 2,
+        "field4": true,
+        "field5": {
+            "name": "strVal2",
+            "nestedField2": 100
+        }
+    }
+]`
 
 type NestedJsonEntityStruct struct {
 	Name         string `json:"name"`
@@ -61,6 +74,53 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 	}
 }
 
+func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
+	type args struct {
+		jsonText         string
+		tableName        string
+		entityStructType reflect.Type
+	}
+	tests := []struct {
+		name       string
+		d          *JsonToPGSQLConverter
+		args       args
+		wantFields []string
+		wantValues [][]interface{}
+		wantErr    bool
+	}{
+		{
+			name: "GenBulkInsert",
+			d:    NewJsonToPGSQLConverter(),
+			args: args{
+				jsonText:         JSON_TEXT,
+				tableName:        TEST_TABLE,
+				entityStructType: reflect.TypeFor[JsonEntityStruct](),
+			},
+			wantFields: []string{"Field1", "Field2", "Field3", "Field4", "Field5"},
+			wantValues: [][]interface{}{
+				{"strVal", 10, 1.0, false, "strVal2"},
+				{"strVal3", 20, 2.0, true, "strVal2"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &JsonToPGSQLConverter{}
+			gotFields, gotValues, err := d.GenBulkInsert(tt.args.jsonText, tt.args.tableName, tt.args.entityStructType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotFields, tt.wantFields) {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotFields, tt.wantFields)
+			}
+			if !reflect.DeepEqual(gotValues, tt.wantValues) {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotValues, tt.wantValues)
+			}
+		})
+	}
+}
+
 func TestJsonToPGSQLConverter_GenInsert(t *testing.T) {
 	type args struct {
 		jsonText         string
@@ -87,6 +147,7 @@ func TestJsonToPGSQLConverter_GenInsert(t *testing.T) {
 				"VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
 			wantFieldValues: [][]interface{}{
 				{"strVal", 10, 1.0, false, "strVal2"},
+				{"strVal3", 20, 2.0, true, "strVal2"},
 			},
 		},
 	}
