@@ -1,9 +1,11 @@
 package dbloader
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
 
 	_ "github.com/lib/pq"
@@ -143,10 +145,11 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 		jsonStructType reflect.Type
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    int64
-		wantErr bool
+		name        string
+		args        args
+		want        int64
+		wantErr     bool
+		wantSymbols []string
 	}{
 		{
 			name: "LoadByJsonText",
@@ -155,8 +158,9 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 				tableName:      "sdc_tickers",
 				jsonStructType: reflect.TypeFor[Tickers](),
 			},
-			want:    2,
-			wantErr: false,
+			want:        2,
+			wantErr:     false,
+			wantSymbols: []string{"MSFT", "AAPL1"},
 		},
 	}
 	for _, tt := range tests {
@@ -169,6 +173,26 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("PGLoader.LoadByJsonText() = %v, want %v", got, tt.want)
 			}
+			results, err := loader.RunQuery("SELECT symbol FROM sdc_tickers", tt.args.jsonStructType)
+			if err != nil {
+				t.Errorf("PGLoader.RunQuery() error = %v", err)
+				return
+			}
+
+			tickers, ok := results.([]Tickers)
+			if !ok {
+				t.Errorf("PGLoader.RunQuery() does not return slice of Tickers")
+				return
+			}
+
+			var symbols []string
+			for _, ticker := range tickers {
+				symbols = append(symbols, ticker.Symbol)
+			}
+			if !reflect.DeepEqual(sort.StringSlice(symbols), sort.StringSlice(tt.wantSymbols)) {
+				t.Errorf("PGLoader.RunQuery() = %v, want %v", sort.StringSlice(symbols), sort.StringSlice(tt.wantSymbols))
+			}
+			fmt.Println(tickers)
 		})
 	}
 }

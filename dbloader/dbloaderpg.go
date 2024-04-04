@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
@@ -77,27 +78,44 @@ func (loader *PGLoader) DropSchema(schema string) {
 	}
 }
 
-func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error) {
-	rows, err := loader.db.Query(sql)
-	if err != nil {
-		argsStr := fmt.Sprintf("%v", args)
-		return nil, errors.New("Failed to run query [" + sql + "] with parameters " + argsStr + ". Error: " + err.Error())
+func ExistsInSlice(s []string, e string) bool {
+	for _, one := range s {
+		if e == one {
+			return true
+		}
 	}
-	defer rows.Close()
+	return false
+}
+
+func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error) {
+	stmt, err := loader.db.Prepare(sql)
+	if err != nil {
+		return nil, errors.New("Failed to run prepare [" + sql + "]. Error: " + err.Error())
+	}
+	defer stmt.Close()
 
 	sliceType := reflect.SliceOf(structType)
 	sliceValue := reflect.MakeSlice(sliceType, 0, 0)
+	rows, err := stmt.Query(args...)
+	if err != nil {
+		argsStr := fmt.Sprintf("%v", args)
+		return nil, errors.New("Failed to run bind parameters " + argsStr + ". Error: " + err.Error())
+	}
+	columns, _ := rows.Columns()
+
 	for rows.Next() {
-		rowStruct := reflect.New(structType).Elem()
-		fields := make([]interface{}, rowStruct.NumField())
-		for i := 0; i < len(fields); i++ {
-			fields[i] = rowStruct.Field(i).Addr().Interface()
+		rowValue := reflect.New(structType).Elem()
+		fields := make([]interface{}, 0)
+		for i := 0; i < structType.NumField(); i++ {
+			if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+				fields = append(fields, rowValue.Field(i).Addr().Interface())
+			}
 		}
 
 		if err := rows.Scan(fields...); err != nil {
 			return nil, errors.New("Failed to extract fields from the query result. Error: " + err.Error())
 		}
-		sliceValue = reflect.Append(sliceValue, rowStruct)
+		sliceValue = reflect.Append(sliceValue, rowValue)
 	}
 	return sliceValue.Interface(), nil
 }
