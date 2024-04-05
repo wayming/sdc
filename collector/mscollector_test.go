@@ -19,21 +19,21 @@ func setup() {
 	file, _ := os.OpenFile(TEST_LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
 	logger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
-	dbLoader = dbloader.NewPGLoader(logger, TEST_SCHEMA_NAME)
+	dbLoader = dbloader.NewPGLoader(TEST_SCHEMA_NAME, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 
-	// dbLoader.DropSchema(TEST_SCHEMA_NAME)
-	// dbLoader.CreateSchema(TEST_SCHEMA_NAME)
+	dbLoader.DropSchema(TEST_SCHEMA_NAME)
+	dbLoader.CreateSchema(TEST_SCHEMA_NAME)
 }
 
 func teardown() {
 	defer dbLoader.Disconnect()
 	logger.Println("Drop schema", TEST_SCHEMA_NAME, "if exists")
-	// loader.DropSchema(TEST_SCHEMA_NAME)
+	dbLoader.DropSchema(TEST_SCHEMA_NAME)
 }
 
 func TestMSCollector_CollectTickers(t *testing.T) {
@@ -110,6 +110,9 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 				dbLoader:    tt.fields.dbLoader,
 				logger:      tt.fields.logger,
 				msAccessKey: tt.fields.msAccessKey,
+			}
+			if err := collector.CollectTickers(); (err != nil) != tt.wantErr {
+				t.Errorf("MSCollector.CollectTickers() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := collector.CollectEOD(); (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.CollectEOD() error = %v, wantErr %v", err, tt.wantErr)

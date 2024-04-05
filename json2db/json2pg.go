@@ -34,7 +34,7 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, responseType reflect.Type) (string, error) {
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
 	for _, fieldName := range orderedFields(responseType) {
-
+		colName := strings.ToLower(fieldName)
 		field, ok := responseType.FieldByName(fieldName)
 		if !ok {
 			return "", errors.New("Failed to get field " + fieldName + " from entity type " + responseType.Name())
@@ -46,7 +46,7 @@ func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, responseType ref
 					", field value type is  " + field.Type.Name() + ". Error: " + err.Error())
 			return "", err
 		}
-		ddl += fieldName + " " + colType + ", "
+		ddl += colName + " " + colType + ", "
 	}
 	ddl = ddl[:len(ddl)-2] + ");"
 

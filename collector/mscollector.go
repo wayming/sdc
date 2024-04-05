@@ -17,7 +17,7 @@ const SCHEMA_NAME = "msdata"
 
 type MSCollector struct {
 	dbSchema    string
-	dbLoader    *dbloader.PGLoader
+	dbLoader    dbloader.DBLoader
 	logger      *log.Logger
 	msAccessKey string
 }
@@ -28,18 +28,18 @@ func NewMSCollector() *MSCollector {
 		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
 	}
 	logger := log.New(file, "mscollector: ", log.Ldate|log.Ltime)
-	dbLoader := dbloader.NewPGLoader(logger, SCHEMA_NAME)
+	loader := dbloader.NewPGLoader(SCHEMA_NAME, logger)
 
-	dbLoader.Connect(os.Getenv("PGHOST"),
+	loader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	dbLoader.CreateSchema(SCHEMA_NAME)
+	loader.CreateSchema(SCHEMA_NAME)
 
 	collector := MSCollector{
 		dbSchema:    SCHEMA_NAME,
-		dbLoader:    dbLoader,
+		dbLoader:    loader,
 		logger:      logger,
 		msAccessKey: os.Getenv("MSACCESSKEY"),
 	}
@@ -111,9 +111,9 @@ func (collector *MSCollector) CollectEOD() error {
 	eodTable := "sdc_eod"
 
 	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "sdc_tickers limit 20"
-	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult](), nil)
+	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
 	if err != nil {
-		return errors.New("Failed to run query " + sqlQuerySymbol + ". Error: " + err.Error())
+		return errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
 	}
 	queryResults, ok := results.([]queryResult)
 	if !ok {

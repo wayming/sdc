@@ -20,3 +20,4 @@ json2db/__debug_bin1212110847
 docker/pglog
 docker/pgdata
 collector/logs/collector_testlog
+collector/logs/collector_testlog

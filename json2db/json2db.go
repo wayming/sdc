@@ -2,8 +2,6 @@ package json2db
 
 import "reflect"
 
-type JsonObject map[string]interface{}
-
 type JsonToSQLConverter interface {
 	GenCreateSchema(schema string) string
 	GenDropSchema(schema string) string

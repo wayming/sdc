@@ -20,10 +20,6 @@ type PGLoader struct {
 	logger       *log.Logger
 }
 
-type Response struct {
-	Data []json2db.JsonObject `json:"data"`
-}
-
 func NewPGLoader(dbSchema string, logger *log.Logger) *PGLoader {
 	loader := PGLoader{
 		db: nil, schema: dbSchema, logger: logger,
@@ -96,27 +92,54 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 
 	sliceType := reflect.SliceOf(structType)
 	sliceValue := reflect.MakeSlice(sliceType, 0, 0)
-	rows, err := stmt.Query(args...)
-	if err != nil {
-		argsStr := fmt.Sprintf("%v", args)
-		return nil, errors.New("Failed to run bind parameters " + argsStr + ". Error: " + err.Error())
-	}
-	columns, _ := rows.Columns()
 
-	for rows.Next() {
-		rowValue := reflect.New(structType).Elem()
-		fields := make([]interface{}, 0)
-		for i := 0; i < structType.NumField(); i++ {
-			if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
-				fields = append(fields, rowValue.Field(i).Addr().Interface())
+	if args != nil {
+		rows, err := stmt.Query(args...)
+		if err != nil {
+			argsStr := fmt.Sprintf("%v", args)
+			return nil, errors.New("Failed to run bind parameters " + argsStr + ". Error: " + err.Error())
+		}
+
+		columns, _ := rows.Columns()
+
+		for rows.Next() {
+			rowValue := reflect.New(structType).Elem()
+			fields := make([]interface{}, 0)
+			for i := 0; i < structType.NumField(); i++ {
+				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+					fields = append(fields, rowValue.Field(i).Addr().Interface())
+				}
 			}
+
+			if err := rows.Scan(fields...); err != nil {
+				return nil, errors.New("Failed to extract fields from the query result. Error: " + err.Error())
+			}
+			sliceValue = reflect.Append(sliceValue, rowValue)
+		}
+	} else {
+		rows, err := stmt.Query()
+		if err != nil {
+			return nil, errors.New("Failed to run without bind parameter. Error: " + err.Error())
 		}
 
-		if err := rows.Scan(fields...); err != nil {
-			return nil, errors.New("Failed to extract fields from the query result. Error: " + err.Error())
+		columns, _ := rows.Columns()
+
+		for rows.Next() {
+			rowValue := reflect.New(structType).Elem()
+			fields := make([]interface{}, 0)
+			for i := 0; i < structType.NumField(); i++ {
+				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+					fields = append(fields, rowValue.Field(i).Addr().Interface())
+				}
+			}
+
+			if err := rows.Scan(fields...); err != nil {
+				return nil, errors.New("Failed to extract fields from the query result. Error: " + err.Error())
+			}
+			sliceValue = reflect.Append(sliceValue, rowValue)
 		}
-		sliceValue = reflect.Append(sliceValue, rowValue)
 	}
+
 	return sliceValue.Interface(), nil
 }
 
