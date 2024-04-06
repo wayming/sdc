@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/wayming/sdc/dbloader"
+	"golang.org/x/net/html"
 )
 
 const LOG_FILE = "logs/collector.log"
@@ -48,12 +50,12 @@ func NewMSCollector() *MSCollector {
 }
 
 func (collector *MSCollector) ReadURL(url string, params map[string]string) (string, error) {
-	var jsonBody string
+	var htmlContent string
 
 	httpClient := http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return jsonBody, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
+		return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
 	}
 
 	q := req.URL.Query()
@@ -65,7 +67,7 @@ func (collector *MSCollector) ReadURL(url string, params map[string]string) (str
 
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return jsonBody, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
+		return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 	}
 	defer res.Body.Close()
 
@@ -74,6 +76,50 @@ func (collector *MSCollector) ReadURL(url string, params map[string]string) (str
 		return string(body), err
 	}
 	return string(body), nil
+}
+
+func (collector *MSCollector) TraverseHTML(node *html.Node) {
+	if node.Type == html.ElementNode {
+		for _, attr := range node.Attr {
+			if attr.Key == "data-test" && attr.Val == "overview-info" {
+				collector.TraverseTable(node)
+			}
+
+			if attr.Key == "data-test" && attr.Val == "financials" {
+				collector.TraverseTable(node)
+			}
+		}
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		collector.TraverseHTML(child)
+	}
+}
+func (collector *MSCollector) TraverseTable(node *html.Node) {
+	if node.Type == html.TextNode {
+		collector.logger.Println(node.Data)
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		collector.TraverseTable(child)
+	}
+}
+
+func (collector *MSCollector) ReadStockAnalysisPage(url string, params map[string]string) (string, error) {
+	htmlContent, err := collector.ReadURL(url, params)
+	var jsonText string
+	if err != nil {
+		return jsonText, err
+	}
+
+	htmlDoc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		return jsonText, errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
+	}
+
+	collector.TraverseHTML(htmlDoc)
+
+	return jsonText, nil
 }
 
 func (collector *MSCollector) CollectTickers() error {

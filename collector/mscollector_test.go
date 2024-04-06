@@ -9,14 +9,16 @@ import (
 )
 
 const TEST_SCHEMA_NAME = "sdc_test"
-const TEST_LOG_FILE = "logs/collector_testlog"
+const TEST_LOG_FILE_BASE = "logs/collector_testlog"
 
 var logger *log.Logger
 var dbLoader *dbloader.PGLoader
 
-func setup() {
+func setup(testName string) {
 
-	file, _ := os.OpenFile(TEST_LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
+	logName := TEST_LOG_FILE_BASE + "_" + testName + ".log"
+	os.Remove(logName)
+	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
 	logger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
 	dbLoader = dbloader.NewPGLoader(TEST_SCHEMA_NAME, logger)
@@ -44,7 +46,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 		msAccessKey string
 	}
 
-	setup()
+	setup(t.Name())
 
 	tests := []struct {
 		name    string
@@ -86,7 +88,7 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 		msAccessKey string
 	}
 
-	setup()
+	setup(t.Name())
 
 	tests := []struct {
 		name    string
@@ -116,6 +118,82 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 			}
 			if err := collector.CollectEOD(); (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.CollectEOD() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+
+	teardown()
+}
+
+func TestMSCollector_ReadStockAnalysisPage(t *testing.T) {
+	type fields struct {
+		dbSchema    string
+		dbLoader    dbloader.DBLoader
+		logger      *log.Logger
+		msAccessKey string
+	}
+	type args struct {
+		url    string
+		params map[string]string
+	}
+
+	setup(t.Name())
+
+	commonTestConfig := struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		name: "ReadStockAnalysisPage",
+		fields: fields{
+			dbSchema:    TEST_SCHEMA_NAME,
+			dbLoader:    dbLoader,
+			logger:      logger,
+			msAccessKey: os.Getenv("MSACCESSKEY"),
+		},
+		args: args{
+			url:    "",
+			params: make(map[string]string, 0),
+		},
+		want:    "",
+		wantErr: false,
+	}
+
+	stockOverview := commonTestConfig
+	stockOverview.args.url = "https://stockanalysis.com/stocks/msft/"
+	financialsIncome := commonTestConfig
+	financialsIncome.args.url = "https://stockanalysis.com/stocks/msft/financials/?p=quarterly"
+	financialsBalanceShet := commonTestConfig
+	financialsBalanceShet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
+	financialsCashFlow := commonTestConfig
+	financialsCashFlow.args.url = "https://stockanalysis.com/stocks/msft/financials/cash-flow-statement/?p=quarterly"
+	financialsRatios := commonTestConfig
+	financialsRatios.args.url = "https://stockanalysis.com/stocks/msft/financials/ratios/?p=quarterly"
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{stockOverview, financialsIncome, financialsBalanceShet, financialsCashFlow, financialsRatios}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := &MSCollector{
+				dbSchema:    tt.fields.dbSchema,
+				dbLoader:    tt.fields.dbLoader,
+				logger:      tt.fields.logger,
+				msAccessKey: tt.fields.msAccessKey,
+			}
+			got, err := collector.ReadStockAnalysisPage(tt.args.url, tt.args.params)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MSCollector.ReadStockAnalysisPage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("MSCollector.ReadStockAnalysisPage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
