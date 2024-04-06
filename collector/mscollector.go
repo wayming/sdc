@@ -84,10 +84,12 @@ func (collector *MSCollector) TraverseHTML(node *html.Node) {
 			if attr.Key == "data-test" && attr.Val == "overview-info" {
 				collector.TraverseTable(node)
 			}
-
-			if attr.Key == "data-test" && attr.Val == "financials" {
+			if attr.Key == "data-test" && attr.Val == "overview-quote" {
 				collector.TraverseTable(node)
 			}
+			// if attr.Key == "data-test" && attr.Val == "financials" {
+			// 	collector.TraverseTable(node)
+			// }
 		}
 	}
 
@@ -95,13 +97,47 @@ func (collector *MSCollector) TraverseHTML(node *html.Node) {
 		collector.TraverseHTML(child)
 	}
 }
-func (collector *MSCollector) TraverseTable(node *html.Node) {
-	if node.Type == html.TextNode {
-		collector.logger.Println(node.Data)
+
+func (collector *MSCollector) FirstTextNode(node *html.Node) *html.Node {
+
+	if node.Type == html.TextNode && len(strings.TrimSpace(node.Data)) > 0 {
+		// collector.logger.Println(node.Data)
+		return node
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		collector.TraverseTable(child)
+		return collector.FirstTextNode(child)
+	}
+
+	return nil
+}
+
+func (collector *MSCollector) TraverseTable(node *html.Node) {
+	stockOverview := make(map[string]string)
+	// tbody
+	tbody := node.FirstChild
+
+	// For each tr
+	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
+		td := tr.FirstChild
+		if td != nil {
+			text1 := collector.FirstTextNode(td)
+			if text1 != nil {
+				collector.logger.Println(text1.Data)
+			}
+
+			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
+				text2 := collector.FirstTextNode(td2)
+				if text2 != nil {
+					collector.logger.Println(text2.Data)
+					stockOverview[text1.Data] = text2.Data
+					continue
+				}
+			}
+		}
+	}
+	for key, val := range stockOverview {
+		collector.logger.Println(key + "=>" + val)
 	}
 }
 
