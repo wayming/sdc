@@ -3,165 +3,35 @@ package collector
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"reflect"
-	"strings"
 
 	"github.com/wayming/sdc/dbloader"
-	"golang.org/x/net/html"
 )
 
-const LOG_FILE = "logs/collector.log"
-const SCHEMA_NAME = "msdata"
-
 type MSCollector struct {
-	dbSchema    string
 	dbLoader    dbloader.DBLoader
 	logger      *log.Logger
+	dbSchema    string
 	msAccessKey string
 }
 
-func NewMSCollector() *MSCollector {
-	file, err := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
-	}
-	logger := log.New(file, "mscollector: ", log.Ldate|log.Ltime)
-	loader := dbloader.NewPGLoader(SCHEMA_NAME, logger)
-
-	loader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	loader.CreateSchema(SCHEMA_NAME)
-
+func NewMSCollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *MSCollector {
+	loader.CreateSchema(schema)
 	collector := MSCollector{
-		dbSchema:    SCHEMA_NAME,
 		dbLoader:    loader,
 		logger:      logger,
+		dbSchema:    schema,
 		msAccessKey: os.Getenv("MSACCESSKEY"),
 	}
-
 	return &collector
-}
-
-func (collector *MSCollector) ReadURL(url string, params map[string]string) (string, error) {
-	var htmlContent string
-
-	httpClient := http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
-	}
-
-	q := req.URL.Query()
-	q.Add("access_key", collector.msAccessKey)
-	for key, val := range params {
-		q.Add(key, val)
-	}
-	req.URL.RawQuery = q.Encode()
-
-	res, err := httpClient.Do(req)
-	if err != nil {
-		return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return string(body), err
-	}
-	return string(body), nil
-}
-
-func (collector *MSCollector) TraverseHTML(node *html.Node) {
-	if node.Type == html.ElementNode {
-		for _, attr := range node.Attr {
-			if attr.Key == "data-test" && attr.Val == "overview-info" {
-				collector.TraverseTable(node)
-			}
-			if attr.Key == "data-test" && attr.Val == "overview-quote" {
-				collector.TraverseTable(node)
-			}
-			// if attr.Key == "data-test" && attr.Val == "financials" {
-			// 	collector.TraverseTable(node)
-			// }
-		}
-	}
-
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		collector.TraverseHTML(child)
-	}
-}
-
-func (collector *MSCollector) FirstTextNode(node *html.Node) *html.Node {
-
-	if node.Type == html.TextNode && len(strings.TrimSpace(node.Data)) > 0 {
-		// collector.logger.Println(node.Data)
-		return node
-	}
-
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		return collector.FirstTextNode(child)
-	}
-
-	return nil
-}
-
-func (collector *MSCollector) TraverseTable(node *html.Node) {
-	stockOverview := make(map[string]string)
-	// tbody
-	tbody := node.FirstChild
-
-	// For each tr
-	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
-		td := tr.FirstChild
-		if td != nil {
-			text1 := collector.FirstTextNode(td)
-			if text1 != nil {
-				collector.logger.Println(text1.Data)
-			}
-
-			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
-				text2 := collector.FirstTextNode(td2)
-				if text2 != nil {
-					collector.logger.Println(text2.Data)
-					stockOverview[text1.Data] = text2.Data
-					continue
-				}
-			}
-		}
-	}
-	for key, val := range stockOverview {
-		collector.logger.Println(key + "=>" + val)
-	}
-}
-
-func (collector *MSCollector) ReadStockAnalysisPage(url string, params map[string]string) (string, error) {
-	htmlContent, err := collector.ReadURL(url, params)
-	var jsonText string
-	if err != nil {
-		return jsonText, err
-	}
-
-	htmlDoc, err := html.Parse(strings.NewReader(htmlContent))
-	if err != nil {
-		return jsonText, errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
-	}
-
-	collector.TraverseHTML(htmlDoc)
-
-	return jsonText, nil
 }
 
 func (collector *MSCollector) CollectTickers() error {
 	apiURL := "http://api.marketstack.com/v1/tickers"
 	tickersTable := "sdc_tickers"
-	jsonText, err := collector.ReadURL(apiURL, nil)
+	jsonText, err := ReadURL(apiURL, nil)
 	if err != nil {
 		return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
@@ -205,7 +75,7 @@ func (collector *MSCollector) CollectEOD() error {
 
 	for _, row := range queryResults {
 		collector.logger.Println("Load EDO for symbool", row.Symbol)
-		jsonText, err := collector.ReadURL(apiURL, map[string]string{"symbols": row.Symbol})
+		jsonText, err := ReadURL(apiURL, map[string]string{"symbols": row.Symbol})
 		if err != nil {
 			return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 		}
