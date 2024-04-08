@@ -36,10 +36,10 @@ func setupSATest(testName string) {
 func teardownSATest() {
 	defer saTestDBLoader.Disconnect()
 	saTestLogger.Println("Drop schema", SA_TEST_SCHEMA_NAME, "if exists")
-	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
+	// saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
 }
 
-func TestMSCollector_ReadStockAnalysisPage(t *testing.T) {
+func TestMSCollector_ReadOverallPage(t *testing.T) {
 	type fields struct {
 		dbLoader dbloader.DBLoader
 		logger   *log.Logger
@@ -58,7 +58,7 @@ func TestMSCollector_ReadStockAnalysisPage(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		name: "LoadStockAnalysisPage",
+		name: "ReadOverallPage",
 		fields: fields{
 			dbLoader: saTestDBLoader,
 			logger:   saTestLogger,
@@ -86,20 +86,20 @@ func TestMSCollector_ReadStockAnalysisPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.ReadStockAnalysisOverallPage(tt.args.url, tt.args.params)
+			got, err := collector.ReadOverallPage(tt.args.url, tt.args.params)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MSCollector.ReadStockAnalysisPage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MSCollector.ReadPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if len(got) == 0 {
-				t.Errorf("MSCollector.ReadStockAnalysisPage() fails to parse %s", tt.args.url)
+				t.Errorf("MSCollector.ReadPage() fails to parse %s", tt.args.url)
 			}
 		})
 	}
 	teardownSATest()
 }
 
-func TestMSCollector_ReadStockAnalysisPageTimeSeries(t *testing.T) {
+func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	type fields struct {
 		dbLoader dbloader.DBLoader
 		logger   *log.Logger
@@ -118,7 +118,7 @@ func TestMSCollector_ReadStockAnalysisPageTimeSeries(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		name: "LoadStockAnalysisPage",
+		name: "ReadPageTimeSeries",
 		fields: fields{
 			dbLoader: saTestDBLoader,
 			logger:   saTestLogger,
@@ -132,19 +132,19 @@ func TestMSCollector_ReadStockAnalysisPageTimeSeries(t *testing.T) {
 	}
 	financialsIncome := commonTestConfig
 	financialsIncome.args.url = "https://stockanalysis.com/stocks/msft/financials/?p=quarterly"
-	// financialsBalanceShet := commonTestConfig
-	// financialsBalanceShet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
-	// financialsCashFlow := commonTestConfig
-	// financialsCashFlow.args.url = "https://stockanalysis.com/stocks/msft/financials/cash-flow-statement/?p=quarterly"
-	// financialsRatios := commonTestConfig
-	// financialsRatios.args.url = "https://stockanalysis.com/stocks/msft/financials/ratios/?p=quarterly"
+	financialsBalanceShet := commonTestConfig
+	financialsBalanceShet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
+	financialsCashFlow := commonTestConfig
+	financialsCashFlow.args.url = "https://stockanalysis.com/stocks/msft/financials/cash-flow-statement/?p=quarterly"
+	financialsRatios := commonTestConfig
+	financialsRatios.args.url = "https://stockanalysis.com/stocks/msft/financials/ratios/?p=quarterly"
 
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		wantErr bool
-	}{financialsIncome} //, financialsBalanceShet, financialsCashFlow, financialsRatios}
+	}{financialsIncome, financialsBalanceShet, financialsCashFlow, financialsRatios}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -153,15 +153,69 @@ func TestMSCollector_ReadStockAnalysisPageTimeSeries(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.ReadStockAnalysisTimeSeriesPage(tt.args.url, tt.args.params)
+			got, err := collector.ReadTimeSeriesPage(tt.args.url, tt.args.params)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MSCollector.ReadStockAnalysisTimeSeriesPage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MSCollector.ReadTimeSeriesPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if len(got) == 0 {
-				t.Errorf("MSCollector.ReadStockAnalysisTimeSeriesPage() fails to parse %s", tt.args.url)
+				t.Errorf("MSCollector.ReadTimeSeriesPage() fails to parse %s", tt.args.url)
 			}
 		})
 	}
+	teardownSATest()
+}
+
+func TestSACollector_LoadOverallPage(t *testing.T) {
+	type fields struct {
+		dbLoader dbloader.DBLoader
+		logger   *log.Logger
+		dbSchema string
+	}
+	type args struct {
+		symbol string
+	}
+
+	setupSATest(t.Name())
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+
+			name: "LoadOverallPage",
+			fields: fields{
+				dbLoader: saTestDBLoader,
+				logger:   saTestLogger,
+				dbSchema: MS_TEST_SCHEMA_NAME,
+			},
+			args: args{
+				symbol: "msft",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := collector.NewSACollector(
+				tt.fields.dbLoader,
+				tt.fields.logger,
+				tt.fields.dbSchema,
+			)
+			got, err := collector.LoadOverallPage(tt.args.symbol)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SACollector.LoadOverallPage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got == 0 {
+				t.Errorf("SACollector.LoadOverallPage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
 	teardownSATest()
 }

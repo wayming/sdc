@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -12,37 +13,38 @@ import (
 )
 
 type SACollector struct {
-	dbLoader  dbloader.DBLoader
-	logger    *log.Logger
-	dbSchema  string
-	accessKey string
+	dbLoader      dbloader.DBLoader
+	logger        *log.Logger
+	dbSchema      string
+	metricsFields map[string]map[string]reflect.Type
+	accessKey     string
 }
 
 func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *SACollector {
 	collector := SACollector{
-		dbLoader:  loader,
-		logger:    logger,
-		dbSchema:  schema,
-		accessKey: "",
+		dbLoader:      loader,
+		logger:        logger,
+		dbSchema:      schema,
+		metricsFields: AllSAMetricsFields(),
+		accessKey:     "",
 	}
-
 	return &collector
 }
 
-func (collector *SACollector) DecodeDualTableHTML(node *html.Node) (map[string]string, error) {
-	var indicatorsMap map[string]string
+func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
+	var indicatorsMap map[string]interface{}
 	var err error
 	if node.Type == html.ElementNode {
 		for _, attr := range node.Attr {
 			if attr.Key == "data-test" && attr.Val == "overview-info" {
-				indicatorsMap, err = collector.DecodeSimpleTable(node)
+				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
 				if err != nil {
 					return nil, errors.New("Faield to decode html table overview-info. Error: " + err.Error())
 				}
 
 			}
 			if attr.Key == "data-test" && attr.Val == "overview-quote" {
-				indicatorsMap, err = collector.DecodeSimpleTable(node)
+				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
 				if err != nil {
 					return nil, errors.New("Faield to decode html table overview-quote. Error: " + err.Error())
 				}
@@ -52,8 +54,8 @@ func (collector *SACollector) DecodeDualTableHTML(node *html.Node) (map[string]s
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		var moreIndicators map[string]string
-		if moreIndicators, err = collector.DecodeDualTableHTML(child); err != nil {
+		var moreIndicators map[string]interface{}
+		if moreIndicators, err = collector.DecodeDualTableHTML(child, dataStructTypeName); err != nil {
 			return nil, err
 		}
 		if indicatorsMap, err = concatMaps(indicatorsMap, moreIndicators); err != nil {
@@ -98,14 +100,55 @@ func (collector *SACollector) FirstTextNode(node *html.Node) *html.Node {
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		return collector.FirstTextNode(child)
+		textNode := collector.FirstTextNode(child)
+		if textNode != nil {
+			return textNode
+		}
 	}
 
 	return nil
 }
 
-func (collector *SACollector) DecodeSimpleTable(node *html.Node) (map[string]string, error) {
-	stockOverview := make(map[string]string)
+func normaliseJSONKey(key string) string {
+	// lower case name
+	key = strings.ToLower(key)
+
+	// trim spaces
+	key = strings.TrimSpace(key)
+
+	// replace space with underscore
+	key = strings.ReplaceAll(key, " ", "_")
+
+	// replace ampersand with underscore
+	key = strings.ReplaceAll(key, "&", "_")
+
+	// replace slash with underscore
+	key = strings.ReplaceAll(key, "/", "_")
+
+	// replace dash with underscore
+	key = strings.ReplaceAll(key, "-", "_")
+
+	// remove apostrophe
+	key = strings.ReplaceAll(key, "'", "")
+
+	// remove parenthesis
+	key = strings.ReplaceAll(key, "(", "")
+	key = strings.ReplaceAll(key, ")", "")
+
+	// remove consecutive underscore
+	pattern := `_+`
+	re := regexp.MustCompile(pattern)
+	key = re.ReplaceAllString(key, "_")
+
+	return key
+}
+
+func normaliseJSONValue(value string, vType reflect.Type) any {
+	return value
+}
+
+func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
+	stockOverview := make(map[string]interface{})
 	// tbody
 	tbody := node.FirstChild
 
@@ -125,7 +168,8 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node) (map[string]str
 				text2 := collector.FirstTextNode(td2)
 				if text2 != nil {
 					collector.logger.Println(text2.Data)
-					stockOverview[text1.Data] = text2.Data
+					stockOverview[normaliseJSONKey(text1.Data)] =
+						normaliseJSONValue(text2.Data, collector.metricsFields[dataStructTypeName][normaliseJSONKey(text1.Data)])
 					continue
 				}
 			}
@@ -161,7 +205,7 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[stri
 						collector.logger.Println("ignore ", text2.Data)
 						continue
 					}
-					dataPoint[text1.Data] = text2.Data
+					dataPoint[normaliseJSONKey(text1.Data)] = text2.Data
 					completeSeries = append(completeSeries, dataPoint)
 					continue
 				}
@@ -192,10 +236,9 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[stri
 					text2 := collector.FirstTextNode(td2)
 					if text2 != nil {
 						collector.logger.Println(text2.Data)
-
-						completeSeries[idx][text1.Data] = text2.Data
+						completeSeries[idx][normaliseJSONKey(text1.Data)] = text2.Data
+						idx++
 					}
-					idx++
 				}
 			}
 		}
@@ -205,7 +248,9 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[stri
 }
 
 // Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadStockAnalysisOverallPage(url string, params map[string]string) (string, error) {
+func (collector *SACollector) ReadOverallPage(url string, params map[string]string) (string, error) {
+	collector.logger.Println("Read " + url)
+
 	htmlContent, err := ReadURL(url, params)
 	if err != nil {
 		return "", err
@@ -220,8 +265,8 @@ func (collector *SACollector) ReadStockAnalysisOverallPage(url string, params ma
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
-
-	jsonData, err := json.Marshal(indicatorsMap)
+	mapsArray := []map[string]string{indicatorsMap}
+	jsonData, err := json.Marshal(mapsArray)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {
@@ -231,8 +276,25 @@ func (collector *SACollector) ReadStockAnalysisOverallPage(url string, params ma
 	return string(jsonData), nil
 }
 
+func (collector *SACollector) LoadOverallPage(symbol string) (int64, error) {
+	overallUrl := "https://stockanalysis.com/stocks/" + symbol
+	overalTable := "sa_overall"
+	jsonText, err := collector.ReadOverallPage(overallUrl, nil)
+	if err != nil {
+		return 0, errors.New("Failed to scrap data from url " + overallUrl + ". Error: " + err.Error())
+	}
+
+	numOfRows, err := collector.dbLoader.LoadByJsonText(jsonText, overalTable, reflect.TypeFor[StockOverview]())
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + overalTable + ". Error: " + err.Error())
+	}
+
+	collector.logger.Println(numOfRows, "rows have been loaded into", overalTable)
+	return numOfRows, nil
+}
+
 // Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadStockAnalysisTimeSeriesPage(url string, params map[string]string) (string, error) {
+func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string) (string, error) {
 	htmlContent, err := ReadURL(url, params)
 	if err != nil {
 		return "", err

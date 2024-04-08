@@ -23,4 +23,4 @@ collector/logs/collector_testlog
 collector/logs/collector_testlog
 collector/logs/collector_testlog_TestMSCollector_CollectEOD.log
 collector/logs/collector_testlog_TestMSCollector_CollectTickers.log
-collector/logs/collector_testlog_TestMSCollector_ReadStockAnalysisPage.log
+collector/logs/collector_testlog_TestMSCollector_ReadPage.log

@@ -2,18 +2,21 @@ package collector
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 )
 
-func concatMaps(maps ...map[string]string) (map[string]string, error) {
-	results := make(map[string]string)
+func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
+	results := make(map[string]interface{})
 	for _, m := range maps {
 		for k, v := range m {
 			if v2, ok := results[k]; ok {
 				// Check confliction
 				if v != v2 {
-					return nil, errors.New("Failed to concat maps, key " + k + " has conflict values " + v + " and " + v2)
+					errMsg := fmt.Sprintf("Failed to concat maps, key %s has conflict values %v and %v", k, v, v2)
+					return nil, errors.New(errMsg)
 				}
 			}
 			results[k] = v
@@ -21,6 +24,7 @@ func concatMaps(maps ...map[string]string) (map[string]string, error) {
 	}
 	return results, nil
 }
+
 func ReadURL(url string, params map[string]string) (string, error) {
 	var htmlContent string
 
@@ -47,4 +51,12 @@ func ReadURL(url string, params map[string]string) (string, error) {
 		return string(body), err
 	}
 	return string(body), nil
+}
+
+func JsonStructFieldTypeMap(jsonStructType reflect.Type) map[string]reflect.Type {
+	fieldTypeMap := make(map[string]reflect.Type)
+	for idx := 0; idx < jsonStructType.NumField(); idx++ {
+		fieldTypeMap[jsonStructType.Field(idx).Name] = jsonStructType.Field(idx).Type
+	}
+	return fieldTypeMap
 }
