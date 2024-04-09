@@ -17,7 +17,7 @@ type StockOverview struct {
 	Open              float64 `json:"open"`
 	PERatio           float64 `json:"pe_ratio"`
 	PreviousClose     float64 `json:"previous_close"`
-	PriceTarget       string  `json:"price_target"`
+	PriceTarget       float64 `json:"price_target"`
 	RevenueTTM        float64 `json:"revenue_ttm"`
 	SharesOut         float64 `json:"shares_out"`
 	Volume            float64 `json:"volume"`
@@ -158,14 +158,14 @@ type FinancialRatios struct {
 	TotalShareholderReturn string `json:"total_shareholder_return"`
 }
 
-func AllSAMetricsFields() map[string]map[string]reflect.Type {
+func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
 	saStructTypes := []reflect.Type{
 		reflect.TypeFor[StockOverview](),
 	}
 
-	allMetricsFields := make(map[string]map[string]reflect.Type)
+	allMetricsFields := make(map[string]map[string]JsonFieldMetadata)
 	for _, structType := range saStructTypes {
-		allMetricsFields[structType.Name()] = JsonStructFieldTypeMap(structType)
+		allMetricsFields[structType.Name()] = GetJsonStructMetadata(structType)
 	}
 
 	return allMetricsFields

@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/wayming/sdc/dbloader"
@@ -16,7 +17,7 @@ type SACollector struct {
 	dbLoader      dbloader.DBLoader
 	logger        *log.Logger
 	dbSchema      string
-	metricsFields map[string]map[string]reflect.Type
+	metricsFields map[string]map[string]JsonFieldMetadata
 	accessKey     string
 }
 
@@ -143,8 +144,63 @@ func normaliseJSONKey(key string) string {
 	return key
 }
 
-func normaliseJSONValue(value string, vType reflect.Type) any {
-	return value
+func stringToFloat64(value string) (any, error) {
+
+	// Remove double quotes
+	value = strings.ReplaceAll(value, "\"", "")
+
+	// Remove commas
+	value = strings.ReplaceAll(value, ",", "")
+
+	// Remove spaces
+	value = strings.ReplaceAll(value, " ", "")
+
+	// Remove (.*)
+	re := regexp.MustCompile(`\(.*\)`)
+	value = re.ReplaceAllString(value, "")
+
+	valLen := len(value)
+	re = regexp.MustCompile(`^[.\d]+[BMT]?$`)
+	if re.Match([]byte(value)) {
+
+		multiplier := 1
+		baseNumber := value
+		switch value[valLen-1] {
+		case 'M':
+			multiplier = multiplier * 1000 * 1000
+			baseNumber = value[:valLen-1]
+		case 'B':
+			multiplier = multiplier * 1000 * 1000 * 1000
+			baseNumber = value[:valLen-1]
+		case 'T':
+			multiplier = multiplier * 1000 * 1000 * 1000 * 1000
+			baseNumber = value[:valLen-1]
+		}
+
+		valFloat, err := strconv.ParseFloat(baseNumber, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		return valFloat * float64(multiplier), nil
+	} else {
+		return nil, errors.New("Failed to convert value to " + reflect.Float64.String())
+	}
+}
+func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
+	var convertedValue any
+	var err error
+
+	switch vType.Kind() {
+	case reflect.Float64:
+		if convertedValue, err = stringToFloat64(value); err != nil {
+			return nil, err
+		}
+	case reflect.String:
+		convertedValue = value
+	}
+
+	return convertedValue, nil
 }
 
 func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
@@ -167,9 +223,19 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := collector.FirstTextNode(td2)
 				if text2 != nil {
-					collector.logger.Println(text2.Data)
-					stockOverview[normaliseJSONKey(text1.Data)] =
-						normaliseJSONValue(text2.Data, collector.metricsFields[dataStructTypeName][normaliseJSONKey(text1.Data)])
+					key := normaliseJSONKey(text1.Data)
+					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], key)
+					if fieldType == nil {
+						return stockOverview, errors.New("Failed to get field type for tag " + key)
+					}
+
+					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
+					normVal, err := normaliseJSONValue(text2.Data, fieldType)
+					if err != nil {
+						return stockOverview, err
+					}
+
+					stockOverview[normaliseJSONKey(key)] = normVal
 					continue
 				}
 			}
@@ -261,12 +327,14 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	indicatorsMap, err := collector.DecodeDualTableHTML(htmlDoc)
+	collector.logger.Println("Decode html doc with JSON struct " + reflect.TypeFor[StockOverview]().Name())
+	indicatorsMap, err := collector.DecodeDualTableHTML(htmlDoc, reflect.TypeFor[StockOverview]().Name())
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
-	mapsArray := []map[string]string{indicatorsMap}
-	jsonData, err := json.Marshal(mapsArray)
+	mapSlice := []map[string]interface{}{indicatorsMap}
+
+	jsonData, err := json.Marshal(mapSlice)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {

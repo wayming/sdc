@@ -53,10 +53,27 @@ func ReadURL(url string, params map[string]string) (string, error) {
 	return string(body), nil
 }
 
-func JsonStructFieldTypeMap(jsonStructType reflect.Type) map[string]reflect.Type {
-	fieldTypeMap := make(map[string]reflect.Type)
+type JsonFieldMetadata struct {
+	FieldName    string
+	FieldType    reflect.Type
+	FieldJsonTag string
+}
+
+func GetJsonStructMetadata(jsonStructType reflect.Type) map[string]JsonFieldMetadata {
+	fieldTypeMap := make(map[string]JsonFieldMetadata)
 	for idx := 0; idx < jsonStructType.NumField(); idx++ {
-		fieldTypeMap[jsonStructType.Field(idx).Name] = jsonStructType.Field(idx).Type
+		field := jsonStructType.Field(idx)
+		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, field.Tag.Get("json")}
 	}
 	return fieldTypeMap
+}
+
+func GetFieldTypeByTag(fieldsMetadata map[string]JsonFieldMetadata, tag string) reflect.Type {
+	for _, v := range fieldsMetadata {
+		if v.FieldJsonTag == tag {
+			return v.FieldType
+		}
+	}
+
+	return nil
 }

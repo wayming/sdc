@@ -35,7 +35,7 @@ func setupSATest(testName string) {
 
 func teardownSATest() {
 	defer saTestDBLoader.Disconnect()
-	saTestLogger.Println("Drop schema", SA_TEST_SCHEMA_NAME, "if exists")
+	// saTestLogger.Println("Drop schema", SA_TEST_SCHEMA_NAME, "if exists")
 	// saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
 }
 
