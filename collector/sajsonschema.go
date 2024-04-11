@@ -56,7 +56,7 @@ type FinancialsIncome struct {
 	ResearchDevelopment      string `json:"research_development"`
 	Revenue                  string `json:"revenue"`
 	RevenueGrowthYOY         string `json:"revenue_growth_yoy"`
-	SellingGeneralAdmin      string `json:"selling,_general_admin"`
+	SellingGeneralAdmin      string `json:"selling_general_admin"`
 	SharesChange             string `json:"shares_change"`
 	SharesOutstandingBasic   string `json:"shares_outstanding_basic"`
 	SharesOutstandingDiluted string `json:"shares_outstanding_diluted"`
@@ -83,7 +83,7 @@ type FinancialsBalanceShet struct {
 	OtherCurrentLiabilities  string `json:"other_current_liabilities"`
 	OtherLongTermAssets      string `json:"other_long_term_assets"`
 	OtherLongTermLiabilities string `json:"other_long_term_liabilities"`
-	PropertyPlantEquipment   string `json:"property,_plant_equipment"`
+	PropertyPlantEquipment   string `json:"property_plant_equipment"`
 	QuarterEnded             string `json:"quarter_ended"`
 	Receivables              string `json:"receivables"`
 	RetainedEarnings         string `json:"retained_earnings"`
@@ -131,7 +131,7 @@ type FinancialsCashFlow struct {
 	ResearchDevelopment      string `json:"research_development"`
 	Revenue                  string `json:"revenue"`
 	RevenueGrowthYOY         string `json:"revenue_growth_yoy"`
-	SellingGeneralAdmin      string `json:"selling,_general_admin"`
+	SellingGeneralAdmin      string `json:"selling_general_admin"`
 	SharesChange             string `json:"shares_change"`
 	SharesOutstandingBasic   string `json:"shares_outstanding_basic"`
 	SharesOutstandingDiluted string `json:"shares_outstanding_diluted"`
@@ -161,6 +161,10 @@ type FinancialRatios struct {
 func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
 	saStructTypes := []reflect.Type{
 		reflect.TypeFor[StockOverview](),
+		reflect.TypeFor[FinancialsIncome](),
+		reflect.TypeFor[FinancialsBalanceShet](),
+		reflect.TypeFor[FinancialsCashFlow](),
+		reflect.TypeFor[FinancialRatios](),
 	}
 
 	allMetricsFields := make(map[string]map[string]JsonFieldMetadata)

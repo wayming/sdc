@@ -67,11 +67,11 @@ func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTyp
 	return indicatorsMap, nil
 }
 
-func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node) ([]map[string]string, error) {
+func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
 	if node.Type == html.ElementNode {
 		for _, attr := range node.Attr {
 			if attr.Key == "data-test" && attr.Val == "financials" {
-				indicatorMaps, err := collector.DecodeTimeSeriesTable(node)
+				indicatorMaps, err := collector.DecodeTimeSeriesTable(node, dataStructTypeName)
 				if err != nil {
 					return nil, errors.New("Faield to decode html table overview-quote. Error: " + err.Error())
 				}
@@ -81,7 +81,7 @@ func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node) ([]map[
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		indicatorMaps, err := collector.DecodeTimeSeriesTableHTML(child)
+		indicatorMaps, err := collector.DecodeTimeSeriesTableHTML(child, dataStructTypeName)
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +128,9 @@ func normaliseJSONKey(key string) string {
 
 	// replace dash with underscore
 	key = strings.ReplaceAll(key, "-", "_")
+
+	// Replace commas with underscore
+	key = strings.ReplaceAll(key, ",", "_")
 
 	// remove apostrophe
 	key = strings.ReplaceAll(key, "'", "")
@@ -223,10 +226,10 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := collector.FirstTextNode(td2)
 				if text2 != nil {
-					key := normaliseJSONKey(text1.Data)
-					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], key)
+					normKey := normaliseJSONKey(text1.Data)
+					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
 					if fieldType == nil {
-						return stockOverview, errors.New("Failed to get field type for tag " + key)
+						return stockOverview, errors.New("Failed to get field type for tag " + normKey)
 					}
 
 					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
@@ -235,7 +238,7 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 						return stockOverview, err
 					}
 
-					stockOverview[normaliseJSONKey(key)] = normVal
+					stockOverview[normKey] = normVal
 					continue
 				}
 			}
@@ -245,8 +248,8 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 
 }
 
-func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[string]string, error) {
-	completeSeries := make([]map[string]string, 0)
+func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
+	completeSeries := make([]map[string]interface{}, 0)
 	// thead
 	thead := node.FirstChild
 
@@ -265,13 +268,26 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[stri
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := collector.FirstTextNode(td2)
 				if text2 != nil {
-					dataPoint := make(map[string]string)
+					dataPoint := make(map[string]interface{})
 					collector.logger.Println(text2.Data)
 					if matches := re.FindAllString(text2.Data, -1); len(matches) > 0 {
 						collector.logger.Println("ignore ", text2.Data)
 						continue
 					}
-					dataPoint[normaliseJSONKey(text1.Data)] = text2.Data
+
+					normKey := normaliseJSONKey(text1.Data)
+					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
+					if fieldType == nil {
+						return completeSeries, errors.New("Failed to get field type for tag " + normKey)
+					}
+
+					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
+					normVal, err := normaliseJSONValue(text2.Data, fieldType)
+					if err != nil {
+						return completeSeries, err
+					}
+
+					dataPoint[normKey] = normVal
 					completeSeries = append(completeSeries, dataPoint)
 					continue
 				}
@@ -314,7 +330,7 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node) ([]map[stri
 }
 
 // Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadOverallPage(url string, params map[string]string) (string, error) {
+func (collector *SACollector) ReadOverallPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
 	collector.logger.Println("Read " + url)
 
 	htmlContent, err := ReadURL(url, params)
@@ -327,8 +343,8 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println("Decode html doc with JSON struct " + reflect.TypeFor[StockOverview]().Name())
-	indicatorsMap, err := collector.DecodeDualTableHTML(htmlDoc, reflect.TypeFor[StockOverview]().Name())
+	collector.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
+	indicatorsMap, err := collector.DecodeDualTableHTML(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
@@ -344,10 +360,10 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) LoadOverallPage(symbol string) (int64, error) {
+func (collector *SACollector) LoadOverallPage(symbol string, dataStructType reflect.Type) (int64, error) {
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	overalTable := "sa_overall"
-	jsonText, err := collector.ReadOverallPage(overallUrl, nil)
+	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
 	if err != nil {
 		return 0, errors.New("Failed to scrap data from url " + overallUrl + ". Error: " + err.Error())
 	}
@@ -362,7 +378,7 @@ func (collector *SACollector) LoadOverallPage(symbol string) (int64, error) {
 }
 
 // Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string) (string, error) {
+func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
 	htmlContent, err := ReadURL(url, params)
 	if err != nil {
 		return "", err
@@ -373,7 +389,7 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	indicatorsMap, err := collector.DecodeTimeSeriesTableHTML(htmlDoc)
+	indicatorsMap, err := collector.DecodeTimeSeriesTableHTML(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
@@ -386,4 +402,25 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 
 	}
 	return string(jsonData), nil
+}
+
+func (collector *SACollector) LoadFinancialsIncomePage(symbol string, dataStructType reflect.Type) (int64, error) {
+	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
+	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, "sa_financials_income")
+}
+
+func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
+
+	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
+	if err != nil {
+		return 0, errors.New("Failed to scrap data from url " + url + ". Error: " + err.Error())
+	}
+
+	numOfRows, err := collector.dbLoader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
+	}
+
+	collector.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
+	return numOfRows, nil
 }

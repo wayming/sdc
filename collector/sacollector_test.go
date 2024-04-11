@@ -3,6 +3,7 @@ package collector_test
 import (
 	"log"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/wayming/sdc/collector"
@@ -46,8 +47,9 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 		dbSchema string
 	}
 	type args struct {
-		url    string
-		params map[string]string
+		url                string
+		params             map[string]string
+		dataStructTypeName string
 	}
 
 	setupSATest(t.Name())
@@ -65,8 +67,9 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 			dbSchema: MS_TEST_SCHEMA_NAME,
 		},
 		args: args{
-			url:    "",
-			params: make(map[string]string, 0),
+			url:                "",
+			params:             make(map[string]string, 0),
+			dataStructTypeName: reflect.TypeFor[collector.StockOverview]().Name(),
 		},
 		wantErr: false,
 	}
@@ -86,7 +89,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.ReadOverallPage(tt.args.url, tt.args.params)
+			got, err := collector.ReadOverallPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -106,8 +109,9 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 		dbSchema string
 	}
 	type args struct {
-		url    string
-		params map[string]string
+		url                string
+		params             map[string]string
+		dataStructTypeName string
 	}
 
 	setupSATest(t.Name())
@@ -132,12 +136,16 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	}
 	financialsIncome := commonTestConfig
 	financialsIncome.args.url = "https://stockanalysis.com/stocks/msft/financials/?p=quarterly"
+	financialsIncome.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsIncome]().Name()
 	financialsBalanceShet := commonTestConfig
 	financialsBalanceShet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
+	financialsBalanceShet.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsBalanceShet]().Name()
 	financialsCashFlow := commonTestConfig
 	financialsCashFlow.args.url = "https://stockanalysis.com/stocks/msft/financials/cash-flow-statement/?p=quarterly"
+	financialsCashFlow.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsCashFlow]().Name()
 	financialsRatios := commonTestConfig
 	financialsRatios.args.url = "https://stockanalysis.com/stocks/msft/financials/ratios/?p=quarterly"
+	financialsRatios.args.dataStructTypeName = reflect.TypeFor[collector.FinancialRatios]().Name()
 
 	tests := []struct {
 		name    string
@@ -153,7 +161,7 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.ReadTimeSeriesPage(tt.args.url, tt.args.params)
+			got, err := collector.ReadTimeSeriesPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadTimeSeriesPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -173,7 +181,8 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 		dbSchema string
 	}
 	type args struct {
-		symbol string
+		symbol         string
+		dataStructType reflect.Type
 	}
 
 	setupSATest(t.Name())
@@ -194,7 +203,8 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 				dbSchema: MS_TEST_SCHEMA_NAME,
 			},
 			args: args{
-				symbol: "msft",
+				symbol:         "msft",
+				dataStructType: reflect.TypeFor[collector.StockOverview](),
 			},
 			wantErr: false,
 		},
@@ -206,13 +216,69 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.LoadOverallPage(tt.args.symbol)
+			got, err := collector.LoadOverallPage(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.LoadOverallPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got == 0 {
 				t.Errorf("SACollector.LoadOverallPage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	teardownSATest()
+}
+
+func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
+	type fields struct {
+		dbLoader dbloader.DBLoader
+		logger   *log.Logger
+		dbSchema string
+	}
+	type args struct {
+		symbol         string
+		dataStructType reflect.Type
+	}
+
+	setupSATest(t.Name())
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+
+			name: "LoadFinancialsIncomePage",
+			fields: fields{
+				dbLoader: saTestDBLoader,
+				logger:   saTestLogger,
+				dbSchema: MS_TEST_SCHEMA_NAME,
+			},
+			args: args{
+				symbol:         "msft",
+				dataStructType: reflect.TypeFor[collector.FinancialsIncome](),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := collector.NewSACollector(
+				tt.fields.dbLoader,
+				tt.fields.logger,
+				tt.fields.dbSchema,
+			)
+			got, err := collector.LoadFinancialsIncomePage(tt.args.symbol, tt.args.dataStructType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SACollector.LoadFinancialsIncomePage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got <= 0 {
+				t.Errorf("SACollector.LoadFinancialsIncomePage() = %v, want %v", got, tt.want)
 			}
 		})
 	}

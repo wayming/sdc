@@ -13,14 +13,8 @@ pass
 pass1
 .lesshst
 .profile
-dbloader/__debug_bin3458741688
 logs/sdc.log
-dbloader/logs/dbloaderpg_test.log
-json2db/__debug_bin1212110847
+dbloader/logs
 docker/pglog
 docker/pgdata
-collector/logs/collector_testlog
-collector/logs/collector_testlog
-collector/logs/collector_testlog_TestMSCollector_CollectEOD.log
-collector/logs/collector_testlog_TestMSCollector_CollectTickers.log
-collector/logs/collector_testlog_TestMSCollector_ReadPage.log
+collector/logs
