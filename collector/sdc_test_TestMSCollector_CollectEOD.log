@@ -1,0 +1,8 @@
+mscollectortest: 2024/04/12 06:00:24 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
+mscollectortest: 2024/04/12 06:00:24 Execute SQL:  DROP SCHEMA IF EXISTS sdc_test CASCADE
+mscollectortest: 2024/04/12 06:00:24 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
+mscollectortest: 2024/04/12 06:00:24 Execute SQL:  SET search_path TO sdc_test
+mscollectortest: 2024/04/12 06:00:24 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
+mscollectortest: 2024/04/12 06:00:24 Execute SQL:  SET search_path TO sdc_test
+mscollectortest: 2024/04/12 06:00:26 Load JSON text: null
+mscollectortest: 2024/04/12 06:00:26 Execute SQL:  CREATE TABLE IF NOT EXISTS ms_tickers (country varchar(1024), haseod boolean, hasintraday boolean, name varchar(1024), stockexchange varchar(1024), symbol varchar(1024));

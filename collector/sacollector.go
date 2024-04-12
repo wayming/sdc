@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -384,7 +385,7 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) LoadOverallPage(symbol string, dataStructType reflect.Type) (int64, error) {
+func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	overalTable := "sa_overall"
@@ -429,7 +430,7 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) LoadFinancialsIncomePage(symbol string, dataStructType reflect.Type) (int64, error) {
+func (collector *SACollector) CollectFinancialsIncome(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
 	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, "sa_financials_income")
@@ -449,4 +450,68 @@ func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType refl
 
 	collector.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
 	return numOfRows, nil
+}
+
+func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
+
+	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+		return err
+	}
+
+	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (collector *SACollector) CollectFinancialsForTrunk(symbols []string) error {
+	for _, symbol := range symbols {
+		err := collector.CollectFinancialsForSymbol(symbol)
+		if err != nil {
+			return errors.New("Failed to collect financials for symbol " + symbol)
+		}
+	}
+
+	return nil
+}
+
+func (collector *SACollector) CollectFinancials(trunkSize int) error {
+	type queryResult struct {
+		Symbol string
+	}
+
+	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "ms_tickers"
+	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
+	if err != nil {
+		return errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
+	}
+	queryResults, ok := results.([]queryResult)
+	if !ok {
+		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
+
+	}
+
+	symbols := make([]string, len(queryResults))
+	for _, row := range queryResults {
+		symbols = append(symbols, row.Symbol)
+	}
+
+	collector.logger.Println("Collect financials for " + string(len(symbols)) + " symbols")
+	return collector.CollectFinancialsForTrunk(symbols)
+}
+
+func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) error {
+	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+
+	collector := NewSACollector(dbLoader, logger, schemaName)
+	if err := collector.CollectFinancials(trunkSize); err != nil {
+		return err
+	}
+	return nil
 }

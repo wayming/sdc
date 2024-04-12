@@ -181,7 +181,7 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	teardownSATest()
 }
 
-func TestSACollector_LoadOverallPage(t *testing.T) {
+func TestSACollector_CollectOverallMetrics(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		logger     *log.Logger
@@ -204,7 +204,7 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 	}{
 		{
 
-			name: "LoadOverallPage",
+			name: "CollectOverallMetrics",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
 				logger:     saTestLogger,
@@ -226,13 +226,13 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 				tt.fields.dbSchema,
 			)
 
-			got, err := collector.LoadOverallPage(tt.args.symbol, tt.args.dataStructType)
+			got, err := collector.CollectOverallMetrics(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SACollector.LoadOverallPage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SACollector.CollectOverallMetrics() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got == 0 {
-				t.Errorf("SACollector.LoadOverallPage() = %v, want %v", got, tt.want)
+				t.Errorf("SACollector.CollectOverallMetrics() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -240,7 +240,7 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 	teardownSATest()
 }
 
-func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
+func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		logger     *log.Logger
@@ -263,7 +263,7 @@ func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
 	}{
 		{
 
-			name: "LoadFinancialsIncomePage",
+			name: "CollectFinancialsIncome",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
 				logger:     saTestLogger,
@@ -284,13 +284,13 @@ func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.LoadFinancialsIncomePage(tt.args.symbol, tt.args.dataStructType)
+			got, err := collector.CollectFinancialsIncome(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SACollector.LoadFinancialsIncomePage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SACollector.CollectFinancialsIncome() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got <= 0 {
-				t.Errorf("SACollector.LoadFinancialsIncomePage() = %v, want %v", got, tt.want)
+				t.Errorf("SACollector.CollectFinancialsIncome() = %v, want %v", got, tt.want)
 			}
 		})
 	}

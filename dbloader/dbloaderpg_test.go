@@ -155,7 +155,7 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 			name: "LoadByJsonText",
 			args: args{
 				jsonText:       JSON_TEXT2,
-				tableName:      "sdc_tickers",
+				tableName:      "ms_tickers",
 				jsonStructType: reflect.TypeFor[Tickers](),
 			},
 			want:        2,
@@ -173,7 +173,7 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("PGLoader.LoadByJsonText() = %v, want %v", got, tt.want)
 			}
-			results, err := loader.RunQuery("SELECT symbol FROM sdc_tickers", tt.args.jsonStructType)
+			results, err := loader.RunQuery("SELECT symbol FROM ms_tickers", tt.args.jsonStructType)
 			if err != nil {
 				t.Errorf("PGLoader.RunQuery() error = %v", err)
 				return

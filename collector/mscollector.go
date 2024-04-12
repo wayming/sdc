@@ -3,6 +3,7 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -30,28 +31,33 @@ func NewMSCollector(loader dbloader.DBLoader, logger *log.Logger, schema string)
 
 func (collector *MSCollector) CollectTickers() error {
 	apiURL := "http://api.marketstack.com/v1/tickers"
-	tickersTable := "sdc_tickers"
 	jsonText, err := ReadURL(apiURL, nil)
 	if err != nil {
 		return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
 
+	return collector.LoadTickers(string(jsonText))
+}
+
+func (collector *MSCollector) LoadTickers(jsonText string) error {
 	var data TickersBody
 	if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
 		return errors.New("Failed to unmarshal json text, Error: " + err.Error())
 	}
-	dataJsonText, err := json.Marshal(data.Data)
+	dataJSONText, err := json.Marshal(data.Data)
 	if err != nil {
 		return errors.New("Failed to marshal json struct, Error: " + err.Error())
 	}
 
 	var tickers Tickers
-	numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJsonText), tickersTable, reflect.TypeOf(tickers))
+	tickersTable := "ms_tickers"
+	numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJSONText), tickersTable, reflect.TypeOf(tickers))
 	if err != nil {
 		return errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
 	}
 	collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
 	return nil
+
 }
 
 func (collector *MSCollector) CollectEOD() error {
@@ -60,9 +66,9 @@ func (collector *MSCollector) CollectEOD() error {
 	}
 
 	apiURL := "http://api.marketstack.com/v1/eod"
-	eodTable := "sdc_eod"
+	eodTable := "ms_eod"
 
-	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "sdc_tickers limit 20"
+	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "ms_tickers limit 20"
 	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
 	if err != nil {
 		return errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
@@ -86,13 +92,13 @@ func (collector *MSCollector) CollectEOD() error {
 
 		if len(data.Data) > 0 {
 
-			dataJsonText, err := json.Marshal(data.Data)
+			dataJSONText, err := json.Marshal(data.Data)
 			if err != nil {
 				return errors.New("Failed to marshal json struct, Error: " + err.Error())
 			}
 
 			var eod EOD
-			numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJsonText), eodTable, reflect.TypeOf(eod))
+			numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJSONText), eodTable, reflect.TypeOf(eod))
 			if err != nil {
 				return errors.New("Failed to load json text to table " + eodTable + ". Error: " + err.Error())
 			}
@@ -104,4 +110,30 @@ func (collector *MSCollector) CollectEOD() error {
 	}
 
 	return nil
+}
+
+func CollectTickers(logger *log.Logger, schemaName string, csvFile string) error {
+	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+
+	collector := NewMSCollector(dbLoader, logger, schemaName)
+	if len(csvFile) > 0 {
+		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
+		if err != nil {
+			return errors.New("Failed to open file " + csvFile)
+		}
+
+		csv, err := io.ReadAll(reader)
+		if err != nil {
+			return errors.New("Failed to read file " + csvFile)
+		}
+
+		return collector.LoadTickers(string(csv))
+	} else {
+		return collector.CollectTickers()
+	}
 }
