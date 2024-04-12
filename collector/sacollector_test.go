@@ -42,9 +42,10 @@ func teardownSATest() {
 
 func TestMSCollector_ReadOverallPage(t *testing.T) {
 	type fields struct {
-		dbLoader dbloader.DBLoader
-		logger   *log.Logger
-		dbSchema string
+		dbLoader   dbloader.DBLoader
+		logger     *log.Logger
+		dbSchema   string
+		thisSymbol string
 	}
 	type args struct {
 		url                string
@@ -62,9 +63,10 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 	}{
 		name: "ReadOverallPage",
 		fields: fields{
-			dbLoader: saTestDBLoader,
-			logger:   saTestLogger,
-			dbSchema: MS_TEST_SCHEMA_NAME,
+			dbLoader:   saTestDBLoader,
+			logger:     saTestLogger,
+			dbSchema:   MS_TEST_SCHEMA_NAME,
+			thisSymbol: "msft",
 		},
 		args: args{
 			url:                "",
@@ -89,6 +91,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
+			collector.SetSymbol(tt.fields.thisSymbol)
 			got, err := collector.ReadOverallPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadPage() error = %v, wantErr %v", err, tt.wantErr)
@@ -104,9 +107,10 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 
 func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	type fields struct {
-		dbLoader dbloader.DBLoader
-		logger   *log.Logger
-		dbSchema string
+		dbLoader   dbloader.DBLoader
+		logger     *log.Logger
+		dbSchema   string
+		thisSymbol string
 	}
 	type args struct {
 		url                string
@@ -124,9 +128,10 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	}{
 		name: "ReadPageTimeSeries",
 		fields: fields{
-			dbLoader: saTestDBLoader,
-			logger:   saTestLogger,
-			dbSchema: MS_TEST_SCHEMA_NAME,
+			dbLoader:   saTestDBLoader,
+			logger:     saTestLogger,
+			dbSchema:   MS_TEST_SCHEMA_NAME,
+			thisSymbol: "msft",
 		},
 		args: args{
 			url:    "",
@@ -161,6 +166,8 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
+			collector.SetSymbol(tt.fields.thisSymbol)
+
 			got, err := collector.ReadTimeSeriesPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadTimeSeriesPage() error = %v, wantErr %v", err, tt.wantErr)
@@ -176,9 +183,10 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 
 func TestSACollector_LoadOverallPage(t *testing.T) {
 	type fields struct {
-		dbLoader dbloader.DBLoader
-		logger   *log.Logger
-		dbSchema string
+		dbLoader   dbloader.DBLoader
+		logger     *log.Logger
+		dbSchema   string
+		thisSymbol string
 	}
 	type args struct {
 		symbol         string
@@ -198,9 +206,10 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 
 			name: "LoadOverallPage",
 			fields: fields{
-				dbLoader: saTestDBLoader,
-				logger:   saTestLogger,
-				dbSchema: MS_TEST_SCHEMA_NAME,
+				dbLoader:   saTestDBLoader,
+				logger:     saTestLogger,
+				dbSchema:   MS_TEST_SCHEMA_NAME,
+				thisSymbol: "msft",
 			},
 			args: args{
 				symbol:         "msft",
@@ -216,6 +225,7 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
+
 			got, err := collector.LoadOverallPage(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.LoadOverallPage() error = %v, wantErr %v", err, tt.wantErr)
@@ -232,9 +242,10 @@ func TestSACollector_LoadOverallPage(t *testing.T) {
 
 func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
 	type fields struct {
-		dbLoader dbloader.DBLoader
-		logger   *log.Logger
-		dbSchema string
+		dbLoader   dbloader.DBLoader
+		logger     *log.Logger
+		dbSchema   string
+		thisSymbol string
 	}
 	type args struct {
 		symbol         string
@@ -254,9 +265,10 @@ func TestSACollector_LoadFinancialsIncomePage(t *testing.T) {
 
 			name: "LoadFinancialsIncomePage",
 			fields: fields{
-				dbLoader: saTestDBLoader,
-				logger:   saTestLogger,
-				dbSchema: MS_TEST_SCHEMA_NAME,
+				dbLoader:   saTestDBLoader,
+				logger:     saTestLogger,
+				dbSchema:   MS_TEST_SCHEMA_NAME,
+				thisSymbol: "msft",
 			},
 			args: args{
 				symbol:         "msft",

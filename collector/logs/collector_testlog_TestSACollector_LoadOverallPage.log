@@ -1,46 +1,46 @@
-mscollectortest: 2024/04/11 14:55:43 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
-mscollectortest: 2024/04/11 14:55:43 Execute SQL:  DROP SCHEMA IF EXISTS sdc_test CASCADE
-mscollectortest: 2024/04/11 14:55:43 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
-mscollectortest: 2024/04/11 14:55:43 Execute SQL:  SET search_path TO sdc_test
-mscollectortest: 2024/04/11 14:55:43 Read https://stockanalysis.com/stocks/msft
-mscollectortest: 2024/04/11 14:55:44 Decode html doc with JSON struct StockOverview
-mscollectortest: 2024/04/11 14:55:44 Market Cap
-mscollectortest: 2024/04/11 14:55:44 Normalise 3.15T to float64 value
-mscollectortest: 2024/04/11 14:55:44 Revenue (ttm)
-mscollectortest: 2024/04/11 14:55:44 Normalise 227.58B to float64 value
-mscollectortest: 2024/04/11 14:55:44 Net Income (ttm)
-mscollectortest: 2024/04/11 14:55:44 Normalise 82.54B to string value
-mscollectortest: 2024/04/11 14:55:44 Shares Out 
-mscollectortest: 2024/04/11 14:55:44 Normalise 7.43B to float64 value
-mscollectortest: 2024/04/11 14:55:44 EPS (ttm)
-mscollectortest: 2024/04/11 14:55:44 Normalise 11.06 to float64 value
-mscollectortest: 2024/04/11 14:55:44 PE Ratio
-mscollectortest: 2024/04/11 14:55:44 Normalise 38.49 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Forward PE
-mscollectortest: 2024/04/11 14:55:44 Normalise 34.23 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Dividend
-mscollectortest: 2024/04/11 14:55:44 Normalise $3.00 (0.71%) to string value
-mscollectortest: 2024/04/11 14:55:44 Ex-Dividend Date
-mscollectortest: 2024/04/11 14:55:44 Normalise May 15, 2024 to string value
-mscollectortest: 2024/04/11 14:55:44 Volume
-mscollectortest: 2024/04/11 14:55:44 Normalise 4,404,202 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Open
-mscollectortest: 2024/04/11 14:55:44 Normalise 425.82 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Previous Close
-mscollectortest: 2024/04/11 14:55:44 Normalise 423.26 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Day's Range
-mscollectortest: 2024/04/11 14:55:44 Normalise 422.36 - 426.80 to string value
-mscollectortest: 2024/04/11 14:55:44 52-Week Range
-mscollectortest: 2024/04/11 14:55:44 Normalise 275.37 - 430.82 to string value
-mscollectortest: 2024/04/11 14:55:44 Beta
-mscollectortest: 2024/04/11 14:55:44 Normalise 0.88 to float64 value
-mscollectortest: 2024/04/11 14:55:44 Analysts
-mscollectortest: 2024/04/11 14:55:44 Normalise Strong Buy to string value
-mscollectortest: 2024/04/11 14:55:44 Price Target
-mscollectortest: 2024/04/11 14:55:44 Normalise 434.87 (+2.51%) to float64 value
-mscollectortest: 2024/04/11 14:55:44 Earnings Date
-mscollectortest: 2024/04/11 14:55:44 Normalise Apr 23, 2024 to string value
-mscollectortest: 2024/04/11 14:55:44 JSON text generated - [{"52_week_range":"275.37 - 430.82","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 426.80","dividend":"$3.00 (0.71%)","earnings_date":"Apr 23, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.23,"market_cap":3150000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.49,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":4404202}]
-mscollectortest: 2024/04/11 14:55:44 Load JSON text: [{"52_week_range":"275.37 - 430.82","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 426.80","dividend":"$3.00 (0.71%)","earnings_date":"Apr 23, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.23,"market_cap":3150000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.49,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":4404202}]
-mscollectortest: 2024/04/11 14:55:44 Execute SQL:  CREATE TABLE IF NOT EXISTS sa_overall (analysts varchar(1024), beta double precision, daysrange varchar(1024), dividend varchar(1024), epsttm double precision, earningsdate varchar(1024), exdividenddate varchar(1024), fiftytwoweekrange varchar(1024), forwardpe double precision, marketcap double precision, netincomettm varchar(1024), open double precision, peratio double precision, previousclose double precision, pricetarget double precision, revenuettm double precision, sharesout double precision, volume double precision);
-mscollectortest: 2024/04/11 14:55:44 1 rows have been loaded into sa_overall
+mscollectortest: 2024/04/12 05:46:56 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
+mscollectortest: 2024/04/12 05:46:56 Execute SQL:  DROP SCHEMA IF EXISTS sdc_test CASCADE
+mscollectortest: 2024/04/12 05:46:56 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
+mscollectortest: 2024/04/12 05:46:56 Execute SQL:  SET search_path TO sdc_test
+mscollectortest: 2024/04/12 05:46:56 Read https://stockanalysis.com/stocks/msft
+mscollectortest: 2024/04/12 05:46:56 Decode html doc with JSON struct StockOverview
+mscollectortest: 2024/04/12 05:46:56 Market Cap
+mscollectortest: 2024/04/12 05:46:56 Normalise 3.18T to float64 value
+mscollectortest: 2024/04/12 05:46:56 Revenue (ttm)
+mscollectortest: 2024/04/12 05:46:56 Normalise 227.58B to float64 value
+mscollectortest: 2024/04/12 05:46:56 Net Income (ttm)
+mscollectortest: 2024/04/12 05:46:56 Normalise 82.54B to string value
+mscollectortest: 2024/04/12 05:46:56 Shares Out 
+mscollectortest: 2024/04/12 05:46:56 Normalise 7.43B to float64 value
+mscollectortest: 2024/04/12 05:46:56 EPS (ttm)
+mscollectortest: 2024/04/12 05:46:56 Normalise 11.06 to float64 value
+mscollectortest: 2024/04/12 05:46:56 PE Ratio
+mscollectortest: 2024/04/12 05:46:56 Normalise 38.69 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Forward PE
+mscollectortest: 2024/04/12 05:46:56 Normalise 34.41 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Dividend
+mscollectortest: 2024/04/12 05:46:56 Normalise $3.00 (0.70%) to string value
+mscollectortest: 2024/04/12 05:46:56 Ex-Dividend Date
+mscollectortest: 2024/04/12 05:46:56 Normalise May 15, 2024 to string value
+mscollectortest: 2024/04/12 05:46:56 Volume
+mscollectortest: 2024/04/12 05:46:56 Normalise 17,933,689 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Open
+mscollectortest: 2024/04/12 05:46:56 Normalise 425.82 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Previous Close
+mscollectortest: 2024/04/12 05:46:56 Normalise 423.26 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Day's Range
+mscollectortest: 2024/04/12 05:46:56 Normalise 422.36 - 429.37 to string value
+mscollectortest: 2024/04/12 05:46:56 52-Week Range
+mscollectortest: 2024/04/12 05:46:56 Normalise 275.37 - 430.82 to string value
+mscollectortest: 2024/04/12 05:46:56 Beta
+mscollectortest: 2024/04/12 05:46:56 Normalise 0.88 to float64 value
+mscollectortest: 2024/04/12 05:46:56 Analysts
+mscollectortest: 2024/04/12 05:46:56 Normalise Strong Buy to string value
+mscollectortest: 2024/04/12 05:46:56 Price Target
+mscollectortest: 2024/04/12 05:46:56 Normalise 434.87 (+1.62%) to float64 value
+mscollectortest: 2024/04/12 05:46:56 Earnings Date
+mscollectortest: 2024/04/12 05:46:56 Normalise Apr 25, 2024 to string value
+mscollectortest: 2024/04/12 05:46:56 JSON text generated - [{"52_week_range":"275.37 - 430.82","Symbol":"msft","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 429.37","dividend":"$3.00 (0.70%)","earnings_date":"Apr 25, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.41,"market_cap":3180000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.69,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":17933689}]
+mscollectortest: 2024/04/12 05:46:56 Load JSON text: [{"52_week_range":"275.37 - 430.82","Symbol":"msft","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 429.37","dividend":"$3.00 (0.70%)","earnings_date":"Apr 25, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.41,"market_cap":3180000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.69,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":17933689}]
+mscollectortest: 2024/04/12 05:46:56 Execute SQL:  CREATE TABLE IF NOT EXISTS sa_overall (analysts varchar(1024), beta double precision, daysrange varchar(1024), dividend varchar(1024), epsttm double precision, earningsdate varchar(1024), exdividenddate varchar(1024), fiftytwoweekrange varchar(1024), forwardpe double precision, marketcap double precision, netincomettm varchar(1024), open double precision, peratio double precision, previousclose double precision, pricetarget double precision, revenuettm double precision, sharesout double precision, symbol varchar(1024), volume double precision);
+mscollectortest: 2024/04/12 05:46:56 1 rows have been loaded into sa_overall

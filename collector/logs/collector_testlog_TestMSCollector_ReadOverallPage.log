@@ -1,43 +1,43 @@
-mscollectortest: 2024/04/11 14:55:31 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
-mscollectortest: 2024/04/11 14:55:31 Execute SQL:  DROP SCHEMA IF EXISTS sdc_test CASCADE
-mscollectortest: 2024/04/11 14:55:31 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
-mscollectortest: 2024/04/11 14:55:31 Execute SQL:  SET search_path TO sdc_test
-mscollectortest: 2024/04/11 14:55:31 Read https://stockanalysis.com/stocks/msft/
-mscollectortest: 2024/04/11 14:55:32 Decode html doc with JSON struct StockOverview
-mscollectortest: 2024/04/11 14:55:32 Market Cap
-mscollectortest: 2024/04/11 14:55:32 Normalise 3.15T to float64 value
-mscollectortest: 2024/04/11 14:55:32 Revenue (ttm)
-mscollectortest: 2024/04/11 14:55:32 Normalise 227.58B to float64 value
-mscollectortest: 2024/04/11 14:55:32 Net Income (ttm)
-mscollectortest: 2024/04/11 14:55:32 Normalise 82.54B to string value
-mscollectortest: 2024/04/11 14:55:32 Shares Out 
-mscollectortest: 2024/04/11 14:55:32 Normalise 7.43B to float64 value
-mscollectortest: 2024/04/11 14:55:32 EPS (ttm)
-mscollectortest: 2024/04/11 14:55:32 Normalise 11.06 to float64 value
-mscollectortest: 2024/04/11 14:55:32 PE Ratio
-mscollectortest: 2024/04/11 14:55:32 Normalise 38.49 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Forward PE
-mscollectortest: 2024/04/11 14:55:32 Normalise 34.23 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Dividend
-mscollectortest: 2024/04/11 14:55:32 Normalise $3.00 (0.71%) to string value
-mscollectortest: 2024/04/11 14:55:32 Ex-Dividend Date
-mscollectortest: 2024/04/11 14:55:32 Normalise May 15, 2024 to string value
-mscollectortest: 2024/04/11 14:55:32 Volume
-mscollectortest: 2024/04/11 14:55:32 Normalise 4,404,202 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Open
-mscollectortest: 2024/04/11 14:55:32 Normalise 425.82 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Previous Close
-mscollectortest: 2024/04/11 14:55:32 Normalise 423.26 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Day's Range
-mscollectortest: 2024/04/11 14:55:32 Normalise 422.36 - 426.80 to string value
-mscollectortest: 2024/04/11 14:55:32 52-Week Range
-mscollectortest: 2024/04/11 14:55:32 Normalise 275.37 - 430.82 to string value
-mscollectortest: 2024/04/11 14:55:32 Beta
-mscollectortest: 2024/04/11 14:55:32 Normalise 0.88 to float64 value
-mscollectortest: 2024/04/11 14:55:32 Analysts
-mscollectortest: 2024/04/11 14:55:32 Normalise Strong Buy to string value
-mscollectortest: 2024/04/11 14:55:32 Price Target
-mscollectortest: 2024/04/11 14:55:32 Normalise 434.87 (+2.51%) to float64 value
-mscollectortest: 2024/04/11 14:55:32 Earnings Date
-mscollectortest: 2024/04/11 14:55:32 Normalise Apr 23, 2024 to string value
-mscollectortest: 2024/04/11 14:55:32 JSON text generated - [{"52_week_range":"275.37 - 430.82","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 426.80","dividend":"$3.00 (0.71%)","earnings_date":"Apr 23, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.23,"market_cap":3150000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.49,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":4404202}]
+mscollectortest: 2024/04/12 05:45:26 Connect to database host= postgres port= 5432 user= appuser dbname= stock_data
+mscollectortest: 2024/04/12 05:45:26 Execute SQL:  DROP SCHEMA IF EXISTS sdc_test CASCADE
+mscollectortest: 2024/04/12 05:45:26 Execute SQL:  CREATE SCHEMA IF NOT EXISTS sdc_test
+mscollectortest: 2024/04/12 05:45:26 Execute SQL:  SET search_path TO sdc_test
+mscollectortest: 2024/04/12 05:45:26 Read https://stockanalysis.com/stocks/msft/
+mscollectortest: 2024/04/12 05:45:27 Decode html doc with JSON struct StockOverview
+mscollectortest: 2024/04/12 05:45:27 Market Cap
+mscollectortest: 2024/04/12 05:45:27 Normalise 3.18T to float64 value
+mscollectortest: 2024/04/12 05:45:27 Revenue (ttm)
+mscollectortest: 2024/04/12 05:45:27 Normalise 227.58B to float64 value
+mscollectortest: 2024/04/12 05:45:27 Net Income (ttm)
+mscollectortest: 2024/04/12 05:45:27 Normalise 82.54B to string value
+mscollectortest: 2024/04/12 05:45:27 Shares Out 
+mscollectortest: 2024/04/12 05:45:27 Normalise 7.43B to float64 value
+mscollectortest: 2024/04/12 05:45:27 EPS (ttm)
+mscollectortest: 2024/04/12 05:45:27 Normalise 11.06 to float64 value
+mscollectortest: 2024/04/12 05:45:27 PE Ratio
+mscollectortest: 2024/04/12 05:45:27 Normalise 38.69 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Forward PE
+mscollectortest: 2024/04/12 05:45:27 Normalise 34.41 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Dividend
+mscollectortest: 2024/04/12 05:45:27 Normalise $3.00 (0.70%) to string value
+mscollectortest: 2024/04/12 05:45:27 Ex-Dividend Date
+mscollectortest: 2024/04/12 05:45:27 Normalise May 15, 2024 to string value
+mscollectortest: 2024/04/12 05:45:27 Volume
+mscollectortest: 2024/04/12 05:45:27 Normalise 17,933,689 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Open
+mscollectortest: 2024/04/12 05:45:27 Normalise 425.82 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Previous Close
+mscollectortest: 2024/04/12 05:45:27 Normalise 423.26 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Day's Range
+mscollectortest: 2024/04/12 05:45:27 Normalise 422.36 - 429.37 to string value
+mscollectortest: 2024/04/12 05:45:27 52-Week Range
+mscollectortest: 2024/04/12 05:45:27 Normalise 275.37 - 430.82 to string value
+mscollectortest: 2024/04/12 05:45:27 Beta
+mscollectortest: 2024/04/12 05:45:27 Normalise 0.88 to float64 value
+mscollectortest: 2024/04/12 05:45:27 Analysts
+mscollectortest: 2024/04/12 05:45:27 Normalise Strong Buy to string value
+mscollectortest: 2024/04/12 05:45:27 Price Target
+mscollectortest: 2024/04/12 05:45:27 Normalise 434.87 (+1.62%) to float64 value
+mscollectortest: 2024/04/12 05:45:27 Earnings Date
+mscollectortest: 2024/04/12 05:45:27 Normalise Apr 25, 2024 to string value
+mscollectortest: 2024/04/12 05:45:27 JSON text generated - [{"52_week_range":"275.37 - 430.82","Symbol":"msft","analysts":"Strong Buy","beta":0.88,"days_range":"422.36 - 429.37","dividend":"$3.00 (0.70%)","earnings_date":"Apr 25, 2024","eps_ttm":11.06,"ex_dividend_date":"May 15, 2024","forward_pe":34.41,"market_cap":3180000000000,"net_income_ttm":"82.54B","open":425.82,"pe_ratio":38.69,"previous_close":423.26,"price_target":434.87,"revenue_ttm":227580000000,"shares_out":7430000000,"volume":17933689}]

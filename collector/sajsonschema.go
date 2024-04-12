@@ -20,6 +20,7 @@ type StockOverview struct {
 	PriceTarget       float64 `json:"price_target"`
 	RevenueTTM        float64 `json:"revenue_ttm"`
 	SharesOut         float64 `json:"shares_out"`
+	Symbol            string  `json:"symbol"`
 	Volume            float64 `json:"volume"`
 }
 
@@ -60,6 +61,7 @@ type FinancialsIncome struct {
 	SharesChange             string `json:"shares_change"`
 	SharesOutstandingBasic   string `json:"shares_outstanding_basic"`
 	SharesOutstandingDiluted string `json:"shares_outstanding_diluted"`
+	Symbol                   string `json:"symbol"`
 }
 
 type FinancialsBalanceShet struct {
@@ -88,6 +90,7 @@ type FinancialsBalanceShet struct {
 	Receivables              string `json:"receivables"`
 	RetainedEarnings         string `json:"retained_earnings"`
 	ShareholdersEquity       string `json:"shareholders_equity"`
+	Symbol                   string `json:"symbol"`
 	TotalAssets              string `json:"total_assets"`
 	TotalCurrentAssets       string `json:"total_current_assets"`
 	TotalCurrentLiabilities  string `json:"total_current_liabilities"`
@@ -131,6 +134,7 @@ type FinancialsCashFlow struct {
 	ResearchDevelopment      string `json:"research_development"`
 	Revenue                  string `json:"revenue"`
 	RevenueGrowthYOY         string `json:"revenue_growth_yoy"`
+	Symbol                   string `json:"symbol"`
 	SellingGeneralAdmin      string `json:"selling_general_admin"`
 	SharesChange             string `json:"shares_change"`
 	SharesOutstandingBasic   string `json:"shares_outstanding_basic"`
@@ -155,6 +159,7 @@ type FinancialRatios struct {
 	QuarterEnded           string `json:"quarter_ended"`
 	QuickRatio             string `json:"quick_ratio"`
 	ReturnOnCapitalROIC    string `json:"return_on_capital_roic"`
+	Symbol                 string `json:"symbol"`
 	TotalShareholderReturn string `json:"total_shareholder_return"`
 }
 

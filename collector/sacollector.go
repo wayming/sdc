@@ -19,6 +19,7 @@ type SACollector struct {
 	dbSchema      string
 	metricsFields map[string]map[string]JsonFieldMetadata
 	accessKey     string
+	thisSymbol    string
 }
 
 func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *SACollector {
@@ -28,10 +29,15 @@ func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string)
 		dbSchema:      schema,
 		metricsFields: AllSAMetricsFields(),
 		accessKey:     "",
+		thisSymbol:    "",
 	}
 	return &collector
 }
 
+// For unit testing
+func (collector *SACollector) SetSymbol(symbol string) {
+	collector.thisSymbol = symbol
+}
 func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
 	var indicatorsMap map[string]interface{}
 	var err error
@@ -207,7 +213,7 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 }
 
 func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
-	stockOverview := make(map[string]interface{})
+	simpleTableMetrics := make(map[string]interface{})
 	// tbody
 	tbody := node.FirstChild
 
@@ -229,23 +235,34 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 					normKey := normaliseJSONKey(text1.Data)
 					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
 					if fieldType == nil {
-						return stockOverview, errors.New("Failed to get field type for tag " + normKey)
+						return simpleTableMetrics, errors.New("Failed to get field type for tag " + normKey)
 					}
 
 					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 					normVal, err := normaliseJSONValue(text2.Data, fieldType)
 					if err != nil {
-						return stockOverview, err
+						return simpleTableMetrics, err
 					}
 
-					stockOverview[normKey] = normVal
+					simpleTableMetrics[normKey] = normVal
 					continue
 				}
 			}
 		}
 	}
-	return stockOverview, nil
 
+	collector.PackSymbolField(simpleTableMetrics, dataStructTypeName)
+	return simpleTableMetrics, nil
+
+}
+
+func (collector *SACollector) PackSymbolField(metrics map[string]interface{}, dataStructTypeName string) {
+	_, ok := collector.metricsFields[dataStructTypeName]["Symbol"]
+	if ok {
+		if _, ok := metrics["Symbol"]; !ok {
+			metrics["Symbol"] = collector.thisSymbol
+		}
+	}
 }
 
 func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
@@ -323,8 +340,15 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 					}
 				}
 			}
+
 		}
 	}
+
+	// Fill symbol name
+	for _, dataPoint := range completeSeries {
+		collector.PackSymbolField(dataPoint, dataStructTypeName)
+	}
+
 	return completeSeries, nil
 
 }
@@ -361,6 +385,7 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 }
 
 func (collector *SACollector) LoadOverallPage(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	overalTable := "sa_overall"
 	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
@@ -405,6 +430,7 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 }
 
 func (collector *SACollector) LoadFinancialsIncomePage(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
 	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
 	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, "sa_financials_income")
 }
