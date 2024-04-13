@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"time"
 )
 
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
@@ -40,20 +41,30 @@ func ReadURL(url string, params map[string]string) (string, error) {
 	}
 	req.URL.RawQuery = q.Encode()
 
-	res, err := httpClient.Do(req)
-	if err != nil {
-		return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
-	}
-	if res.StatusCode != http.StatusOK {
-		return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
-	}
-	defer res.Body.Close()
+	bodyString := ""
+	for delay := 1; delay < 10; delay = delay * 2 {
+		res, err := httpClient.Do(req)
+		if err != nil {
+			return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
+		}
+		if res.StatusCode != http.StatusOK {
+			if res.StatusCode == http.StatusTooManyRequests {
+				time.Sleep(time.Duration(delay))
+				continue
+			}
+			return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
+		}
+		defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return string(body), err
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return string(body), err
+		}
+		bodyString = string(body)
+		break
 	}
-	return string(body), nil
+
+	return bodyString, nil
 }
 
 type JsonFieldMetadata struct {
