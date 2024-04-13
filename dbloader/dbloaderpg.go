@@ -56,12 +56,7 @@ func (loader *PGLoader) CreateSchema(schema string) {
 		loader.logger.Println("Execute SQL: ", createSchemaSQL)
 	}
 
-	setPathSQL := "SET search_path TO " + schema
-	if _, err := loader.db.Exec(setPathSQL); err != nil {
-		loader.logger.Fatal("Failed to execute SQL ", setPathSQL, ". Error ", err)
-	} else {
-		loader.logger.Println("Execute SQL: ", setPathSQL)
-	}
+	loader.Exec("SET search_path TO " + schema)
 }
 
 func (loader *PGLoader) DropSchema(schema string) {
@@ -81,6 +76,16 @@ func ExistsInSlice(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+func (loader *PGLoader) Exec(sql string) error {
+	if _, err := loader.db.Exec(sql); err != nil {
+		loader.logger.Fatal("Failed to execute SQL ", sql, ". Error ", err)
+		return err
+	} else {
+		loader.logger.Println("Execute SQL: ", sql)
+	}
+	return nil
 }
 
 func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error) {
@@ -159,7 +164,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	if err != nil {
 		return rowsInserted, err
 	}
-	log.Println("SQL=", tableCreateSQL)
+	loader.logger.Println("SQL=", tableCreateSQL)
 
 	tx, _ := loader.db.Begin()
 	if _, err := tx.Exec(tableCreateSQL); err != nil {

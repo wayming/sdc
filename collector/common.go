@@ -44,6 +44,9 @@ func ReadURL(url string, params map[string]string) (string, error) {
 	if err != nil {
 		return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 	}
+	if res.StatusCode != http.StatusOK {
+		return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
+	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)

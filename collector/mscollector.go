@@ -20,6 +20,7 @@ type MSCollector struct {
 
 func NewMSCollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *MSCollector {
 	loader.CreateSchema(schema)
+	loader.Exec("SET search_path TO " + schema)
 	collector := MSCollector{
 		dbLoader:    loader,
 		logger:      logger,

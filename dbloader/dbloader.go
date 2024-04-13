@@ -8,5 +8,6 @@ type DBLoader interface {
 	CreateSchema(schema string)
 	DropSchema(schema string)
 	RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error)
+	Exec(sql string) error
 	LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error)
 }

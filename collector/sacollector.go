@@ -3,6 +3,7 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -24,6 +25,8 @@ type SACollector struct {
 }
 
 func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *SACollector {
+	loader.CreateSchema(schema)
+	loader.Exec("SET search_path TO " + schema)
 	collector := SACollector{
 		dbLoader:      loader,
 		logger:        logger,
@@ -156,14 +159,19 @@ func normaliseJSONKey(key string) string {
 
 func stringToFloat64(value string) (any, error) {
 
+	// Remove spaces
+	value = strings.ReplaceAll(value, " ", "")
+
+	// Handle n/a. Return 0.
+	if strings.ToLower(value) == "n/a" {
+		return 0, nil
+	}
+
 	// Remove double quotes
 	value = strings.ReplaceAll(value, "\"", "")
 
 	// Remove commas
 	value = strings.ReplaceAll(value, ",", "")
-
-	// Remove spaces
-	value = strings.ReplaceAll(value, " ", "")
 
 	// Remove (.*)
 	re := regexp.MustCompile(`\(.*\)`)
@@ -240,6 +248,7 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 					}
 
 					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
+					// TODO - remove n/a value from map
 					normVal, err := normaliseJSONValue(text2.Data, fieldType)
 					if err != nil {
 						return simpleTableMetrics, err
@@ -373,6 +382,10 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
+	if len(indicatorsMap) == 0 {
+		return "", errors.New("No indicator found from overall page " + url)
+	}
+
 	mapSlice := []map[string]interface{}{indicatorsMap}
 
 	jsonData, err := json.Marshal(mapSlice)
@@ -418,6 +431,9 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 	indicatorsMap, err := collector.DecodeTimeSeriesTableHTML(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
+	}
+	if len(indicatorsMap) == 0 {
+		return "", errors.New("No indicator found from financials " + url)
 	}
 
 	jsonData, err := json.Marshal(indicatorsMap)
@@ -466,13 +482,19 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 }
 
 func (collector *SACollector) CollectFinancialsForTrunk(symbols []string) error {
+	collected := 0
+	ignored := make([]string, 0)
 	for _, symbol := range symbols {
 		err := collector.CollectFinancialsForSymbol(symbol)
 		if err != nil {
-			return errors.New("Failed to collect financials for symbol " + symbol)
+			collector.logger.Println("Failed to collect financials for symbol " + symbol + ", Error: " + err.Error())
+			ignored = append(ignored, symbol)
+		} else {
+			collected++
 		}
 	}
-
+	fmt.Println("Collected financials for " + strconv.Itoa(collected) + " symbols.")
+	fmt.Println("Ignored symbols are: [" + strings.Join(ignored, ",") + "]")
 	return nil
 }
 
@@ -489,15 +511,14 @@ func (collector *SACollector) CollectFinancials(trunkSize int) error {
 	queryResults, ok := results.([]queryResult)
 	if !ok {
 		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
-
 	}
 
-	symbols := make([]string, len(queryResults))
+	symbols := make([]string, 0)
 	for _, row := range queryResults {
-		symbols = append(symbols, row.Symbol)
+		symbols = append(symbols, strings.ToLower(row.Symbol))
 	}
 
-	collector.logger.Println("Collect financials for " + string(len(symbols)) + " symbols")
+	collector.logger.Println("Collect financials for " + strconv.Itoa(len(symbols)) + " symbols")
 	return collector.CollectFinancialsForTrunk(symbols)
 }
 
