@@ -84,7 +84,7 @@ func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStr
 			if attr.Key == "data-test" && attr.Val == "financials" {
 				indicatorMaps, err := collector.DecodeTimeSeriesTable(node, dataStructTypeName)
 				if err != nil {
-					return nil, errors.New("Faield to decode html table overview-quote. Error: " + err.Error())
+					return nil, errors.New("Faield to decode html table financials. Error: " + err.Error())
 				}
 				return indicatorMaps, nil
 			}
@@ -178,11 +178,21 @@ func stringToFloat64(value string) (any, error) {
 	re := regexp.MustCompile(`\(.*\)`)
 	value = re.ReplaceAllString(value, "")
 
+	// Sign operator
+	sign := float64(1)
+	if value[0] == '-' {
+		if len(value) == 1 {
+			return float64(0), nil
+		}
+		sign = -1
+		value = value[1:]
+	}
+
 	valLen := len(value)
-	re = regexp.MustCompile(`^[.\d]+[BMT]?$`)
+	re = regexp.MustCompile(`^[.\d]+[BMT%]?$`)
 	if re.Match([]byte(value)) {
 
-		multiplier := 1
+		multiplier := float64(1)
 		baseNumber := value
 		switch value[valLen-1] {
 		case 'M':
@@ -194,18 +204,21 @@ func stringToFloat64(value string) (any, error) {
 		case 'T':
 			multiplier = multiplier * 1000 * 1000 * 1000 * 1000
 			baseNumber = value[:valLen-1]
+		case '%':
+			multiplier = multiplier / 100
+			baseNumber = value[:valLen-1]
 		}
-
 		valFloat, err := strconv.ParseFloat(baseNumber, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		return valFloat * float64(multiplier), nil
+		return sign * valFloat * multiplier, nil
 	} else {
 		return nil, errors.New("Failed to convert value to " + reflect.Float64.String())
 	}
 }
+
 func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 	var convertedValue any
 	var err error
@@ -346,7 +359,20 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 					text2 := collector.FirstTextNode(td2)
 					if text2 != nil {
 						collector.logger.Println(text2.Data)
-						completeSeries[idx][normaliseJSONKey(text1.Data)] = text2.Data
+
+						normKey := normaliseJSONKey(text1.Data)
+						fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
+						if fieldType == nil {
+							return completeSeries, errors.New("Failed to get field type for tag " + normKey)
+						}
+
+						collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
+						normVal, err := normaliseJSONValue(text2.Data, fieldType)
+						if err != nil {
+							return completeSeries, err
+						}
+
+						completeSeries[idx][normKey] = normVal
 						idx++
 					}
 				}
@@ -556,10 +582,30 @@ func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) err
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
 
 	collector := NewSACollector(dbLoader, logger, schemaName)
 	if err := collector.CollectFinancials(trunkSize); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func CollectFinancialsForSymbol(logger *log.Logger, schemaName string, symbol string) error {
+	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+
+	collector := NewSACollector(dbLoader, logger, schemaName)
+	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {
+		return err
+	}
+	fmt.Println("Collect financials for symbol " + symbol)
+
 	return nil
 }

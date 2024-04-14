@@ -4,9 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"reflect"
 	"time"
+
+	"github.com/wayming/sdc/dbloader"
 )
 
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
@@ -26,6 +30,17 @@ func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) 
 	return results, nil
 }
 
+func DropSchema(logger *log.Logger, schema string) error {
+	dbLoader := dbloader.NewPGLoader(schema, logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	dbLoader.DropSchema(schema)
+	return nil
+}
+
 func ReadURL(url string, params map[string]string) (string, error) {
 	var htmlContent string
 
@@ -42,13 +57,15 @@ func ReadURL(url string, params map[string]string) (string, error) {
 	req.URL.RawQuery = q.Encode()
 
 	bodyString := ""
-	for delay := 1; delay < 10; delay = delay * 2 {
-		res, err := httpClient.Do(req)
+	var res *http.Response
+	const maxDelay = 10
+	for delay := 1; delay < maxDelay; delay = delay * 2 {
+		res, err = httpClient.Do(req)
 		if err != nil {
 			return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 		}
 		if res.StatusCode != http.StatusOK {
-			if res.StatusCode == http.StatusTooManyRequests {
+			if res.StatusCode == http.StatusTooManyRequests && (delay*2 < maxDelay) {
 				time.Sleep(time.Duration(delay))
 				continue
 			}

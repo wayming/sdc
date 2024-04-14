@@ -297,3 +297,46 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 
 	teardownSATest()
 }
+
+func Test_stringToFloat64(t *testing.T) {
+	type args struct {
+		value string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    any
+		wantErr bool
+	}{
+		{
+			name:    "Negative",
+			args:    args{value: "-5"},
+			want:    float64(-5),
+			wantErr: false,
+		},
+		{
+			name:    "NegativePercentage",
+			args:    args{value: "-12.45%"},
+			want:    float64(-0.1245),
+			wantErr: false,
+		},
+		{
+			name:    "NegativePercentage",
+			args:    args{value: "-"},
+			want:    float64(0),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := collector.StringToFloat64(tt.args.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("stringToFloat64() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("stringToFloat64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
