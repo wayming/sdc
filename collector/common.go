@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/wayming/sdc/dbloader"
@@ -66,7 +67,8 @@ func ReadURL(url string, params map[string]string) (string, error) {
 		}
 		if res.StatusCode != http.StatusOK {
 			if res.StatusCode == http.StatusTooManyRequests && (delay*2 < maxDelay) {
-				time.Sleep(time.Duration(delay))
+				fmt.Println("Delay " + strconv.Itoa(delay) + " seconds")
+				time.Sleep(time.Duration(delay) * time.Second)
 				continue
 			}
 			return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)

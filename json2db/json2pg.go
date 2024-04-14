@@ -141,9 +141,9 @@ func (d *JsonToPGSQLConverter) deriveColType(rtype reflect.Type) (string, error)
 	case reflect.Int:
 		colType = "integer"
 	case reflect.Float32:
-		colType = "real"
+		colType = "numeric(12, 2)"
 	case reflect.Float64:
-		colType = "double precision"
+		colType = "numeric(24, 2)"
 	case reflect.Bool:
 		colType = "boolean"
 	case reflect.String:

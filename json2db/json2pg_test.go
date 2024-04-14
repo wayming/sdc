@@ -57,7 +57,7 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 			name: "CreateTableSQL",
 			args: args{tableName: TEST_TABLE, entityType: reflect.TypeFor[JsonEntityStruct]()},
 			wantSql: `CREATE TABLE IF NOT EXISTS json2pg_test ` +
-				`(Field1 varchar(1024), Field2 integer, Field3 double precision, Field4 boolean, Field5 varchar(1024));`,
+				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024));`,
 		},
 	}
 	for _, tt := range tests {
