@@ -42,6 +42,7 @@ func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string)
 func (collector *SACollector) SetSymbol(symbol string) {
 	collector.thisSymbol = symbol
 }
+
 func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
 	var indicatorsMap map[string]interface{}
 	var err error
@@ -452,6 +453,24 @@ func (collector *SACollector) CollectFinancialsIncome(symbol string, dataStructT
 	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, "sa_financials_income")
 }
 
+func (collector *SACollector) CollectFinancialsBalanceSheet(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
+	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
+	return collector.LoadTimeSeriesPage(financialsBalanceSheet, dataStructType, "sa_financials_balance_sheet")
+}
+
+func (collector *SACollector) CollectFinancialsCashFlow(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
+	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
+	return collector.LoadTimeSeriesPage(financialsICashFlow, dataStructType, "sa_financials_cash_flow")
+}
+
+func (collector *SACollector) CollectFinancialsRatios(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
+	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
+	return collector.LoadTimeSeriesPage(financialsRatios, dataStructType, "sa_financials_ratios")
+}
+
 func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
 
 	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
@@ -477,7 +496,15 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
 		return err
 	}
-
+	if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+		return err
+	}
 	return nil
 }
 
