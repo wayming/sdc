@@ -3,6 +3,7 @@ package json2db
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 const JSON_TEXT = `[
@@ -14,7 +15,8 @@ const JSON_TEXT = `[
         "field5": {
             "name": "strVal2",
             "nestedField2": 100
-        }
+        },
+		"field6": "2015-10-31"
     },
     {
         "field1": "strVal3",
@@ -24,7 +26,8 @@ const JSON_TEXT = `[
         "field5": {
             "name": "strVal2",
             "nestedField2": 100
-        }
+        },
+		"field6": "2015-07-31"
     }
 ]`
 
@@ -38,6 +41,7 @@ type JsonEntityStruct struct {
 	Field3 float64                `json:"field3"`
 	Field4 bool                   `json:"field4"`
 	Field5 NestedJsonEntityStruct `json:"field5"`
+	Field6 Date                   `json:"field6"`
 }
 
 const TEST_SCHEMA = "sdc_test"
@@ -57,7 +61,7 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 			name: "CreateTableSQL",
 			args: args{tableName: TEST_TABLE, entityType: reflect.TypeFor[JsonEntityStruct]()},
 			wantSql: `CREATE TABLE IF NOT EXISTS json2pg_test ` +
-				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024));`,
+				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024), field6 timestamp);`,
 		},
 	}
 	for _, tt := range tests {
@@ -80,6 +84,8 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 		tableName        string
 		entityStructType reflect.Type
 	}
+	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
+	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
 	tests := []struct {
 		name       string
 		d          *JsonToPGSQLConverter
@@ -96,10 +102,10 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 				tableName:        TEST_TABLE,
 				entityStructType: reflect.TypeFor[JsonEntityStruct](),
 			},
-			wantFields: []string{"field1", "field2", "field3", "field4", "field5"},
+			wantFields: []string{"field1", "field2", "field3", "field4", "field5", "field6"},
 			wantValues: [][]interface{}{
-				{"strVal", 10, 1.0, false, "strVal2"},
-				{"strVal3", 20, 2.0, true, "strVal2"},
+				{"strVal", 10, 1.0, false, "strVal2", time1},
+				{"strVal3", 20, 2.0, true, "strVal2", time2},
 			},
 		},
 	}
@@ -107,6 +113,9 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &JsonToPGSQLConverter{}
 			gotFields, gotValues, err := d.GenBulkInsert(tt.args.jsonText, tt.args.tableName, tt.args.entityStructType)
+			if !reflect.DeepEqual(gotValues[0][5], time1) {
+				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotValues[0][5], time1)
+			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() error = %v, wantErr %v", err, tt.wantErr)
 				return

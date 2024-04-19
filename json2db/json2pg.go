@@ -73,7 +73,7 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 		var row []interface{}
 		for _, fieldName := range fields {
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
-			if fieldValue.Type().Kind() == reflect.Struct {
+			if fieldValue.Type().Kind() == reflect.Struct && fieldValue.Type() != reflect.TypeFor[Date]() {
 				nestedFieldValue := fieldValue.FieldByName("Name")
 				row = append(row, nestedFieldValue.Interface())
 			} else {
@@ -149,7 +149,7 @@ func (d *JsonToPGSQLConverter) deriveColType(rtype reflect.Type) (string, error)
 	case reflect.String:
 		colType = "varchar(" + fmt.Sprint(MAX_CHAR_SIZE) + ")"
 	case reflect.Struct:
-		if rtype == reflect.TypeOf(time.Time{}) {
+		if rtype == reflect.TypeOf(time.Time{}) || rtype == reflect.TypeFor[Date]() {
 			colType = "timestamp"
 		} else {
 			if _, ok := rtype.FieldByName("Name"); ok {
