@@ -66,7 +66,7 @@ func ReadURL(url string, params map[string]string) (string, error) {
 			return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 		}
 		if res.StatusCode != http.StatusOK {
-			if res.StatusCode == http.StatusTooManyRequests && (delay*2 < maxDelay) {
+			if res.StatusCode == http.StatusTooManyRequests && (delay < maxDelay) {
 				fmt.Println("Delay " + strconv.Itoa(delay) + " seconds")
 				time.Sleep(time.Duration(delay) * time.Second)
 				continue

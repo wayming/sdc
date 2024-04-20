@@ -41,6 +41,8 @@ func (loader *PGLoader) Connect(host string, port string, user string, password 
 	} else {
 		loader.logger.Println("Connect to database host=", host, "port=", port, "user=", user, "dbname=", dbname)
 	}
+
+	loader.CreateSchema(loader.schema)
 }
 
 func (loader *PGLoader) Disconnect() {

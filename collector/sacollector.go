@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/wayming/sdc/dbloader"
 	"golang.org/x/net/html"
@@ -36,6 +38,9 @@ func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string)
 		thisSymbol:    "",
 	}
 	return &collector
+}
+func (collector *SACollector) Destroy() {
+	collector.dbLoader.Disconnect()
 }
 
 // For unit testing
@@ -230,6 +235,12 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 		}
 	case reflect.String:
 		convertedValue = value
+	}
+
+	if vType == reflect.TypeFor[time.Time]() {
+		if convertedValue, err = time.Parse("2006-01-02", value); err != nil {
+			return convertedValue, err
+		}
 	}
 
 	return convertedValue, nil
@@ -445,6 +456,7 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 
 // Parse Stock Analysis page and return JSON text
 func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+	collector.logger.Println("Load data from " + url)
 	htmlContent, err := ReadURL(url, params)
 	if err != nil {
 		return "", err
@@ -518,7 +530,6 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
 		return err
 	}
-
 	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
 		return err
 	}
@@ -534,7 +545,8 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 	return nil
 }
 
-func (collector *SACollector) CollectFinancialsForTrunk(symbols []string) error {
+func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) error {
+	collector.logger.Println("Begin collecting financials for [" + strings.Join(symbols, ",") + "].")
 	collected := 0
 	ignored := make([]string, 0)
 	for _, symbol := range symbols {
@@ -551,13 +563,21 @@ func (collector *SACollector) CollectFinancialsForTrunk(symbols []string) error 
 	return nil
 }
 
-func (collector *SACollector) CollectFinancials(trunkSize int) error {
+func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) error {
+	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+
 	type queryResult struct {
 		Symbol string
 	}
 
-	sqlQuerySymbol := "select symbol from " + collector.dbSchema + "." + "ms_tickers"
-	results, err := collector.dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
+	sqlQuerySymbol := "select symbol from ms_tickers"
+	results, err := dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
 	if err != nil {
 		return errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
 	}
@@ -571,24 +591,36 @@ func (collector *SACollector) CollectFinancials(trunkSize int) error {
 		symbols = append(symbols, strings.ToLower(row.Symbol))
 	}
 
-	collector.logger.Println("Collect financials for " + strconv.Itoa(len(symbols)) + " symbols")
-	return collector.CollectFinancialsForTrunk(symbols)
-}
-
-func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) error {
-	dbLoader := dbloader.NewPGLoader(schemaName, logger)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	defer dbLoader.Disconnect()
-
-	collector := NewSACollector(dbLoader, logger, schemaName)
-	if err := collector.CollectFinancials(trunkSize); err != nil {
-		return err
+	var wg sync.WaitGroup
+	begin := 0
+	errChan := make(chan error)
+	defer close(errChan)
+	for begin < len(symbols) {
+		end := begin + trunkSize
+		if end > len(symbols) {
+			end = len(symbols)
+		}
+		wg.Add(1)
+		go func(symbols []string, errChan chan error) {
+			collector := NewSACollector(dbLoader, logger, schemaName)
+			if err := collector.CollectFinancialsForSymbols(symbols); err != nil {
+				errChan <- err
+			}
+			collector.Destroy()
+		}(symbols[begin:end], errChan)
+		begin = end
+	}
+	var errMessage string
+	err = <-errChan
+	for err != nil {
+		errMessage = errMessage + err.Error()
+		err = <-errChan
 	}
 
+	wg.Wait()
+	if len(errMessage) > 0 {
+		return errors.New(errMessage)
+	}
 	return nil
 }
 
