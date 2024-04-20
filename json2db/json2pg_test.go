@@ -86,6 +86,8 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 	}
 	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
 	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
+	date1 := Date{time1}
+	date2 := Date{time2}
 	tests := []struct {
 		name       string
 		d          *JsonToPGSQLConverter
@@ -104,8 +106,8 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 			},
 			wantFields: []string{"field1", "field2", "field3", "field4", "field5", "field6"},
 			wantValues: [][]interface{}{
-				{"strVal", 10, 1.0, false, "strVal2", time1},
-				{"strVal3", 20, 2.0, true, "strVal2", time2},
+				{"strVal", 10, 1.0, false, "strVal2", date1},
+				{"strVal3", 20, 2.0, true, "strVal2", date2},
 			},
 		},
 	}
@@ -113,9 +115,6 @@ func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &JsonToPGSQLConverter{}
 			gotFields, gotValues, err := d.GenBulkInsert(tt.args.jsonText, tt.args.tableName, tt.args.entityStructType)
-			if !reflect.DeepEqual(gotValues[0][5], time1) {
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotValues[0][5], time1)
-			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() error = %v, wantErr %v", err, tt.wantErr)
 				return
