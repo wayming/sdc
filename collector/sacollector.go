@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/wayming/sdc/dbloader"
@@ -109,7 +108,25 @@ func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStr
 	return nil, nil
 }
 
-func (collector *SACollector) FirstTextNode(node *html.Node) *html.Node {
+func SearchText(node *html.Node, text string) bool {
+
+	if node.Type == html.TextNode {
+		regex, _ := regexp.Compile(".*" + text + ".*")
+		if regex.Match([]byte(node.Data)) {
+			return true
+		}
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if SearchText(child, text) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func FirstTextNode(node *html.Node) *html.Node {
 
 	if node.Type == html.TextNode && len(strings.TrimSpace(node.Data)) > 0 {
 		// collector.logger.Println(node.Data)
@@ -117,7 +134,7 @@ func (collector *SACollector) FirstTextNode(node *html.Node) *html.Node {
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		textNode := collector.FirstTextNode(child)
+		textNode := FirstTextNode(child)
 		if textNode != nil {
 			return textNode
 		}
@@ -255,7 +272,7 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
-			text1 := collector.FirstTextNode(td)
+			text1 := FirstTextNode(td)
 			if text1 != nil {
 				collector.logger.Println(text1.Data)
 			} else {
@@ -264,7 +281,7 @@ func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeN
 			}
 
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
-				text2 := collector.FirstTextNode(td2)
+				text2 := FirstTextNode(td2)
 				if text2 != nil {
 					normKey := normaliseJSONKey(text1.Data)
 					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
@@ -312,13 +329,13 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
-			text1 := collector.FirstTextNode(td)
+			text1 := FirstTextNode(td)
 			if text1 != nil {
 				collector.logger.Println(text1.Data)
 			}
 
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
-				text2 := collector.FirstTextNode(td2)
+				text2 := FirstTextNode(td2)
 				if text2 != nil {
 					dataPoint := make(map[string]interface{})
 					collector.logger.Println(text2.Data)
@@ -356,7 +373,7 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
-			text1 := collector.FirstTextNode(td)
+			text1 := FirstTextNode(td)
 			if text1 != nil {
 				collector.logger.Println(text1.Data)
 			} else {
@@ -367,7 +384,7 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 			// Assumes the same amount of tds as the the thead
 			for td2 := td.NextSibling; td2 != nil && idx < len(completeSeries); td2 = td2.NextSibling {
 				if td2.Type == html.ElementNode && td2.Data == "td" {
-					text2 := collector.FirstTextNode(td2)
+					text2 := FirstTextNode(td2)
 					if text2 != nil {
 						collector.logger.Println(text2.Data)
 
@@ -467,6 +484,10 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
+	if SearchText(htmlDoc, "No quarterly.*available for this stock") {
+		return "", errors.New("Ignore the symbol " + collector.thisSymbol + ". No quarterly data available")
+	}
+
 	indicatorsMap, err := collector.DecodeTimeSeriesTableHTML(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
@@ -563,7 +584,12 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 	return nil
 }
 
-func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) error {
+func CollectFinancials(schemaName string, trunkSize int) error {
+	var err error
+	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+	defer file.Close()
+
 	dbLoader := dbloader.NewPGLoader(schemaName, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -591,7 +617,6 @@ func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) err
 		symbols = append(symbols, strings.ToLower(row.Symbol))
 	}
 
-	var wg sync.WaitGroup
 	begin := 0
 	errChan := make(chan error)
 	defer close(errChan)
@@ -600,31 +625,46 @@ func CollectFinancials(logger *log.Logger, schemaName string, trunkSize int) err
 		if end > len(symbols) {
 			end = len(symbols)
 		}
-		wg.Add(1)
-		go func(symbols []string, errChan chan error) {
-			collector := NewSACollector(dbLoader, logger, schemaName)
+		go func(symbols []string, loggerFilePostfix string, schemaName string, errChan chan error) {
+
+			file, _ := os.OpenFile(LOG_FILE+"."+loggerFilePostfix, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+			defer file.Close()
+
+			subLoader := dbloader.NewPGLoader(schemaName, logger)
+			subLoader.Connect(os.Getenv("PGHOST"),
+				os.Getenv("PGPORT"),
+				os.Getenv("PGUSER"),
+				os.Getenv("PGPASSWORD"),
+				os.Getenv("PGDATABASE"))
+			defer subLoader.Disconnect()
+
+			collector := NewSACollector(subLoader, logger, schemaName)
 			if err := collector.CollectFinancialsForSymbols(symbols); err != nil {
 				errChan <- err
 			}
 			collector.Destroy()
-		}(symbols[begin:end], errChan)
+		}(symbols[begin:end], strconv.Itoa(begin), schemaName, errChan)
 		begin = end
 	}
-	var errMessage string
-	err = <-errChan
-	for err != nil {
-		errMessage = errMessage + err.Error()
-		err = <-errChan
+
+	var message string
+	for err = range errChan {
+		logger.Println(err.Error())
+		message = message + err.Error()
+	}
+	if len(message) > 0 {
+		return errors.New(message)
 	}
 
-	wg.Wait()
-	if len(errMessage) > 0 {
-		return errors.New(errMessage)
-	}
 	return nil
 }
 
-func CollectFinancialsForSymbol(logger *log.Logger, schemaName string, symbol string) error {
+func CollectFinancialsForSymbol(schemaName string, symbol string) error {
+	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+	defer file.Close()
+
 	dbLoader := dbloader.NewPGLoader(schemaName, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),

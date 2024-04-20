@@ -4,10 +4,12 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
+	"golang.org/x/net/html"
 )
 
 const SA_TEST_SCHEMA_NAME = "sdc_test"
@@ -20,7 +22,7 @@ func setupSATest(testName string) {
 
 	logName := SA_TEST_LOG_FILE_BASE + "_" + testName + ".log"
 	os.Remove(logName)
-	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
+	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
 	saTestLogger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
 	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, saTestLogger)
@@ -336,6 +338,36 @@ func Test_stringToFloat64(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("stringToFloat64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearchText(t *testing.T) {
+	type args struct {
+		node *html.Node
+		text string
+	}
+	htmlSnippets := "<div>This is a test string.</div>"
+	htmlDoc, _ := html.Parse(strings.NewReader(htmlSnippets))
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "TestSearchText",
+			args: args{
+				node: htmlDoc,
+				text: "test",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := collector.SearchText(tt.args.node, tt.args.text); got != tt.want {
+				t.Errorf("SearchText() = %v, want %v", got, tt.want)
 			}
 		})
 	}

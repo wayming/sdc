@@ -113,7 +113,11 @@ func (collector *MSCollector) CollectEOD() error {
 	return nil
 }
 
-func CollectTickers(logger *log.Logger, schemaName string, csvFile string) error {
+func CollectTickers(schemaName string, csvFile string) error {
+	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+	defer file.Close()
+
 	dbLoader := dbloader.NewPGLoader(schemaName, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),

@@ -2,6 +2,7 @@
 .vscode-server/
 .config/
 go/
+logs/
 .viminfo
 main.go
 main

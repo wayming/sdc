@@ -14,6 +14,8 @@ import (
 	"github.com/wayming/sdc/dbloader"
 )
 
+const LOG_FILE = "logs/sdc.log"
+
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
 	results := make(map[string]interface{})
 	for _, m := range maps {
@@ -31,7 +33,11 @@ func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) 
 	return results, nil
 }
 
-func DropSchema(logger *log.Logger, schema string) error {
+func DropSchema(schema string) error {
+	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+	defer file.Close()
+
 	dbLoader := dbloader.NewPGLoader(schema, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -43,34 +49,41 @@ func DropSchema(logger *log.Logger, schema string) error {
 }
 
 func ReadURL(url string, params map[string]string) (string, error) {
-	var htmlContent string
-
-	httpClient := http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
-	}
-
-	q := req.URL.Query()
-	for key, val := range params {
-		q.Add(key, val)
-	}
-	req.URL.RawQuery = q.Encode()
-
+	htmlContent := ""
 	bodyString := ""
-	var res *http.Response
-	const maxDelay = 10
-	for delay := 1; delay < maxDelay; delay = delay * 2 {
+
+	const maxDelay = 20
+	delay := 1
+	for delay < maxDelay {
+
+		httpClient := http.Client{}
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
+		}
+
+		q := req.URL.Query()
+		for key, val := range params {
+			q.Add(key, val)
+		}
+		req.URL.RawQuery = q.Encode()
+
+		var res *http.Response
+
 		res, err = httpClient.Do(req)
 		if err != nil {
 			return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 		}
 		if res.StatusCode != http.StatusOK {
-			if res.StatusCode == http.StatusTooManyRequests && (delay < maxDelay) {
+			if res.StatusCode == http.StatusTooManyRequests {
 				fmt.Println("Delay " + strconv.Itoa(delay) + " seconds")
 				time.Sleep(time.Duration(delay) * time.Second)
-				continue
+				delay = delay * 2
+				if delay <= maxDelay {
+					continue
+				}
 			}
+			// Return on error other than too many requests or retrr exhausted
 			return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
 		}
 		defer res.Body.Close()

@@ -19,7 +19,7 @@ func setupMSTest(testName string) {
 
 	logName := MS_TEST_SCHEMA_NAME + "_" + testName + ".log"
 	os.Remove(logName)
-	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
+	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
 	msTestLogger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
 	msTestDBLoader = dbloader.NewPGLoader(MS_TEST_SCHEMA_NAME, msTestLogger)

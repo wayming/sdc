@@ -108,7 +108,7 @@ var loader *PGLoader
 
 func setup() {
 
-	file, err := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
 	}
