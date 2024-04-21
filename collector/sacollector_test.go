@@ -22,7 +22,7 @@ func setupSATest(testName string) {
 
 	logName := SA_TEST_LOG_FILE_BASE + "_" + testName + ".log"
 	os.Remove(logName)
-	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
+	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	saTestLogger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
 
 	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, saTestLogger)

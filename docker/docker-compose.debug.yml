@@ -28,7 +28,7 @@ services:
     depends_on:
       - postgres
     deploy:
-      replicas: 1
+      replicas: 4
     networks:
       - overlay_network
     secrets:

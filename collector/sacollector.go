@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wayming/sdc/dbloader"
@@ -617,17 +618,19 @@ func CollectFinancials(schemaName string, trunkSize int) error {
 		symbols = append(symbols, strings.ToLower(row.Symbol))
 	}
 
+	var wg sync.WaitGroup
 	begin := 0
-	errChan := make(chan error)
-	defer close(errChan)
+	outChan := make(chan string)
 	for begin < len(symbols) {
 		end := begin + trunkSize
 		if end > len(symbols) {
 			end = len(symbols)
 		}
-		go func(symbols []string, loggerFilePostfix string, schemaName string, errChan chan error) {
+		wg.Add(1)
+		go func(symbols []string, funcId string, schemaName string, outChan chan string, wg *sync.WaitGroup) {
+			defer wg.Done()
 
-			file, _ := os.OpenFile(LOG_FILE+"."+loggerFilePostfix, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+			file, _ := os.OpenFile(LOG_FILE+"."+funcId, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
 			defer file.Close()
 
@@ -641,17 +644,23 @@ func CollectFinancials(schemaName string, trunkSize int) error {
 
 			collector := NewSACollector(subLoader, logger, schemaName)
 			if err := collector.CollectFinancialsForSymbols(symbols); err != nil {
-				errChan <- err
+				outChan <- err.Error()
 			}
 			collector.Destroy()
-		}(symbols[begin:end], strconv.Itoa(begin), schemaName, errChan)
+			logger.Println("Go function " + funcId + " returned.")
+		}(symbols[begin:end], strconv.Itoa(begin), schemaName, outChan, &wg)
 		begin = end
 	}
 
+	go func() {
+		wg.Wait()
+		close(outChan)
+	}()
+
 	var message string
-	for err = range errChan {
-		logger.Println(err.Error())
-		message = message + err.Error()
+	for out := range outChan {
+		logger.Println(out)
+		message = message + out
 	}
 	if len(message) > 0 {
 		return errors.New(message)

@@ -19,3 +19,4 @@ dbloader/logs
 docker/pglog
 docker/pgdata
 collector/logs
+.vim/.netrwhist
