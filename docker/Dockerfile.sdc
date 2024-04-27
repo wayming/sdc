@@ -6,6 +6,7 @@ RUN apt update
 RUN apt install git unzip wget -y
 RUN apt install curl iproute2 vim -y
 RUN apt install postgresql-client -y
+RUN apt install netcat parallel -y
 RUN rm -rf /var/lib/apt/lists/*
 
 # Install Golang

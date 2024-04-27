@@ -7,4 +7,6 @@ echo "export PGPASSWORD=$pgpass" > ~/.profile
 msaccesskey=`cat $MSACCESSKEYFILE`
 echo "export MSACCESSKEY=$msaccesskey" >> ~/.profile
 
+echo "export SDC_HOME=/home/appuser" >> ~/.profile
+
 sleep infinity
