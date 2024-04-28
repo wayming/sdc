@@ -1,0 +1,1 @@
+find . -name "page*"  -exec sh -c 'grep -q "marketCap:\"3.02T\"" "$1" || echo "$1"' _ {} \;

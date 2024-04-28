@@ -1,10 +1,12 @@
 package collector_test
 
 import (
-	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/wayming/sdc/collector"
@@ -22,6 +24,9 @@ func setupCommonTest(testName string) {
 	os.Remove(logName)
 	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	testLogger = log.New(file, "commontest: ", log.Ldate|log.Ltime)
+	// Redirect stdout and stderr to log file
+	os.Stdout = file
+	os.Stderr = file
 }
 
 func teardownCommonTest() {
@@ -48,7 +53,7 @@ func TestReadURL(t *testing.T) {
 				params:    nil,
 				repeats:   1000,
 				parallel:  20,
-				proxyFile: os.Getenv("SDC_HOME") + "/data/proxies.txt",
+				proxyFile: os.Getenv("SDC_HOME") + "/data/proxies4.txt",
 			},
 			want:    "string body",
 			wantErr: false,
@@ -60,33 +65,51 @@ func TestReadURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			inChan := make(chan string, tt.args.repeats)
+			inChan := make(chan int, tt.args.repeats)
 			ouChan := make(chan string, tt.args.repeats)
 
+			proxies := collector.GetProxies(tt.args.proxyFile)
 			for i := 0; i < tt.args.parallel; i++ {
-				go func(in chan string, ou chan string) {
-					for cmd := range in {
-						err := exec.Command("/bin/bash", "-c", cmd).Run()
-						if err != nil {
-							t.Logf("Failed to run comand %s, Error: %s", cmd, err.Error())
+				go func(in chan int, ou chan string, proxies []string, goid int) {
+					for idx := range in {
+						done := false
+						for len(proxies) > 0 {
+							thisProxyIdx := rand.Intn(len(proxies))
+							cmd := exec.Command("wget",
+								"--timeout=10", "--tries=1",
+								"-O", "logs/page"+strconv.Itoa(idx)+".html",
+								"-o", "logs/wget"+strconv.Itoa(idx)+".html",
+								"-e", "use_proxy=yes",
+								"-e", "https_proxy="+proxies[thisProxyIdx],
+								tt.args.url)
+							err := cmd.Run()
 
-						} else {
-							t.Logf("%s command done", cmd)
+							if err != nil {
+								testLogger.Printf("[%d]: Failed to run comand [%s], Error: %s", goid, strings.Join(cmd.Args, " "), err.Error())
+								thisProxy := proxies[thisProxyIdx]
+								proxies = append(proxies[0:thisProxyIdx], proxies[thisProxyIdx+1:]...)
+								testLogger.Printf("[%d]: Remove proxy server %s, %d left.", goid, thisProxy, len(proxies))
+							} else {
+								testLogger.Printf("[%d]: command [%s] done", goid, strings.Join(cmd.Args, " "))
+								ouChan <- "Done"
+								done = true
+								break
+							}
 						}
-						ouChan <- "Done"
+						if !done {
+							ouChan <- "Error"
+						}
 					}
-				}(inChan, ouChan)
+
+				}(inChan, ouChan, proxies, i)
 			}
 
-			proxies := collector.GetProxies(tt.args.proxyFile)
-			t.Logf("Got valid proxy servers %v", proxies)
+			testLogger.Printf("Got valid proxy servers %v", proxies)
 			if len(proxies) == 0 {
 				t.Fatalf("No valid proxy server found from %s", tt.args.proxyFile)
 			}
 			for i := 0; i < tt.args.repeats; i++ {
-				inChan <- fmt.Sprintf(
-					"wget -O logs/page%d.html -a logs/wget%d.html -e use_proxy=yes -e https_proxy=%s %s",
-					i, i, proxies[i%len(proxies)], tt.args.url)
+				inChan <- i
 			}
 			close(inChan)
 
@@ -176,7 +199,7 @@ func TestGetProxies(t *testing.T) {
 		{
 			name: "TestGetProxies",
 			args: args{
-				textFile: os.Getenv("SDC_HOME") + "/data/proxies.txt",
+				textFile: os.Getenv("SDC_HOME") + "/data/proxies5.txt",
 			},
 		},
 	}
@@ -189,7 +212,7 @@ func TestGetProxies(t *testing.T) {
 			if got := collector.GetProxies(tt.args.textFile); len(got) == 0 {
 				t.Errorf("GetProxies() fails to get any active proxies")
 			} else {
-				t.Logf("Got validate proxies %v", got)
+				testLogger.Printf("Got validate proxies %v", got)
 			}
 		})
 	}

@@ -64,17 +64,26 @@ func IsProxyValid(proxy string) bool {
 		fmt.Println("Faield to ping "+proxy+". Error: ", err.Error())
 		return false
 	}
-	if cmd.ProcessState.ExitCode() == 0 {
-		return true
+	if cmd.ProcessState.ExitCode() != 0 {
+		return false
 	}
-	return false
+
+	cmd = exec.Command("wget", "--timeout", "2", "-e", "use_proxy=yes", "-e", "http_proxy="+proxy, "https://stockanalysis.com/")
+	if err := cmd.Run(); err != nil {
+		fmt.Println("Faield to ping "+proxy+". Error: ", err.Error())
+		return false
+	}
+	if cmd.ProcessState.ExitCode() != 0 {
+		return false
+	}
+	return true
 }
 func TestProxies(proxies []string) []string {
 	inChan := make(chan string, len(proxies))
 	ouChan := make(chan string, len(proxies))
 	defer close(ouChan)
 
-	numWorkers := 20
+	numWorkers := 50
 	for i := 0; i < numWorkers; i++ {
 		go func(inChan chan string, ouChan chan string) {
 			for proxy := range inChan {
