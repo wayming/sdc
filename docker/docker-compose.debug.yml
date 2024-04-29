@@ -22,13 +22,16 @@ services:
       - PGPASSFILE=/run/secrets/pg_pass_file
       - PGDATABASE=stock_data
       - MSACCESSKEYFILE=/run/secrets/market_stack_access_key
+      - REDISHOST=redis
+      - REDISPORT=6379
     privileged: true
     devices:
       - "/dev/dri/card0:/dev/dri/card0"
     depends_on:
       - postgres
+      - redis
     deploy:
-      replicas: 4
+      replicas: 1
     networks:
       - overlay_network
     secrets:
@@ -92,6 +95,13 @@ services:
         # uid: '1000'  # appuser
         # gid: '1000'  #appuser
 
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - overlay_network
+      
 secrets:
   pg_pass_file:
     # generated from docker secret command
