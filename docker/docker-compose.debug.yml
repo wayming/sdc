@@ -9,7 +9,7 @@ services:
     volumes:
       - ..:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
-    command: ["bash", "docker/stock_data_collector_init.sh"]
+    command: ["bash", "/home/appuser/docker/stock_data_collector_init.sh"]
     ports:
       - "5001:5001"
     environment:
@@ -24,8 +24,6 @@ services:
       - MSACCESSKEYFILE=/run/secrets/market_stack_access_key
       - REDISHOST=redis
       - REDISPORT=6379
-    privileged: true
-    devices:
       - "/dev/dri/card0:/dev/dri/card0"
     depends_on:
       - postgres
