@@ -30,11 +30,28 @@ func TestLoadProxies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cache.LoadProxies(tt.args.proxyFile); len(got) == 0 {
-				t.Errorf("LoadProxies() = %v, expecting more than one available proxy server", got)
-			} else {
-				sdclogger.SDCLoggerInstance.Printf("LoadProxies() = %v", got)
+			m := cache.NewCacheManager()
+			m.Connect()
+			defer m.Disconnect()
+
+			added, err := cache.LoadProxies(tt.args.proxyFile, m)
+			if added == 0 && err != nil {
+				t.Errorf("Failed to load proxies. Error: %s", err.Error())
 			}
+
+			fetched := 0
+			for proxy, _ := m.GetProxy(); proxy != ""; proxy, _ = m.GetProxy() {
+				sdclogger.SDCLoggerInstance.Printf("Got proxy %s from cache", proxy)
+				fetched++
+
+				m.DeleteProxy(proxy)
+				sdclogger.SDCLoggerInstance.Printf("Delete proxy %s from cache", proxy)
+			}
+
+			if added != fetched {
+				t.Errorf("Expecting %d proxies, got %d", added, fetched)
+			}
+
 		})
 	}
 

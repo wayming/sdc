@@ -14,6 +14,24 @@ type CacheManager struct {
 	clientHandle *redis.Client
 }
 
+func NewCacheManager() *CacheManager {
+	return &CacheManager{clientHandle: nil}
+}
+
+func (m *CacheManager) Disconnect() error {
+	if m.clientHandle == nil {
+		sdclogger.SDCLoggerInstance.Printf("No redis connection to close")
+		return nil
+	}
+
+	if err := m.clientHandle.Close(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Faield to disconnect from redis. Error %s", err.Error())
+	}
+	m.clientHandle = nil
+
+	return nil
+}
+
 func (m *CacheManager) Connect() error {
 	redisAddr := os.Getenv("REDISHOST") + ":" + os.Getenv("REDISPORT")
 	m.clientHandle = redis.NewClient(&redis.Options{

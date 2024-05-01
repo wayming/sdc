@@ -19,6 +19,8 @@ func TeardownCacheManagerTest() {
 		Addr:     redisAddr,
 		Password: "",
 		DB:       0})
+	defer redisHandle.Close()
+
 	if err := redisHandle.Del(REDIS_KEY_PROXIES).Err(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Faield to drop cache set %s. Error: %s", REDIS_KEY_PROXIES, err.Error())
 	}
@@ -49,15 +51,21 @@ func TestCacheManager_Connect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &CacheManager{
-				clientHandle: tt.fields.clientHandle,
-			}
+			m := NewCacheManager()
 			if err := m.Connect(); (err != nil) != tt.wantErr {
 				t.Errorf("CacheManager.Connect() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if m.clientHandle == nil {
 				t.Errorf("Faild to establish redis connection")
+			}
+
+			if err := m.Disconnect(); (err != nil) != tt.wantErr {
+				t.Errorf("CacheManager.Disconnect() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if m.clientHandle != nil {
+				t.Errorf("Faild to drop redis connection")
 			}
 		})
 	}

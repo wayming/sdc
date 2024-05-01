@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"strings"
@@ -8,14 +9,22 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-func LoadProxies(proxyFile string) []string {
+func LoadProxies(proxyFile string, cache *CacheManager) (int, error) {
 	content, err := os.ReadFile(proxyFile)
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Println("Failed to get proxies from file " + proxyFile + ". Error: " + err.Error())
-		return nil
+		return 0, errors.New(err.Error())
 	}
 	validProxies := testProxies(strings.Split(string(content), "\n"))
-	return validProxies
+	added := 0
+	for _, proxy := range validProxies {
+		if err := cache.SetProxy(proxy); err != nil {
+			sdclogger.SDCLoggerInstance.Println(err.Error())
+		} else {
+			added++
+		}
+	}
+	return added, nil
 }
 
 func isProxyValid(proxy string) bool {
