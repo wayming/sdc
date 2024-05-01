@@ -15,7 +15,6 @@ type CacheManager struct {
 }
 
 func (m *CacheManager) Connect() error {
-	os.Setenv("REDISHOST", "redis")
 	redisAddr := os.Getenv("REDISHOST") + ":" + os.Getenv("REDISPORT")
 	m.clientHandle = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
@@ -40,6 +39,14 @@ func (m *CacheManager) SetProxy(proxy string) error {
 }
 
 func (m *CacheManager) GetProxy() (string, error) {
+	length, err := m.clientHandle.SCard(REDIS_KEY_PROXIES).Result()
+	if err != nil {
+		return "", errors.New("Failed to get the length of proxy set from cache. Error: " + err.Error())
+	}
+	if length == 0 {
+		return "", nil
+	}
+
 	proxy, err := m.clientHandle.SRandMember(REDIS_KEY_PROXIES).Result()
 	if err != nil {
 		return "", errors.New("Failed to get a proxy from cache. Error: " + err.Error())
