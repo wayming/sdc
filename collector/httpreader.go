@@ -2,151 +2,117 @@ package collector
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
-	"reflect"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/wayming/sdc/cache"
+	"github.com/wayming/sdc/sdclogger"
+	"golang.org/x/time/rate"
 )
 
-type HttpReader struct {
+var counter int
+var counterMutex sync.Mutex
+
+func nextId() int {
+	counterMutex.Lock()
+	defer counterMutex.Unlock()
+
+	counter++
+	return counter
+}
+
+type HttpReader interface {
+	Read(url string, params map[string]string) (string, error)
+}
+
+type HttpProxyReader struct {
 	ProxyFile string
-	logger    *log.Logger
+	Cache     *cache.CacheManager
+	key       string
 }
 
-func NewHttpReader(proxyFile string, logger *log.Logger) *HttpReader {
-	return &HttpReader{ProxyFile: proxyFile, logger: logger}
-}
-
-func GetProxies(textFile string) []string {
-	content, err := os.ReadFile(textFile)
-	if err != nil {
-		fmt.Println("Failed to get proxies from file " + textFile + ". Error: " + err.Error())
+func NewHttpProxyReader(proxyFile string) *HttpProxyReader {
+	reader := &HttpProxyReader{ProxyFile: proxyFile, Cache: cache.NewCacheManager(), key: strconv.Itoa(nextId())}
+	if err := reader.Cache.Connect(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to connect to the cache. Error: %s", err.Error())
 		return nil
 	}
-	validProxies := TestProxies(strings.Split(string(content), "\n"))
-	return validProxies
-}
-func IsProxyValid(proxy string) bool {
-	parts := strings.Split(proxy, ":")
-	cmd := exec.Command("nc", "-w", "5", "-zv", parts[0], parts[1])
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Faield to ping "+proxy+". Error: ", err.Error())
-		return false
-	}
-	if cmd.ProcessState.ExitCode() != 0 {
-		return false
-	}
 
-	cmd = exec.Command("wget", "--timeout", "2", "-e", "use_proxy=yes", "-e", "http_proxy="+proxy, "https://stockanalysis.com/")
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Faield to ping "+proxy+". Error: ", err.Error())
-		return false
+	loadedProxies, err := cache.LoadProxies(reader.ProxyFile, reader.Cache)
+	if err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to initialise proxies in the cache. Error: %s", err.Error())
+		return nil
 	}
-	if cmd.ProcessState.ExitCode() != 0 {
-		return false
-	}
-	return true
+	sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to the cache.", loadedProxies)
+	return reader
 }
-func TestProxies(proxies []string) []string {
-	inChan := make(chan string, len(proxies))
-	ouChan := make(chan string, len(proxies))
-	defer close(ouChan)
 
-	numWorkers := 50
-	for i := 0; i < numWorkers; i++ {
-		go func(inChan chan string, ouChan chan string) {
-			for proxy := range inChan {
-				if IsProxyValid(proxy) {
-					ouChan <- proxy
-				} else {
-					ouChan <- ""
-				}
+func (reader *HttpProxyReader) Read(url string, params map[string]string) (string, error) {
+	htmlFile := "logs/page" + reader.key + ".html"
+	for {
+		proxy, err := reader.Cache.GetProxy()
+		if err != nil {
+			return "", err
+		}
+		if proxy == "" {
+			return "", errors.New("proxy server running out")
+		}
+
+		cmd := exec.Command("wget",
+			"--timeout=10", "--tries=1",
+			"-O", htmlFile,
+			"-o", "logs/wget"+reader.key+".html",
+			"-e", "use_proxy=yes",
+			"-e", "https_proxy="+proxy, url)
+		err = cmd.Run()
+		if err != nil {
+			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.key, strings.Join(cmd.Args, " "), err.Error())
+			reader.Cache.DeleteProxy(proxy)
+			len, err := reader.Cache.Proxies()
+			if err != nil {
+				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to get number of proxies. Error: %s", reader.key, err.Error())
+			} else {
+				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Remove proxy server %s, %d left.", reader.key, proxy, len)
 			}
-		}(inChan, ouChan)
-	}
+			continue
+		}
 
-	// Dispatch tasks
-	for _, proxy := range proxies {
-		inChan <- proxy
-	}
-	close(inChan)
-
-	// Harvest results
-	var validProxies []string
-	for i := 0; i < len(proxies); i++ {
-		validProxy, ok := <-ouChan
-		if ok && len(validProxy) > 0 {
-			validProxies = append(validProxies, validProxy)
+		sdclogger.SDCLoggerInstance.Printf("Reader[%s]: command [%s] done", reader.key, strings.Join(cmd.Args, " "))
+		htmlContent, err := os.ReadFile(htmlFile)
+		if err != nil {
+			sdclogger.SDCLoggerInstance.Printf("Failed to read file %s. Error: %s", htmlFile, err.Error())
+		} else {
+			return string(htmlContent), nil
 		}
 	}
-
-	return validProxies
 }
 
-func ReadURL(url string, params map[string]string) (string, error) {
-	htmlContent := ""
-	bodyString := ""
+type HttpLocalReader struct {
+	key string
+}
 
-	// const maxDelay = 200
-	// delay := 1
-	// for delay < maxDelay {
-
-	// 	httpClient := http.Client{}
-	// 	req, err := http.NewRequest("GET", url, nil)
-	// 	if err != nil {
-	// 		return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
-	// 	}
-
-	// 	q := req.URL.Query()
-	// 	for key, val := range params {
-	// 		q.Add(key, val)
-	// 	}
-	// 	req.URL.RawQuery = q.Encode()
-
-	// 	var res *http.Response
-
-	// 	res, err = httpClient.Do(req)
-	// 	if err != nil {
-	// 		return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
-	// 	}
-	// 	if res.StatusCode != http.StatusOK {
-	// 		if res.StatusCode == http.StatusTooManyRequests {
-	// 			fmt.Println("Delay " + strconv.Itoa(delay) + " seconds")
-	// 			time.Sleep(time.Duration(delay) * time.Second)
-	// 			delay = delay * 2
-	// 			if delay <= maxDelay {
-	// 				continue
-	// 			}
-	// 		}
-	// 		// Return on error other than too many requests or retrr exhausted
-	// 		return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
-	// 	}
-	// 	defer res.Body.Close()
-
-	// 	body, err := io.ReadAll(res.Body)
-	// 	if err != nil {
-	// 		return string(body), err
-	// 	}
-	// 	bodyString = string(body)
-	// 	break
-	// }
-
-	// limiter := rate.NewLimiter(rate.Limit(1), 1)
-	// defaultRetryInterval := 65
+func NewHttpLocalReader(proxyFile string) *HttpLocalReader {
+	return &HttpLocalReader{key: strconv.Itoa(nextId())}
+}
+func (reader *HttpLocalReader) Read(url string, params map[string]string) (string, error) {
+	limiter := rate.NewLimiter(rate.Limit(1), 1)
+	defaultRetryInterval := 65
 	for {
-		// if !limiter.Allow() {
-		// 	time.Sleep(time.Second)
-		// 	continue
-		// }
+		if !limiter.Allow() {
+			time.Sleep(time.Second)
+			continue
+		}
 
 		httpClient := http.Client{}
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			return htmlContent, errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
+			return "", errors.New("Failed to create GET request for url" + url + ", Error: " + err.Error())
 		}
 		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 		// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
@@ -168,54 +134,37 @@ func ReadURL(url string, params map[string]string) (string, error) {
 			q.Add(key, val)
 		}
 		req.URL.RawQuery = q.Encode()
-		// fmt.Println("Request>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-		// // List all attributes of the response header
-		// for key, values := range req.Header {
-		// 	for _, value := range values {
-		// 		fmt.Printf("%s: %s\n", key, value)
-		// 	}
-		// }
-		// fmt.Println("Request<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 		var res *http.Response
-
 		res, err = httpClient.Do(req)
 		if err != nil {
-			return htmlContent, errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
+			return "", errors.New("Failed to perform request to url" + url + ", Error: " + err.Error())
 		}
-		// fmt.Println("Response>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-
-		// for key, values := range res.Header {
-		// 	for _, value := range values {
-		// 		fmt.Printf("%s: %s\n", key, value)
-		// 	}
-		// }
-		// fmt.Println("Response<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 		if res.StatusCode != http.StatusOK {
-			// if res.StatusCode == http.StatusTooManyRequests {
+			if res.StatusCode == http.StatusTooManyRequests {
 
-			// 	// Access Retry-After header attribute
-			// 	retryAfter := res.Header.Get("Retry-After")
-			// 	if retryAfter != "" {
-			// 		// Parse Retry-After header value to get duration
-			// 		duration, err := time.ParseDuration(retryAfter)
-			// 		if err != nil {
-			// 			return htmlContent, errors.New(
-			// 				"Failed to get Retry-After attribute after getting response status " +
-			// 					res.Status + ", Error: " + err.Error() + ". Requested url is " + url)
-			// 		}
-			// 		fmt.Println("Delay " + retryAfter + " seconds")
-			// 		time.Sleep(time.Duration(duration) * time.Second)
-			// 		continue
-			// 	} else {
-			// 		fmt.Println("Delay " + strconv.Itoa(defaultRetryInterval) + " seconds")
-			// 		time.Sleep(time.Duration(defaultRetryInterval) * time.Second)
-			// 		continue
-			// 	}
-			// }
+				// Access Retry-After header attribute
+				retryAfter := res.Header.Get("Retry-After")
+				if retryAfter != "" {
+					// Parse Retry-After header value to get duration
+					duration, err := time.ParseDuration(retryAfter)
+					if err != nil {
+						return "", errors.New(
+							"Failed to get Retry-After attribute after getting response status " +
+								res.Status + ", Error: " + err.Error() + ". Requested url is " + url)
+					}
+					sdclogger.SDCLoggerInstance.Println("Delay " + retryAfter + " seconds")
+					time.Sleep(time.Duration(duration) * time.Second)
+					continue
+				} else {
+					sdclogger.SDCLoggerInstance.Println("Delay " + strconv.Itoa(defaultRetryInterval) + " seconds")
+					time.Sleep(time.Duration(defaultRetryInterval) * time.Second)
+					continue
+				}
+			}
 			// Return on error other than too many requests or retrr exhausted
-			return htmlContent, errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
+			return "", errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
 		}
 		defer res.Body.Close()
 
@@ -223,33 +172,5 @@ func ReadURL(url string, params map[string]string) (string, error) {
 		if err != nil {
 			return string(body), err
 		}
-		bodyString = string(body)
-		break
 	}
-	return bodyString, nil
-}
-
-type JsonFieldMetadata struct {
-	FieldName    string
-	FieldType    reflect.Type
-	FieldJsonTag string
-}
-
-func GetJsonStructMetadata(jsonStructType reflect.Type) map[string]JsonFieldMetadata {
-	fieldTypeMap := make(map[string]JsonFieldMetadata)
-	for idx := 0; idx < jsonStructType.NumField(); idx++ {
-		field := jsonStructType.Field(idx)
-		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, field.Tag.Get("json")}
-	}
-	return fieldTypeMap
-}
-
-func GetFieldTypeByTag(fieldsMetadata map[string]JsonFieldMetadata, tag string) reflect.Type {
-	for _, v := range fieldsMetadata {
-		if v.FieldJsonTag == tag {
-			return v.FieldType
-		}
-	}
-
-	return nil
 }

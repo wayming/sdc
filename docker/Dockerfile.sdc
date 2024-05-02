@@ -8,6 +8,7 @@ RUN apt install curl iproute2 vim -y
 RUN apt install postgresql-client -y
 RUN apt install parallel -y
 RUN apt install netcat-traditional -y
+RUN apt install redis-tools -y
 RUN rm -rf /var/lib/apt/lists/*
 
 # Install Golang
