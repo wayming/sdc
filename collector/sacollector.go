@@ -13,34 +13,35 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
 	"golang.org/x/net/html"
 )
 
 type SACollector struct {
-	dbLoader      dbloader.DBLoader
-	logger        *log.Logger
 	dbSchema      string
+	loader        dbloader.DBLoader
+	reader        HttpReader
+	logger        *log.Logger
 	metricsFields map[string]map[string]JsonFieldMetadata
 	accessKey     string
 	thisSymbol    string
 }
 
-func NewSACollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *SACollector {
+func NewSACollector(schema string, loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger) *SACollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := SACollector{
-		dbLoader:      loader,
-		logger:        logger,
 		dbSchema:      schema,
+		loader:        loader,
+		reader:        httpReader,
+		logger:        logger,
 		metricsFields: AllSAMetricsFields(),
 		accessKey:     "",
 		thisSymbol:    "",
 	}
 	return &collector
-}
-func (collector *SACollector) Destroy() {
-	collector.dbLoader.Disconnect()
 }
 
 // For unit testing
@@ -423,7 +424,7 @@ func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructT
 func (collector *SACollector) ReadOverallPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
 	collector.logger.Println("Read " + url)
 
-	htmlContent, err := ReadURL(url, params)
+	htmlContent, err := collector.reader.Read(url, params)
 	if err != nil {
 		return "", err
 	}
@@ -463,7 +464,7 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 		return 0, errors.New("Failed to scrap data from url " + overallUrl + ". Error: " + err.Error())
 	}
 
-	numOfRows, err := collector.dbLoader.LoadByJsonText(jsonText, overalTable, reflect.TypeFor[StockOverview]())
+	numOfRows, err := collector.loader.LoadByJsonText(jsonText, overalTable, reflect.TypeFor[StockOverview]())
 	if err != nil {
 		return 0, errors.New("Failed to load data into table " + overalTable + ". Error: " + err.Error())
 	}
@@ -475,7 +476,7 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 // Parse Stock Analysis page and return JSON text
 func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
 	collector.logger.Println("Load data from " + url)
-	htmlContent, err := ReadURL(url, params)
+	htmlContent, err := collector.reader.Read(url, params)
 	if err != nil {
 		return "", err
 	}
@@ -538,7 +539,7 @@ func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType refl
 		return 0, errors.New("Failed to scrap data from url " + url + ". Error: " + err.Error())
 	}
 
-	numOfRows, err := collector.dbLoader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
 	if err != nil {
 		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
 	}
@@ -585,13 +586,9 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 	return nil
 }
 
-func CollectFinancials(schemaName string, trunkSize int) error {
-	var err error
-	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-	defer file.Close()
+func LoadSymbolsToCache(schemaName string, cache *cache.CacheManager) (int, error) {
 
-	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -606,50 +603,93 @@ func CollectFinancials(schemaName string, trunkSize int) error {
 	sqlQuerySymbol := "select symbol from ms_tickers"
 	results, err := dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
 	if err != nil {
-		return errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
+		return 0, errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
 	}
 	queryResults, ok := results.([]queryResult)
 	if !ok {
-		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
+		return 0, errors.New("failed to run assert the query results are returned as a slice of queryResults")
 	}
 
-	symbols := make([]string, 0)
+	if err := cache.Connect(); err != nil {
+		return 0, err
+	}
+	defer cache.Disconnect()
+
 	for _, row := range queryResults {
-		symbols = append(symbols, strings.ToLower(row.Symbol))
+		cache.AddToSet(CACHE_KEY_SYMBOL, strings.ToLower(row.Symbol))
+	}
+
+	return len(queryResults), nil
+}
+
+// Entry function
+func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
+	// shared by all go routines
+	cache := cache.NewCacheManager()
+	if !isContinue {
+		loaded, err := LoadSymbolsToCache(schemaName, cache)
+		if err != nil {
+			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
+		}
+		sdclogger.SDCLoggerInstance.Println("Loaded %d symbols to cache", loaded)
+
+		loaded, err = LoadProxies(PROXY_FILE, cache)
+		if err != nil {
+			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
+		}
+		sdclogger.SDCLoggerInstance.Println("Loaded %d proxies to cache", loaded)
 	}
 
 	var wg sync.WaitGroup
-	begin := 0
 	outChan := make(chan string)
-	for begin < len(symbols) {
-		end := begin + trunkSize
-		if end > len(symbols) {
-			end = len(symbols)
-		}
+	for i := 0; i < parallel; i++ {
 		wg.Add(1)
-		go func(symbols []string, funcId string, schemaName string, outChan chan string, wg *sync.WaitGroup) {
+		go func(funcId string, schemaName string, outChan chan string, wg *sync.WaitGroup) {
 			defer wg.Done()
 
+			// Logger
 			file, _ := os.OpenFile(LOG_FILE+"."+funcId, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
 			defer file.Close()
+			logger.Println("[Go" + funcId + "] started.")
 
-			subLoader := dbloader.NewPGLoader(schemaName, logger)
-			subLoader.Connect(os.Getenv("PGHOST"),
+			// dbloader
+			dbLoader := dbloader.NewPGLoader(schemaName, logger)
+			dbLoader.Connect(os.Getenv("PGHOST"),
 				os.Getenv("PGPORT"),
 				os.Getenv("PGUSER"),
 				os.Getenv("PGPASSWORD"),
 				os.Getenv("PGDATABASE"))
-			defer subLoader.Disconnect()
+			defer dbLoader.Disconnect()
 
-			collector := NewSACollector(subLoader, logger, schemaName)
-			if err := collector.CollectFinancialsForSymbols(symbols); err != nil {
-				outChan <- err.Error()
+			// http reader
+			httpReader := NewHttpProxyReader(cache)
+
+			collector := NewSACollector(schemaName, dbLoader, httpReader, logger)
+
+			for len, _ := cache.GetLength(CACHE_KEY_SYMBOL); len > 0; {
+				nextSymbol, err := cache.GetFromSet(CACHE_KEY_SYMBOL)
+				if err != nil {
+					logger.Println("[Go" + funcId + "] error: " + err.Error())
+					outChan <- err.Error()
+					continue
+				}
+
+				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
+					logger.Println("[Go" + funcId + "] error: " + err.Error())
+					outChan <- err.Error()
+					continue
+				}
+
+				if err := cache.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
+					logger.Println("[Go" + funcId + "] error: " + err.Error())
+					outChan <- err.Error()
+				}
+
 			}
-			collector.Destroy()
-			logger.Println("Go function " + funcId + " returned.")
-		}(symbols[begin:end], strconv.Itoa(begin), schemaName, outChan, &wg)
-		begin = end
+
+			logger.Println("[Go" + funcId + "] finished.")
+		}(strconv.Itoa(i), schemaName, outChan, &wg)
 	}
 
 	go func() {
@@ -657,24 +697,31 @@ func CollectFinancials(schemaName string, trunkSize int) error {
 		close(outChan)
 	}()
 
-	var message string
+	var errorMessage string
 	for out := range outChan {
-		logger.Println(out)
-		message = message + out
+		sdclogger.SDCLoggerInstance.Printf(out)
+		errorMessage += fmt.Sprintf("%s\n", out)
 	}
-	if len(message) > 0 {
-		return errors.New(message)
+
+	if len, _ := cache.GetLength(CACHE_KEY_PROXY); len == 0 {
+		errorMessage += fmt.Sprintf("Running out of proxy servers.\n")
+	}
+
+	if len, _ := cache.GetLength(CACHE_KEY_SYMBOL); len > 0 {
+		leftSymbols, _ := cache.GetAllFromSet(CACHE_KEY_SYMBOL)
+		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(leftSymbols, ","))
+	}
+
+	if len(errorMessage) > 0 {
+		return errors.New(errorMessage)
 	}
 
 	return nil
 }
 
 func CollectFinancialsForSymbol(schemaName string, symbol string) error {
-	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-	defer file.Close()
-
-	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	// dbloader
+	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -682,7 +729,11 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 		os.Getenv("PGDATABASE"))
 	defer dbLoader.Disconnect()
 
-	collector := NewSACollector(dbLoader, logger, schemaName)
+	// http reader
+	httpReader := NewHttpLocalReader()
+
+	collector := NewSACollector(schemaName, dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger)
+
 	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {
 		return err
 	}

@@ -9,16 +9,11 @@ import (
 )
 
 type CacheManager struct {
-	ProxyCacheKey string
-	clientHandle  *redis.Client
+	clientHandle *redis.Client
 }
 
 func NewCacheManager() *CacheManager {
-	return &CacheManager{ProxyCacheKey: "PROXIES", clientHandle: nil}
-}
-
-func (m *CacheManager) SetProxyKey(key string) {
-	m.ProxyCacheKey = key
+	return &CacheManager{clientHandle: nil}
 }
 
 func (m *CacheManager) Disconnect() error {
@@ -50,45 +45,54 @@ func (m *CacheManager) Connect() error {
 	return nil
 }
 
-func (m *CacheManager) SetProxy(proxy string) error {
-	err := m.clientHandle.SAdd(m.ProxyCacheKey, proxy).Err()
+func (m *CacheManager) AddToSet(key string, value string) error {
+	err := m.clientHandle.SAdd(key, value).Err()
 	if err != nil {
-		return errors.New("Failed to add " + proxy + " to cache. Error: " + err.Error())
+		return errors.New("Failed to add " + value + " to cache key " + key + ". Error: " + err.Error())
 	}
-	sdclogger.SDCLoggerInstance.Printf("Add %s to cache", proxy)
+	sdclogger.SDCLoggerInstance.Printf("Add %s to cache key %s", value, key)
 	return nil
 }
 
-func (m *CacheManager) GetProxy() (string, error) {
-	length, err := m.Proxies()
+func (m *CacheManager) GetFromSet(key string) (string, error) {
+	length, err := m.GetLength(key)
 	if err != nil {
-		return "", errors.New("Failed to get the length of proxy set from cache. Error: " + err.Error())
+		return "", errors.New("Failed to get the length of set key " + key + " from cache. Error: " + err.Error())
 	}
 	if length == 0 {
 		return "", nil
 	}
 
-	proxy, err := m.clientHandle.SRandMember(m.ProxyCacheKey).Result()
+	value, err := m.clientHandle.SRandMember(key).Result()
 	if err != nil {
-		return "", errors.New("Failed to get a proxy from cache. Error: " + err.Error())
+		return "", errors.New("Failed to get a value from cache key " + key + ". Error: " + err.Error())
 	}
-	sdclogger.SDCLoggerInstance.Printf("Get %s from cache", proxy)
-	return proxy, nil
+	sdclogger.SDCLoggerInstance.Printf("Get %s from cache key %s", value, key)
+	return value, nil
 }
 
-func (m *CacheManager) DeleteProxy(proxy string) error {
-	_, err := m.clientHandle.SRem(m.ProxyCacheKey, proxy).Result()
+func (m *CacheManager) GetAllFromSet(key string) ([]string, error) {
+	allMembers, err := m.clientHandle.SMembers(key).Result()
 	if err != nil {
-		return errors.New("Failed to remove " + proxy + " from cache. Error: " + err.Error())
+		return nil, errors.New("Failed to get the all members of set key " + key + " from cache. Error: " + err.Error())
 	}
-	sdclogger.SDCLoggerInstance.Printf("Remove %s from cache", proxy)
+	sdclogger.SDCLoggerInstance.Printf("Get %d members from cache key %s", len(allMembers), key)
+	return allMembers, nil
+}
+
+func (m *CacheManager) DeleteFromSet(key string, value string) error {
+	_, err := m.clientHandle.SRem(key, value).Result()
+	if err != nil {
+		return errors.New("Failed to remove " + value + " from cache key " + key + ". Error: " + err.Error())
+	}
+	sdclogger.SDCLoggerInstance.Printf("Remove %s from cache key %s", value, key)
 	return nil
 }
 
-func (m *CacheManager) Proxies() (int64, error) {
-	length, err := m.clientHandle.SCard(m.ProxyCacheKey).Result()
+func (m *CacheManager) GetLength(key string) (int64, error) {
+	length, err := m.clientHandle.SCard(key).Result()
 	if err != nil {
-		return 0, errors.New("Failed to get the length of proxy set from cache. Error: " + err.Error())
+		return 0, errors.New("Failed to get the length of set key " + key + " from cache. Error: " + err.Error())
 	}
 	return length, nil
 }

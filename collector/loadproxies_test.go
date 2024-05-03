@@ -1,4 +1,4 @@
-package cache_test
+package collector_test
 
 import (
 	"os"

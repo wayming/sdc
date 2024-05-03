@@ -13,12 +13,13 @@ import (
 
 type MSCollector struct {
 	dbLoader    dbloader.DBLoader
+	reader      HttpReader
 	logger      *log.Logger
 	dbSchema    string
 	msAccessKey string
 }
 
-func NewMSCollector(loader dbloader.DBLoader, logger *log.Logger, schema string) *MSCollector {
+func NewMSCollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger, schema string) *MSCollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := MSCollector{
@@ -32,7 +33,7 @@ func NewMSCollector(loader dbloader.DBLoader, logger *log.Logger, schema string)
 
 func (collector *MSCollector) CollectTickers() error {
 	apiURL := "http://api.marketstack.com/v1/tickers"
-	jsonText, err := ReadURL(apiURL, nil)
+	jsonText, err := collector.reader.Read(apiURL, nil)
 	if err != nil {
 		return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
@@ -82,7 +83,7 @@ func (collector *MSCollector) CollectEOD() error {
 
 	for _, row := range queryResults {
 		collector.logger.Println("Load EDO for symbool", row.Symbol)
-		jsonText, err := ReadURL(apiURL, map[string]string{"symbols": row.Symbol})
+		jsonText, err := collector.reader.Read(apiURL, map[string]string{"symbols": row.Symbol})
 		if err != nil {
 			return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 		}
@@ -124,8 +125,8 @@ func CollectTickers(schemaName string, csvFile string) error {
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-
-	collector := NewMSCollector(dbLoader, logger, schemaName)
+	reader := NewHttpLocalReader()
+	collector := NewMSCollector(dbLoader, reader, logger, schemaName)
 	if len(csvFile) > 0 {
 		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
 		if err != nil {

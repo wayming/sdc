@@ -372,3 +372,33 @@ func TestSearchText(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectFinancials(t *testing.T) {
+	type args struct {
+		schemaName string
+		parallel   int
+		isContinue bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestCollectFinancials",
+			args: args{
+				schemaName: SA_TEST_SCHEMA_NAME,
+				parallel:   5,
+				isContinue: false,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := collector.CollectFinancials(tt.args.schemaName, tt.args.parallel, tt.args.isContinue); (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancials() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

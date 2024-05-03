@@ -32,31 +32,19 @@ type HttpReader interface {
 }
 
 type HttpProxyReader struct {
-	ProxyFile string
-	Cache     *cache.CacheManager
-	key       string
+	Cache *cache.CacheManager
+	key   string
 }
 
-func NewHttpProxyReader(proxyFile string) *HttpProxyReader {
-	reader := &HttpProxyReader{ProxyFile: proxyFile, Cache: cache.NewCacheManager(), key: strconv.Itoa(nextId())}
-	if err := reader.Cache.Connect(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to connect to the cache. Error: %s", err.Error())
-		return nil
-	}
-
-	loadedProxies, err := cache.LoadProxies(reader.ProxyFile, reader.Cache)
-	if err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to initialise proxies in the cache. Error: %s", err.Error())
-		return nil
-	}
-	sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to the cache.", loadedProxies)
+func NewHttpProxyReader(cache *cache.CacheManager) *HttpProxyReader {
+	reader := &HttpProxyReader{Cache: cache, key: strconv.Itoa(nextId())}
 	return reader
 }
 
 func (reader *HttpProxyReader) Read(url string, params map[string]string) (string, error) {
 	htmlFile := "logs/page" + reader.key + ".html"
 	for {
-		proxy, err := reader.Cache.GetProxy()
+		proxy, err := reader.Cache.GetFromSet(CACHE_KEY_PROXY)
 		if err != nil {
 			return "", err
 		}
@@ -73,8 +61,8 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 		err = cmd.Run()
 		if err != nil {
 			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.key, strings.Join(cmd.Args, " "), err.Error())
-			reader.Cache.DeleteProxy(proxy)
-			len, err := reader.Cache.Proxies()
+			reader.Cache.DeleteFromSet(CACHE_KEY_PROXY, proxy)
+			len, err := reader.Cache.GetLength(CACHE_KEY_PROXY)
 			if err != nil {
 				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to get number of proxies. Error: %s", reader.key, err.Error())
 			} else {
@@ -97,7 +85,7 @@ type HttpLocalReader struct {
 	key string
 }
 
-func NewHttpLocalReader(proxyFile string) *HttpLocalReader {
+func NewHttpLocalReader() *HttpLocalReader {
 	return &HttpLocalReader{key: strconv.Itoa(nextId())}
 }
 func (reader *HttpLocalReader) Read(url string, params map[string]string) (string, error) {
