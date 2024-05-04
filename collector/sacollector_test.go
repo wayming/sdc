@@ -9,23 +9,16 @@ import (
 
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
+	testcommon "github.com/wayming/sdc/utils"
 	"golang.org/x/net/html"
 )
 
 const SA_TEST_SCHEMA_NAME = "sdc_test"
-const SA_TEST_LOG_FILE_BASE = "logs/collector_testlog"
 
 var saTestDBLoader *dbloader.PGLoader
-var saTestLogger *log.Logger
 
 func setupSATest(testName string) {
-
-	logName := SA_TEST_LOG_FILE_BASE + "_" + testName + ".log"
-	os.Remove(logName)
-	file, _ := os.OpenFile(logName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	saTestLogger = log.New(file, "mscollectortest: ", log.Ldate|log.Ltime)
-
-	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, saTestLogger)
+	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, testcommon.TestLogger(testName))
 	saTestDBLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -34,17 +27,21 @@ func setupSATest(testName string) {
 
 	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
 	saTestDBLoader.CreateSchema(SA_TEST_SCHEMA_NAME)
+
+	// Load tickes from csv file for testing
+	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers.json")
+
 }
 
 func teardownSATest() {
 	defer saTestDBLoader.Disconnect()
-	// saTestLogger.Println("Drop schema", SA_TEST_SCHEMA_NAME, "if exists")
-	// saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
+	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
 }
 
 func TestMSCollector_ReadOverallPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
+		reader     collector.HttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -66,7 +63,8 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 		name: "ReadOverallPage",
 		fields: fields{
 			dbLoader:   saTestDBLoader,
-			logger:     saTestLogger,
+			reader:     collector.NewHttpDirectReader(),
+			logger:     testcommon.TestLogger(t.Name()),
 			dbSchema:   MS_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
 		},
@@ -90,6 +88,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewSACollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
@@ -110,6 +109,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
+		reader     collector.HttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -131,7 +131,8 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 		name: "ReadPageTimeSeries",
 		fields: fields{
 			dbLoader:   saTestDBLoader,
-			logger:     saTestLogger,
+			reader:     collector.NewHttpDirectReader(),
+			logger:     testcommon.TestLogger(t.Name()),
 			dbSchema:   MS_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
 		},
@@ -165,6 +166,7 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewSACollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
@@ -186,6 +188,7 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 func TestSACollector_CollectOverallMetrics(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
+		reader     collector.HttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -209,7 +212,8 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 			name: "CollectOverallMetrics",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
-				logger:     saTestLogger,
+				reader:     collector.NewHttpDirectReader(),
+				logger:     testcommon.TestLogger(t.Name()),
 				dbSchema:   MS_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
 			},
@@ -224,10 +228,10 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewSACollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-
 			got, err := collector.CollectOverallMetrics(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.CollectOverallMetrics() error = %v, wantErr %v", err, tt.wantErr)
@@ -245,6 +249,7 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
+		reader     collector.HttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -268,7 +273,8 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 			name: "CollectFinancialsIncome",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
-				logger:     saTestLogger,
+				reader:     collector.NewHttpDirectReader(),
+				logger:     testcommon.TestLogger(t.Name()),
 				dbSchema:   MS_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
 			},
@@ -283,6 +289,7 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewSACollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
@@ -376,6 +383,7 @@ func TestSearchText(t *testing.T) {
 func TestCollectFinancials(t *testing.T) {
 	type args struct {
 		schemaName string
+		proxyFile  string
 		parallel   int
 		isContinue bool
 	}
@@ -388,15 +396,19 @@ func TestCollectFinancials(t *testing.T) {
 			name: "TestCollectFinancials",
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
+				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies.txt",
 				parallel:   5,
 				isContinue: false,
 			},
 			wantErr: false,
 		},
 	}
+	setupSATest(t.Name())
+	defer teardownSATest()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := collector.CollectFinancials(tt.args.schemaName, tt.args.parallel, tt.args.isContinue); (err != nil) != tt.wantErr {
+			if err := collector.CollectFinancials(tt.args.schemaName, tt.args.proxyFile, tt.args.parallel, tt.args.isContinue); (err != nil) != tt.wantErr {
 				t.Errorf("CollectFinancials() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

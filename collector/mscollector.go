@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
 )
 
 type MSCollector struct {
@@ -115,18 +116,14 @@ func (collector *MSCollector) CollectEOD() error {
 }
 
 func CollectTickers(schemaName string, csvFile string) error {
-	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-	defer file.Close()
-
-	dbLoader := dbloader.NewPGLoader(schemaName, logger)
+	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	reader := NewHttpLocalReader()
-	collector := NewMSCollector(dbLoader, reader, logger, schemaName)
+	reader := NewHttpDirectReader()
+	collector := NewMSCollector(dbLoader, reader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 	if len(csvFile) > 0 {
 		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
 		if err != nil {

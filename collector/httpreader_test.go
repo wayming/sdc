@@ -12,7 +12,7 @@ import (
 	testcommon "github.com/wayming/sdc/utils"
 )
 
-const PROXY_CACHE_KEY = "PROXIES"
+const PROXY_CACHE_TEST_KEY = "PROXIESTEST"
 
 func setupHttpReaderTest(testName string) {
 	testcommon.SetupTest(testName)
@@ -22,7 +22,7 @@ func teardownHttpReaderTest() {
 	if err := exec.Command(
 		// "/usr/bin/redis-cli ", "-h", os.Getenv("REDISHOST"), "DEL", PROXY_CACHE_KEY).Run(); err != nil {
 		"/usr/bin/ls", "/usr/bin/redis-cli").Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Faield to delete key %s from cache. Error: %s", PROXY_CACHE_KEY, err.Error())
+		sdclogger.SDCLoggerInstance.Printf("Faield to delete key %s from cache. Error: %s", PROXY_CACHE_TEST_KEY, err.Error())
 	}
 	testcommon.TeardownTest()
 }
@@ -60,18 +60,15 @@ func TestHttpProxyReader_Read(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := cache.NewCacheManager()
-			if err := cache.Connect(); err != nil {
+			cacheManager := cache.NewCacheManager()
+			if err := cacheManager.Connect(); err != nil {
 				t.Errorf("Failed to connect to cache. Error: %s", err.Error())
 			}
-			defer cache.Disconnect()
-			if _, err := collector.LoadProxies(tt.fields.ProxyFile, cache); err != nil {
+			defer cacheManager.Disconnect()
+			if _, err := cache.LoadProxies(cacheManager, PROXY_CACHE_TEST_KEY, tt.fields.ProxyFile); err != nil {
 
 			}
-			if _, err := collector.NewHttpProxyReader(cache); err != nil {
-				t.Errorf("Failed to connect to cache. Error: %s", err.Error())
-
-			}
+			reader := collector.NewHttpProxyReader(cacheManager)
 			got, err := reader.Read(tt.args.url, tt.args.params)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HttpProxyReader.Read() error = %v, wantErr %v", err, tt.wantErr)

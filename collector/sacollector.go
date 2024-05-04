@@ -29,7 +29,7 @@ type SACollector struct {
 	thisSymbol    string
 }
 
-func NewSACollector(schema string, loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger) *SACollector {
+func NewSACollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger, schema string) *SACollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := SACollector{
@@ -587,21 +587,26 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 }
 
 // Entry function
-func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
+func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) error {
 	// shared by all go routines
 	cacheManager := cache.NewCacheManager()
+	if err := cacheManager.Connect(); err != nil {
+		return err
+	}
+	defer cacheManager.Disconnect()
+
 	if !isContinue {
 		loaded, err := cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
 		if err != nil {
 			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
 		}
-		sdclogger.SDCLoggerInstance.Println("Loaded %d symbols to cache", loaded)
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", loaded)
 
-		loaded, err = cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, PROXY_FILE)
+		loaded, err = cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
 		if err != nil {
 			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}
-		sdclogger.SDCLoggerInstance.Println("Loaded %d proxies to cache", loaded)
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", loaded)
 	}
 
 	var wg sync.WaitGroup
@@ -627,12 +632,20 @@ func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
 			defer dbLoader.Disconnect()
 
 			// http reader
-			httpReader := NewHttpProxyReader(cache)
+			httpReader := NewHttpProxyReader(cacheManager)
 
-			collector := NewSACollector(schemaName, dbLoader, httpReader, logger)
+			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
-			for len, _ := cache.GetLength(CACHE_KEY_SYMBOL); len > 0; {
-				nextSymbol, err := cache.GetFromSet(CACHE_KEY_SYMBOL)
+			for len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0; {
+
+				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
+					errorStr := fmt.Sprint("[Go" + funcId + "] proxy server running out")
+					logger.Println(errorStr)
+					outChan <- errors.New(errorStr).Error()
+					break
+				}
+
+				nextSymbol, err := cacheManager.GetFromSet(CACHE_KEY_SYMBOL)
 				if err != nil {
 					logger.Println("[Go" + funcId + "] error: " + err.Error())
 					outChan <- err.Error()
@@ -645,7 +658,7 @@ func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
 					continue
 				}
 
-				if err := cache.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
+				if err := cacheManager.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
 					logger.Println("[Go" + funcId + "] error: " + err.Error())
 					outChan <- err.Error()
 				}
@@ -667,12 +680,12 @@ func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
 		errorMessage += fmt.Sprintf("%s\n", out)
 	}
 
-	if len, _ := cache.GetLength(CACHE_KEY_PROXY); len == 0 {
+	if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
 		errorMessage += fmt.Sprintf("Running out of proxy servers.\n")
 	}
 
-	if len, _ := cache.GetLength(CACHE_KEY_SYMBOL); len > 0 {
-		leftSymbols, _ := cache.GetAllFromSet(CACHE_KEY_SYMBOL)
+	if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0 {
+		leftSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL)
 		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(leftSymbols, ","))
 	}
 
@@ -694,9 +707,9 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 	defer dbLoader.Disconnect()
 
 	// http reader
-	httpReader := NewHttpLocalReader()
+	httpReader := NewHttpDirectReader()
 
-	collector := NewSACollector(schemaName, dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger)
+	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 
 	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {
 		return err

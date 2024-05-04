@@ -85,7 +85,7 @@ type HttpLocalReader struct {
 	key string
 }
 
-func NewHttpLocalReader() *HttpLocalReader {
+func NewHttpDirectReader() *HttpLocalReader {
 	return &HttpLocalReader{key: strconv.Itoa(nextId())}
 }
 func (reader *HttpLocalReader) Read(url string, params map[string]string) (string, error) {

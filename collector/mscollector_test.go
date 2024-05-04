@@ -7,6 +7,7 @@ import (
 
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
+	testcommon "github.com/wayming/sdc/utils"
 )
 
 const MS_TEST_SCHEMA_NAME = "sdc_test"
@@ -42,6 +43,7 @@ func teardownMSTest() {
 func TestMSCollector_CollectTickers(t *testing.T) {
 	type fields struct {
 		dbLoader    dbloader.DBLoader
+		reader      collector.HttpReader
 		logger      *log.Logger
 		dbSchema    string
 		msAccessKey string
@@ -58,7 +60,8 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 			name: "CollectTickers",
 			fields: fields{
 				dbLoader:    msTestDBLoader,
-				logger:      msTestLogger,
+				reader:      collector.NewHttpDirectReader(),
+				logger:      testcommon.TestLogger(t.Name()),
 				dbSchema:    MS_TEST_SCHEMA_NAME,
 				msAccessKey: os.Getenv("MSACCESSKEY"),
 			},
@@ -68,6 +71,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewMSCollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
@@ -83,6 +87,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 func TestMSCollector_CollectEOD(t *testing.T) {
 	type fields struct {
 		dbLoader    dbloader.DBLoader
+		reader      collector.HttpReader
 		logger      *log.Logger
 		dbSchema    string
 		msAccessKey string
@@ -98,7 +103,8 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 			name: "CollectEOD",
 			fields: fields{
 				dbLoader:    msTestDBLoader,
-				logger:      msTestLogger,
+				reader:      collector.NewHttpDirectReader(),
+				logger:      testcommon.TestLogger(t.Name()),
 				dbSchema:    MS_TEST_SCHEMA_NAME,
 				msAccessKey: os.Getenv("MSACCESSKEY"),
 			},
@@ -108,6 +114,7 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			collector := collector.NewMSCollector(
 				tt.fields.dbLoader,
+				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)

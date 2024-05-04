@@ -10,7 +10,7 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-func LoadSymbols(cache *CacheManager, key string, fromSchema string) (int, error) {
+func LoadSymbols(cacheManager *CacheManager, key string, fromSchema string) (int, error) {
 	dbLoader := dbloader.NewPGLoader(fromSchema, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -33,13 +33,8 @@ func LoadSymbols(cache *CacheManager, key string, fromSchema string) (int, error
 		return 0, errors.New("failed to run assert the query results are returned as a slice of queryResults")
 	}
 
-	if err := cache.Connect(); err != nil {
-		return 0, err
-	}
-	defer cache.Disconnect()
-
 	for _, row := range queryResults {
-		cache.AddToSet(key, strings.ToLower(row.Symbol))
+		cacheManager.AddToSet(key, strings.ToLower(row.Symbol))
 	}
 
 	return len(queryResults), nil

@@ -73,11 +73,10 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 		var row []interface{}
 		for _, fieldName := range fields {
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
-			if fieldValue.Type().Kind() == reflect.Struct && fieldValue.Type() != reflect.TypeFor[Date]() {
+			if fieldValue.Type().Kind() == reflect.Struct &&
+				fieldValue.Type() != reflect.TypeFor[Date]() &&
+				fieldValue.Type() != reflect.TypeFor[time.Time]() {
 				nestedFieldValue := fieldValue.FieldByName("Name")
-				fmt.Println(fieldValue.Type().Field(0))
-				fmt.Println(fieldValue)
-				fmt.Println(nestedFieldValue)
 				if !nestedFieldValue.IsValid() {
 					return nil, nil, fmt.Errorf("failed to get Name field from value %v, type %v", fieldValue, fieldValue.Type())
 				}

@@ -30,5 +30,6 @@ func TestLogger(testName string) *log.Logger {
 	// Redirect stdout and stderr to log file
 	os.Stdout = file
 	os.Stderr = file
+	sdclogger.SDCLoggerInstance = sdclogger.NewSDCLoggerByFile(file)
 	return testLogger
 }
