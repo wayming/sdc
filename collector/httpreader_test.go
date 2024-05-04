@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/sdclogger"
 	testcommon "github.com/wayming/sdc/utils"
@@ -56,10 +57,21 @@ func TestHttpProxyReader_Read(t *testing.T) {
 	}
 	setupHttpReaderTest(t.Name())
 	defer teardownHttpReaderTest()
-	return
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reader := collector.NewHttpProxyReader(tt.fields.ProxyFile)
+			cache := cache.NewCacheManager()
+			if err := cache.Connect(); err != nil {
+				t.Errorf("Failed to connect to cache. Error: %s", err.Error())
+			}
+			defer cache.Disconnect()
+			if _, err := collector.LoadProxies(tt.fields.ProxyFile, cache); err != nil {
+
+			}
+			if _, err := collector.NewHttpProxyReader(cache); err != nil {
+				t.Errorf("Failed to connect to cache. Error: %s", err.Error())
+
+			}
 			got, err := reader.Read(tt.args.url, tt.args.params)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HttpProxyReader.Read() error = %v, wantErr %v", err, tt.wantErr)

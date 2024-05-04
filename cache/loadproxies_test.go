@@ -1,4 +1,4 @@
-package collector_test
+package cache_test
 
 import (
 	"os"
@@ -8,6 +8,8 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 	testcommon "github.com/wayming/sdc/utils"
 )
+
+const CACHE_KEY_PROXY_TEST = "PROXIESTEST"
 
 func TestLoadProxies(t *testing.T) {
 	type args struct {
@@ -30,22 +32,22 @@ func TestLoadProxies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := cache.NewCacheManager()
-			m.Connect()
-			defer m.Disconnect()
+			proxyCache := cache.NewCacheManager()
+			proxyCache.Connect()
+			defer proxyCache.Disconnect()
 
-			added, err := cache.LoadProxies(tt.args.proxyFile, m)
+			added, err := cache.LoadProxies(proxyCache, CACHE_KEY_PROXY_TEST, tt.args.proxyFile)
 			if added == 0 && err != nil {
 				t.Errorf("Failed to load proxies. Error: %s", err.Error())
 			}
 
 			fetched := 0
-			for proxy, _ := m.GetProxy(); proxy != ""; proxy, _ = m.GetProxy() {
-				sdclogger.SDCLoggerInstance.Printf("Got proxy %s from cache", proxy)
+			for proxy, _ := proxyCache.GetFromSet(CACHE_KEY_PROXY_TEST); proxy != ""; proxy, _ = proxyCache.GetFromSet(CACHE_KEY_PROXY_TEST) {
+				sdclogger.SDCLoggerInstance.Printf("Got proxy %s from cache key %s", proxy, CACHE_KEY_PROXY_TEST)
 				fetched++
 
-				m.DeleteProxy(proxy)
-				sdclogger.SDCLoggerInstance.Printf("Delete proxy %s from cache", proxy)
+				proxyCache.DeleteFromSet(CACHE_KEY_PROXY_TEST, proxy)
+				sdclogger.SDCLoggerInstance.Printf("Delete proxy %s from cache key %s", proxy, CACHE_KEY_PROXY_TEST)
 			}
 
 			if added != fetched {

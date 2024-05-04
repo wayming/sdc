@@ -186,34 +186,3 @@ func TestReadURL(t *testing.T) {
 
 	}
 }
-
-func TestGetProxies(t *testing.T) {
-	type args struct {
-		textFile string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{
-			name: "TestGetProxies",
-			args: args{
-				textFile: os.Getenv("SDC_HOME") + "/data/proxies5.txt",
-			},
-		},
-	}
-
-	setupCommonTest(t.Name())
-	defer teardownCommonTest()
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := collector.GetProxies(tt.args.textFile); len(got) == 0 {
-				t.Errorf("GetProxies() fails to get any active proxies")
-			} else {
-				testLogger.Printf("Got validate proxies %v", got)
-			}
-		})
-	}
-}

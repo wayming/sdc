@@ -586,54 +586,18 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 	return nil
 }
 
-func LoadSymbolsToCache(schemaName string, cache *cache.CacheManager) (int, error) {
-
-	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	defer dbLoader.Disconnect()
-
-	type queryResult struct {
-		Symbol string
-	}
-
-	sqlQuerySymbol := "select symbol from ms_tickers"
-	results, err := dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
-	if err != nil {
-		return 0, errors.New("Failed to run query [" + sqlQuerySymbol + "]. Error: " + err.Error())
-	}
-	queryResults, ok := results.([]queryResult)
-	if !ok {
-		return 0, errors.New("failed to run assert the query results are returned as a slice of queryResults")
-	}
-
-	if err := cache.Connect(); err != nil {
-		return 0, err
-	}
-	defer cache.Disconnect()
-
-	for _, row := range queryResults {
-		cache.AddToSet(CACHE_KEY_SYMBOL, strings.ToLower(row.Symbol))
-	}
-
-	return len(queryResults), nil
-}
-
 // Entry function
 func CollectFinancials(schemaName string, parallel int, isContinue bool) error {
 	// shared by all go routines
-	cache := cache.NewCacheManager()
+	cacheManager := cache.NewCacheManager()
 	if !isContinue {
-		loaded, err := LoadSymbolsToCache(schemaName, cache)
+		loaded, err := cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
 		if err != nil {
 			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
 		}
 		sdclogger.SDCLoggerInstance.Println("Loaded %d symbols to cache", loaded)
 
-		loaded, err = LoadProxies(PROXY_FILE, cache)
+		loaded, err = cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, PROXY_FILE)
 		if err != nil {
 			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}

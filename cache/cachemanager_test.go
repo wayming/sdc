@@ -9,6 +9,8 @@ import (
 	testcommon "github.com/wayming/sdc/utils"
 )
 
+const CACHE_KEY_PROXY_TEST = "PROXIESTEST"
+
 func SetupCacheManagerTest(testName string) {
 	testcommon.SetupTest(testName)
 }
@@ -21,8 +23,8 @@ func TeardownCacheManagerTest() {
 		DB:       0})
 	defer redisHandle.Close()
 
-	if err := redisHandle.Del(REDIS_KEY_PROXIES).Err(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Faield to drop cache set %s. Error: %s", REDIS_KEY_PROXIES, err.Error())
+	if err := redisHandle.Del(CACHE_KEY_PROXY_TEST).Err(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Faield to drop cache set %s. Error: %s", CACHE_KEY_PROXY_TEST, err.Error())
 	}
 
 	testcommon.TeardownTest()
@@ -109,27 +111,27 @@ func TestCacheManager_ProxyCache(t *testing.T) {
 				t.Errorf("CacheManager.Connect() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if err := m.SetProxy(tt.args.proxy); (err != nil) != tt.wantErr {
-				t.Errorf("CacheManager.SetProxy() error = %v, wantErr %v", err, tt.wantErr)
+			if err := m.AddToSet(CACHE_KEY_PROXY_TEST, tt.args.proxy); (err != nil) != tt.wantErr {
+				t.Errorf("CacheManager.AddToSet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			proxy, err := m.GetProxy()
+			proxy, err := m.GetFromSet(CACHE_KEY_PROXY_TEST)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CacheManager.GetProxy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CacheManager.GetFromSet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if proxy != tt.args.proxy {
-				t.Errorf("CacheManager.GetProxy() expecting %s, got %s", tt.args.proxy, proxy)
+				t.Errorf("CacheManager.GetFromSet() expecting %s, got %s", tt.args.proxy, proxy)
 			}
 
-			if err := m.DeleteProxy(tt.args.proxy); (err != nil) != tt.wantErr {
-				t.Errorf("CacheManager.DeleteProxy() error = %v, wantErr %v", err, tt.wantErr)
+			if err := m.DeleteFromSet(CACHE_KEY_PROXY_TEST, tt.args.proxy); (err != nil) != tt.wantErr {
+				t.Errorf("CacheManager.DeleteFromSet() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			proxy, err = m.GetProxy()
+			proxy, err = m.GetFromSet(CACHE_KEY_PROXY_TEST)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CacheManager.GetProxy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CacheManager.GetFromSet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if proxy != "" {
-				t.Errorf("CacheManager.GetProxy() expecting %s, got %s", "", proxy)
+				t.Errorf("CacheManager.GetFromSet() expecting %s, got %s", "", proxy)
 			}
 
 		})
