@@ -179,6 +179,8 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	// Insert
 	fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
 	if err != nil {
+		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
+
 		return 0, err
 	}
 

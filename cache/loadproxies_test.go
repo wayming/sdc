@@ -25,7 +25,6 @@ func TestLoadProxies(t *testing.T) {
 				proxyFile: os.Getenv("SDC_HOME") + "/data/proxies4.txt",
 			},
 		},
-		// TODO: Add test cases.
 	}
 	testcommon.SetupTest(t.Name())
 	defer testcommon.TeardownTest()

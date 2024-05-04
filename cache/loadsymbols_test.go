@@ -1,14 +1,13 @@
 package cache_test
 
 import (
+	"log"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
-	"github.com/wayming/sdc/json2db"
-	"github.com/wayming/sdc/sdclogger"
 	testcommon "github.com/wayming/sdc/utils"
 )
 
@@ -16,17 +15,19 @@ const CACHE_KEY_SYMBOL_TEST = "PROXIESTEST"
 const SCHEMA_TEST = "TestLoadSymbols"
 
 const SYMBOL_JSON_TEXT = `[
-	{"symbol", "MSFT"}, {"symbol", "AAPL"}
+	{"symbol": "MSFT"}, {"symbol": "AAPL"}
 ]`
 
 type SymbolJsonEntityStruct struct {
 	Symbol string `json:"symbol`
 }
 
+var logger *log.Logger
+
 func SetupCacheManagerTest(testName string) {
 	testcommon.SetupTest(testName)
-
-	dbLoader := dbloader.NewPGLoader(SCHEMA_TEST, &sdclogger.SDCLoggerInstance.Logger)
+	logger = testcommon.TestLogger(testName)
+	dbLoader := dbloader.NewPGLoader(SCHEMA_TEST, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -36,17 +37,12 @@ func SetupCacheManagerTest(testName string) {
 
 	dbLoader.CreateSchema(SCHEMA_TEST)
 
-	// Create table
-	d := &json2db.JsonToPGSQLConverter{}
-	create, _ := d.GenCreateTable("ms_tickers", reflect.TypeFor[SymbolJsonEntityStruct]())
-	dbLoader.Exec(create)
-
-	// Insert rows
+	// Add rows
 	dbLoader.LoadByJsonText(SYMBOL_JSON_TEXT, "ms_tickers", reflect.TypeFor[SymbolJsonEntityStruct]())
 }
 
 func TeardownCacheManagerTest() {
-	dbLoader := dbloader.NewPGLoader(SCHEMA_TEST, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(SCHEMA_TEST, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -56,6 +52,7 @@ func TeardownCacheManagerTest() {
 	dbLoader.DropSchema(SCHEMA_TEST)
 
 	testcommon.TeardownTest()
+	logger = nil
 }
 
 func TestLoadSymbols(t *testing.T) {
