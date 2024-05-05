@@ -397,7 +397,7 @@ func TestCollectFinancials(t *testing.T) {
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies7.txt",
-				parallel:   5,
+				parallel:   20,
 				isContinue: false,
 			},
 			wantErr: false,

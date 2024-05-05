@@ -51,7 +51,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			return "", err
 		}
 		if proxy == "" {
-			return "", errors.New("proxy server running out")
+			return "", errors.New("No proxy server available")
 		}
 
 		cmd := exec.Command("wget",
