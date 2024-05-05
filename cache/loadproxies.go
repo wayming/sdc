@@ -25,6 +25,8 @@ func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int,
 			added++
 		}
 	}
+	sdclogger.SDCLoggerInstance.Printf("%d proxy servers loaded into cache.", added)
+
 	return added, nil
 }
 

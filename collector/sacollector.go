@@ -639,16 +639,14 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 			for len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0; {
 
 				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
-					errorStr := fmt.Sprintf("[Go%s]proxy server running out", funcId)
+					errorStr := fmt.Sprintf("[Go%s]No proxy server available", funcId)
 					logger.Println(errorStr)
 					outChan <- errors.New(errorStr).Error()
 					break
 				}
 
-				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
-					errorStr := fmt.Sprintf("[Go%s]all symbols processed", funcId)
-					logger.Println(errorStr)
-					outChan <- errors.New(errorStr).Error()
+				if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len == 0 {
+					logger.Printf("[Go%s]No symbol left", funcId)
 					break
 				}
 
@@ -659,9 +657,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					continue
 				}
 				if nextSymbol == "" {
-					errorStr := fmt.Sprintf("[Go%s]No symbol left", funcId)
-					logger.Println(errorStr)
-					outChan <- errorStr
+					logger.Printf("[Go%s]No symbol left", funcId)
 					break
 				}
 				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
@@ -699,6 +695,8 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0 {
 		leftSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL)
 		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(leftSymbols, ","))
+	} else {
+		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
 	}
 
 	if len(errorMessage) > 0 {

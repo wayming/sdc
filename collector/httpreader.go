@@ -42,7 +42,9 @@ func NewHttpProxyReader(cache *cache.CacheManager) *HttpProxyReader {
 }
 
 func (reader *HttpProxyReader) Read(url string, params map[string]string) (string, error) {
-	htmlFile := "logs/reader" + reader.key + "(" + url + ").html"
+	fileName := strings.ReplaceAll(url, "http://", "")
+	fileName = strings.ReplaceAll(fileName, "/", "_")
+	htmlFile := "logs/reader" + reader.key + "_" + fileName + ".html"
 	for {
 		proxy, err := reader.Cache.GetFromSet(CACHE_KEY_PROXY)
 		if err != nil {
