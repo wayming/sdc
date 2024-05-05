@@ -42,7 +42,7 @@ func NewHttpProxyReader(cache *cache.CacheManager) *HttpProxyReader {
 }
 
 func (reader *HttpProxyReader) Read(url string, params map[string]string) (string, error) {
-	htmlFile := "logs/page" + reader.key + ".html"
+	htmlFile := "logs/reader" + reader.key + "(" + url + ").html"
 	for {
 		proxy, err := reader.Cache.GetFromSet(CACHE_KEY_PROXY)
 		if err != nil {
@@ -55,7 +55,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 		cmd := exec.Command("wget",
 			"--timeout=10", "--tries=1",
 			"-O", htmlFile,
-			"-o", "logs/wget"+reader.key+".html",
+			"-a", "logs/reader"+reader.key+"_wget.log",
 			"-e", "use_proxy=yes",
 			"-e", "https_proxy="+proxy, url)
 		err = cmd.Run()

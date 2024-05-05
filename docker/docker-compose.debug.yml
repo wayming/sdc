@@ -72,6 +72,8 @@ services:
     image: dpage/pgadmin4
     ports:
       - "5050:80"
+    volumes:
+      - ../pgadmin_data:/var/lib/pgadmin
     environment:
       - PGADMIN_DEFAULT_PASSWORD_FILE=/run/secrets/pgadmin_pass_file
       - PGADMIN_DEFAULT_EMAIL=wayming.z@gmail.com

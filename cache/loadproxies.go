@@ -43,8 +43,8 @@ func isProxyValid(proxy string) bool {
 		"--timeout", "2",
 		"-e", "use_proxy=yes",
 		"-e", "http_proxy="+proxy,
-		"-O", "logs/index."+parts[0]+"."+parts[1]+".html",
-		"-o", "logs/wget."+parts[0]+"."+parts[1]+".log",
+		"-O", "logs/proxy_test.html",
+		"-a", "logs/proxy_test.log",
 		"https://stockanalysis.com/")
 	if err := cmd.Run(); err != nil {
 		sdclogger.SDCLoggerInstance.Println("Faield to ping "+proxy+". Error: ", err.Error())

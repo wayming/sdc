@@ -639,7 +639,14 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 			for len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0; {
 
 				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
-					errorStr := fmt.Sprint("[Go" + funcId + "] proxy server running out")
+					errorStr := fmt.Sprintf("[Go%s]proxy server running out", funcId)
+					logger.Println(errorStr)
+					outChan <- errors.New(errorStr).Error()
+					break
+				}
+
+				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
+					errorStr := fmt.Sprintf("[Go%s]all symbols processed", funcId)
 					logger.Println(errorStr)
 					outChan <- errors.New(errorStr).Error()
 					break
@@ -647,11 +654,16 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 
 				nextSymbol, err := cacheManager.GetFromSet(CACHE_KEY_SYMBOL)
 				if err != nil {
-					logger.Println("[Go" + funcId + "] error: " + err.Error())
+					logger.Printf("[Go%s] Failed to get symbol from cache. Error:%s", funcId, err.Error())
 					outChan <- err.Error()
 					continue
 				}
-
+				if nextSymbol == "" {
+					errorStr := fmt.Sprintf("[Go%s]No symbol left", funcId)
+					logger.Println(errorStr)
+					outChan <- errorStr
+					break
+				}
 				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
 					logger.Println("[Go" + funcId + "] error: " + err.Error())
 					outChan <- err.Error()
@@ -681,7 +693,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	}
 
 	if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
-		errorMessage += fmt.Sprintf("Running out of proxy servers.\n")
+		errorMessage += "Running out of proxy servers.\n"
 	}
 
 	if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0 {
