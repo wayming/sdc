@@ -36,8 +36,8 @@ type NestedJsonEntityStruct struct {
 	NestedField2 int    `json:"nestedField2"`
 }
 type JsonEntityStruct struct {
-	Field1 string                 `json:"field1"`
-	Field2 int                    `json:"field2"`
+	Field1 string                 `json:"field1" db:"PrimaryKey"`
+	Field2 int                    `json:"field2" db:"PrimaryKey"`
 	Field3 float64                `json:"field3"`
 	Field4 bool                   `json:"field4"`
 	Field5 NestedJsonEntityStruct `json:"field5"`
@@ -61,7 +61,7 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 			name: "CreateTableSQL",
 			args: args{tableName: TEST_TABLE, entityType: reflect.TypeFor[JsonEntityStruct]()},
 			wantSql: `CREATE TABLE IF NOT EXISTS json2pg_test ` +
-				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024), field6 timestamp);`,
+				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024), field6 timestamp, PRIMARY KEY (field1, field2));`,
 		},
 	}
 	for _, tt := range tests {

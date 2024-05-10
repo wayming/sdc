@@ -693,45 +693,6 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 
 			logger.Println("[Go" + goID + "] finished.")
 		}(strconv.Itoa(i), schemaName, outChan, &wg)
-
-		// http reader
-		// 	httpReader := NewHttpDirectReader()
-
-		// 	collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
-
-		// 	for len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0; {
-
-		// 		if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len == 0 {
-		// 			logger.Printf("[Go%s]No symbol left", goID)
-		// 			break
-		// 		}
-
-		// 		nextSymbol, err := cacheManager.GetFromSet(CACHE_KEY_SYMBOL)
-		// 		if err != nil {
-		// 			logger.Printf("[Go%s] Failed to get symbol from cache. Error:%s", goID, err.Error())
-		// 			outChan <- err.Error()
-		// 			continue
-		// 		}
-		// 		if nextSymbol == "" {
-		// 			logger.Printf("[Go%s]No symbol left", goID)
-		// 			break
-		// 		}
-
-		// 		if err := cacheManager.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
-		// 			logger.Println("[Go" + goID + "] error: " + err.Error())
-		// 			outChan <- err.Error()
-		// 		}
-
-		// 		if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
-		// 			logger.Println("[Go" + goID + "] error: " + err.Error())
-		// 			outChan <- err.Error()
-		// 			continue
-		// 		}
-
-		// 	}
-
-		// 	logger.Println("[Go" + goID + "] finished.")
-		// }(strconv.Itoa(i), schemaName, outChan, &wg)
 	}
 
 	go func() {

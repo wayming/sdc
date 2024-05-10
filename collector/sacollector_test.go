@@ -7,11 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/html"
-
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
 	testcommon "github.com/wayming/sdc/utils"
+	"golang.org/x/net/html"
 )
 
 const SA_TEST_SCHEMA_NAME = "sdc_test"
@@ -19,7 +18,9 @@ const SA_TEST_SCHEMA_NAME = "sdc_test"
 var saTestDBLoader *dbloader.PGLoader
 
 func setupSATest(testName string) {
-	setupCommonTest(testName)
+	testcommon.SetupTest(testName)
+
+	collector.CacheCleanup()
 	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, testcommon.TestLogger(testName))
 	saTestDBLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -32,13 +33,14 @@ func setupSATest(testName string) {
 
 	// Load tickes from csv file for testing
 	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers5.json")
-
 }
 
 func teardownSATest() {
 	defer saTestDBLoader.Disconnect()
 	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
-	teardownCommonTest()
+	collector.CacheCleanup()
+
+	testcommon.TeardownTest()
 }
 
 func TestMSCollector_ReadOverallPage(t *testing.T) {
@@ -413,6 +415,38 @@ func TestCollectFinancials(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := collector.CollectFinancials(tt.args.schemaName, tt.args.proxyFile, tt.args.parallel, tt.args.isContinue); (err != nil) != tt.wantErr {
 				t.Errorf("CollectFinancials() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCollectFinancialsForSymbol(t *testing.T) {
+	type args struct {
+		schemaName string
+		symbol     string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestCollectFinancialsForSymbol",
+			args: args{
+				schemaName: SA_TEST_SCHEMA_NAME,
+				symbol:     "aapl",
+			},
+			wantErr: false,
+		},
+	}
+
+	setupSATest(t.Name())
+	defer teardownSATest()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancialsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

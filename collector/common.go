@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
 )
 
@@ -71,4 +72,13 @@ func GetFieldTypeByTag(fieldsMetadata map[string]JsonFieldMetadata, tag string) 
 	}
 
 	return nil
+}
+
+func CacheCleanup() {
+	cm := cache.NewCacheManager()
+	cm.Connect()
+	cm.DeleteSet(CACHE_KEY_PROXY)
+	cm.DeleteSet(CACHE_KEY_SYMBOL)
+	cm.DeleteSet(CACHE_KEY_SYMBOL_ERROR)
+	cm.Disconnect()
 }

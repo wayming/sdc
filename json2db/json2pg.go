@@ -31,13 +31,14 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 }
 
 // Generate table creation SQL
-func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, responseType reflect.Type) (string, error) {
+func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType reflect.Type) (string, error) {
+	var primaryKeys []string
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
-	for _, fieldName := range orderedFields(responseType) {
+	for _, fieldName := range orderedFields(entityStructType) {
 		colName := strings.ToLower(fieldName)
-		field, ok := responseType.FieldByName(fieldName)
+		field, ok := entityStructType.FieldByName(fieldName)
 		if !ok {
-			return "", errors.New("Failed to get field " + fieldName + " from entity type " + responseType.Name())
+			return "", errors.New("Failed to get field " + fieldName + " from entity type " + entityStructType.Name())
 		}
 		colType, err := d.deriveColType(field.Type)
 		if err != nil {
@@ -47,8 +48,15 @@ func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, responseType ref
 			return "", err
 		}
 		ddl += colName + " " + colType + ", "
+		if field.Tag.Get("db") == "PrimaryKey" {
+			primaryKeys = append(primaryKeys, colName)
+		}
 	}
-	ddl = ddl[:len(ddl)-2] + ");"
+	if len(primaryKeys) > 0 {
+		ddl += "PRIMARY KEY (" + strings.Join(primaryKeys, ", ") + "));"
+	} else {
+		ddl = ddl[:len(ddl)-2] + ");"
+	}
 
 	return ddl, nil
 }
