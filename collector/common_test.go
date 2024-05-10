@@ -3,6 +3,9 @@ package collector_test
 import (
 	"log"
 	"os"
+
+	"github.com/wayming/sdc/cache"
+	"github.com/wayming/sdc/collector"
 )
 
 const COMMON_TEST_LOG_FILE_BASE = "logs/collector_testlog"
@@ -20,9 +23,21 @@ func setupCommonTest(testName string) {
 	// Redirect stdout and stderr to log file
 	os.Stdout = file
 	os.Stderr = file
+
+	cacheCleanup()
 }
 
 func teardownCommonTest() {
+	cacheCleanup()
+}
+
+func cacheCleanup() {
+	cm := cache.NewCacheManager()
+	cm.Connect()
+	cm.DeleteSet(collector.CACHE_KEY_PROXY)
+	cm.DeleteSet(collector.CACHE_KEY_SYMBOL)
+	cm.DeleteSet(collector.CACHE_KEY_SYMBOL_ERROR)
+	cm.Disconnect()
 }
 
 // func TestReadURL(t *testing.T) {

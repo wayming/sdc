@@ -66,14 +66,57 @@ func TestHttpProxyReader_Read(t *testing.T) {
 			}
 			defer cacheManager.Disconnect()
 			if _, err := cache.LoadProxies(cacheManager, PROXY_CACHE_TEST_KEY, tt.fields.ProxyFile); err != nil {
+				t.Errorf("Failed to load proxy file %s. Error: %s", tt.fields.ProxyFile, err.Error())
 
 			}
-			reader := collector.NewHttpProxyReader(cacheManager)
+			reader := collector.NewHttpProxyReader(cacheManager, "100")
 			got, err := reader.Read(tt.args.url, tt.args.params)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HttpProxyReader.Read() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			match, _ := regexp.MatchString(tt.contain, got)
+			if !match {
+				t.Errorf("Failed to get the exected string %s from %s", tt.contain, got)
+			}
+		})
+	}
+}
+
+func TestHttpDirectReader_Read(t *testing.T) {
+	type args struct {
+		url    string
+		params map[string]string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		contain string
+		wantErr bool
+	}{
+		{
+			name: "TestHttpDirectReader_Read",
+			args: args{
+				url:    "https://stockanalysis.com/stocks/msft",
+				params: nil,
+			},
+			contain: "Microsoft",
+			wantErr: false,
+		},
+	}
+
+	setupHttpReaderTest(t.Name())
+	defer teardownHttpReaderTest()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := collector.NewHttpDirectReader()
+			got, err := reader.Read(tt.args.url, tt.args.params)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HttpProxyReader.Read() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			sdclogger.SDCLoggerInstance.Println(got)
 			match, _ := regexp.MatchString(tt.contain, got)
 			if !match {
 				t.Errorf("Failed to get the exected string %s from %s", tt.contain, got)

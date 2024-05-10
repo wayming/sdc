@@ -96,3 +96,12 @@ func (m *CacheManager) GetLength(key string) (int64, error) {
 	}
 	return length, nil
 }
+
+func (m *CacheManager) DeleteSet(key string) error {
+	_, err := m.clientHandle.Del(key).Result()
+	if err != nil {
+		return errors.New("Failed to delete " + key + " from cache. Error: " + err.Error())
+	}
+	sdclogger.SDCLoggerInstance.Printf("Delete %s from cache", key)
+	return nil
+}

@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/net/html"
+
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
 	testcommon "github.com/wayming/sdc/utils"
-	"golang.org/x/net/html"
 )
 
 const SA_TEST_SCHEMA_NAME = "sdc_test"
@@ -18,6 +19,7 @@ const SA_TEST_SCHEMA_NAME = "sdc_test"
 var saTestDBLoader *dbloader.PGLoader
 
 func setupSATest(testName string) {
+	setupCommonTest(testName)
 	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, testcommon.TestLogger(testName))
 	saTestDBLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -36,6 +38,7 @@ func setupSATest(testName string) {
 func teardownSATest() {
 	defer saTestDBLoader.Disconnect()
 	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
+	teardownCommonTest()
 }
 
 func TestMSCollector_ReadOverallPage(t *testing.T) {
@@ -397,7 +400,7 @@ func TestCollectFinancials(t *testing.T) {
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies7.txt",
-				parallel:   20,
+				parallel:   5,
 				isContinue: false,
 			},
 			wantErr: false,

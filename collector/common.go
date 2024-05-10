@@ -14,6 +14,7 @@ const LOG_FILE = "logs/sdc.log"
 const PROXY_FILE = "data/proxies.txt"
 const CACHE_KEY_PROXY = "PROXIES"
 const CACHE_KEY_SYMBOL = "SYMBOLS"
+const CACHE_KEY_SYMBOL_ERROR = "SYMBOLS_ERROR"
 
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
 	results := make(map[string]interface{})

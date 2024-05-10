@@ -21,3 +21,5 @@ docker/pgdata
 collector/logs
 .vim/.netrwhist
 .parallel/
+.gitconfig
+pgadmin_data/pgadmin4.db

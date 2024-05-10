@@ -36,8 +36,23 @@ type HttpProxyReader struct {
 	key   string
 }
 
-func NewHttpProxyReader(cache *cache.CacheManager) *HttpProxyReader {
-	reader := &HttpProxyReader{Cache: cache, key: strconv.Itoa(nextId())}
+func HttpCode(url string) (int, error) {
+	cmd := exec.Command("curl", "-w", "%{http_code}", url)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+
+	httpCode, err := strconv.Atoi(string(output))
+	if err != nil {
+		return 0, err
+	}
+
+	return httpCode, nil
+}
+
+func NewHttpProxyReader(cache *cache.CacheManager, goID string) *HttpProxyReader {
+	reader := &HttpProxyReader{Cache: cache, key: goID}
 	return reader
 }
 
@@ -51,7 +66,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			return "", err
 		}
 		if proxy == "" {
-			return "", errors.New("No proxy server available")
+			return "", errors.New("no proxy server available")
 		}
 
 		cmd := exec.Command("wget",
@@ -59,10 +74,27 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			"-O", htmlFile,
 			"-a", "logs/reader"+reader.key+"_wget.log",
 			"-e", "use_proxy=yes",
+			"--proxy-user="+os.Getenv("PROXYUSER"),
+			"--proxy-password="+os.Getenv("PROXYPASSWORD"),
 			"-e", "https_proxy="+proxy, url)
 		err = cmd.Run()
 		if err != nil {
 			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.key, strings.Join(cmd.Args, " "), err.Error())
+			if cmd.ProcessState.ExitCode() == 8 {
+				httpCode, httpCodeErr := HttpCode(url)
+				if httpCodeErr != nil {
+					sdclogger.SDCLoggerInstance.Printf("Failed to get http code for url %s", url)
+				}
+
+				if httpCode == 301 {
+					sdclogger.SDCLoggerInstance.Printf("url %s has been redirected.", url)
+				}
+
+				sdclogger.SDCLoggerInstance.Println("Do not retry for server error response.")
+				return "", NewHttpServerError(err.Error(), httpCode)
+			}
+
+			// Try next proxy
 			reader.Cache.DeleteFromSet(CACHE_KEY_PROXY, proxy)
 			len, err := reader.Cache.GetLength(CACHE_KEY_PROXY)
 			if err != nil {
@@ -83,14 +115,14 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 	}
 }
 
-type HttpLocalReader struct {
+type HttpDirectReader struct {
 	key string
 }
 
-func NewHttpDirectReader() *HttpLocalReader {
-	return &HttpLocalReader{key: strconv.Itoa(nextId())}
+func NewHttpDirectReader() *HttpDirectReader {
+	return &HttpDirectReader{key: strconv.Itoa(nextId())}
 }
-func (reader *HttpLocalReader) Read(url string, params map[string]string) (string, error) {
+func (reader *HttpDirectReader) Read(url string, params map[string]string) (string, error) {
 	limiter := rate.NewLimiter(rate.Limit(1), 1)
 	defaultRetryInterval := 65
 	for {
@@ -109,7 +141,8 @@ func (reader *HttpLocalReader) Read(url string, params map[string]string) (strin
 		req.Header.Set("Accept-Language", "en-US,en;q=0.5")
 		req.Header.Set("Alt-Used", "stockanalysis.com")
 		req.Header.Set("Connection", "keep-alive")
-		req.Header.Set("Cookie", "cf_clearance=E.RfE9p.mpcE7wK5lMn2Y51DU72WAVzAIbg19_.bgzM-1713659522-1.0.1.1-WIJMZLHY3by9CZ7br9U3jAtS7CMnML0Fsb6uROGe0oKZxcKkFFhcnhZrxDNd1Rm4XlgtkvZ6u.a1.kJt1LhCAg; landingPageVariation=20aprB; convActions=Footer_Links")
+		// req.Header.Set("Cookie", "g23wfclI9hIxrY.TqVFcMkts6WN4kBYZagz.Vqya3Wc-1714137516-1.0.1.1-QqwYy6Zb82ZLilqUkb4lXgSRcz6If.k8cmnSWdNVzN9tPyqnGxeevAOCEdVh36p2.zftMkLN_CxdCraTLn9_bw; landingPageVariation=20aprB; convActions=Navigation_Menu_Desktop; sb-auth-auth-token=%5B%22eyJhbGciOiJIUzI1NiIsImtpZCI6ImhCUzR1OE1MbWZTaHpBY2YiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzE1NTc1NTQ4LCJpYXQiOjE3MTQ5NzA3NDgsImlzcyI6Imh0dHBzOi8vdXJmbnpwYnNhZXV2ZmNoZGZqZ3ouc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImIzYjgzYWZmLTM5ODctNDRmMi…Y2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvYXV0aCIsInRpbWVzdGFtcCI6MTcxNDk3MDc0OH1dLCJzZXNzaW9uX2lkIjoiMmI1MDU4NTAtODg4Ni00NDcwLWJhNmYtYWM0MTMwN2U2NDcwIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.SUjEKO1S1orwwcBk6zSbyv4IUckFYBUBmaGVQ9R_ds8%22%2C%22cYRDgS_EAcI6-bvN9T0CAg%22%2C%22ya29.a0AXooCgt9uOK6lUWEMXXoIuHD9uzT8oDfOu1A8WUT_HLuqcEnRPDYZsBIiHkWAjH794YRWhN1oGQ6XLx-GtlsEhXoB90wvfxiu44OD4XzvvXaGik07Uq-6-HiE5zZRjvEGw_Fc_RnRST7pndus4bikEttfWVQQK_YvwaCgYKAVUSARMSFQHGX2MiVfk2ITTSs-kkCJDCpWNBHg0169%22%2Cnull%2Cnull%5D")
+		// req.Header.Set("Cookie", "cf_clearance=g23wfclI9hIxrY.TqVFcMkts6WN4kBYZagz.Vqya3Wc-1714137516-1.0.1.1-QqwYy6Zb82ZLilqUkb4lXgSRcz6If.k8cmnSWdNVzN9tPyqnGxeevAOCEdVh36p2.zftMkLN_CxdCraTLn9_bw; landingPageVariation=20aprB; convActions=Navigation_Menu_Desktop; sb-auth-auth-token=%5B%22eyJhbGciOiJIUzI1NiIsImtpZCI6ImhCUzR1OE1MbWZTaHpBY2YiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzE1NTc1NTQ4LCJpYXQiOjE3MTQ5NzA3NDgsImlzcyI6Imh0dHBzOi8vdXJmbnpwYnNhZXV2ZmNoZGZqZ3ouc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImIzYjgzYWZmLTM5ODctNDRmMi…XRob2QiOiJvYXV0aCIsInRpbWVzdGFtcCI6MTcxNDk3MDc0OH1dLCJzZXNzaW9uX2lkIjoiMmI1MDU4NTAtODg4Ni00NDcwLWJhNmYtYWM0MTMwN2U2NDcwIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.SUjEKO1S1orwwcBk6zSbyv4IUckFYBUBmaGVQ9R_ds8%22%2C%22cYRDgS_EAcI6-bvN9T0CAg%22%2C%22ya29.a0AXooCgt9uOK6lUWEMXXoIuHD9uzT8oDfOu1A8WUT_HLuqcEnRPDYZsBIiHkWAjH794YRWhN1oGQ6XLx-GtlsEhXoB90wvfxiu44OD4XzvvXaGik07Uq-6-HiE5zZRjvEGw_Fc_RnRST7pndus4bikEttfWVQQK_YvwaCgYKAVUSARMSFQHGX2MiVfk2ITTSs-kkCJDCpWNBHg0169%22%2Cnull%2Cnull%5D; cf_chl_3=9e9f56cdfcf0509; cf_chl_rc_m=1")
 		req.Header.Set("Host", "stockanalysis.com")
 		req.Header.Set("If-None-Match", "W/\"lx5gry\"")
 		req.Header.Set("Sec-Fetch-Dest", "document")
@@ -159,8 +192,8 @@ func (reader *HttpLocalReader) Read(url string, params map[string]string) (strin
 		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			return string(body), err
+		if err == nil {
+			return string(body), nil
 		}
 	}
 }
