@@ -95,7 +95,7 @@ type FinancialsBalanceShet struct {
 	Receivables              float64 `json:"receivables"`
 	RetainedEarnings         float64 `json:"retained_earnings"`
 	ShareholdersEquity       float64 `json:"shareholders_equity"`
-	Symbol                   string  `json:"symbol"`
+	Symbol                   string  `json:"symbol" db:"PrimaryKey"`
 	ShortTermInvestments     float64 `json:"short_term_investments"`
 	TotalAssets              float64 `json:"total_assets"`
 	TotalCurrentAssets       float64 `json:"total_current_assets"`
@@ -155,7 +155,7 @@ type FinancialsCashFlow struct {
 	ResearchDevelopment      float64 `json:"research_development"`
 	Revenue                  float64 `json:"revenue"`
 	RevenueGrowthYOY         float64 `json:"revenue_growth_yoy"`
-	Symbol                   string  `json:"symbol"`
+	Symbol                   string  `json:"symbol" db:"PrimaryKey"`
 	SellingGeneralAdmin      float64 `json:"selling_general_admin"`
 	ShareBasedCompensation   float64 `json:"share_based_compensation"`
 	ShareIssuanceRepurchase  float64 `json:"share_issuance_repurchase"`
@@ -182,8 +182,16 @@ type FinancialRatios struct {
 	QuarterEnded           string  `json:"quarter_ended"`
 	QuickRatio             float64 `json:"quick_ratio"`
 	ReturnOnCapitalROIC    float64 `json:"return_on_capital_roic"`
-	Symbol                 string  `json:"symbol"`
+	Symbol                 string  `json:"symbol" db:"PrimaryKey"`
 	TotalShareholderReturn float64 `json:"total_shareholder_return"`
+}
+
+type AnalystsRating struct {
+	Symbol          string  `json:"symbol" db:"PrimaryKey"`
+	TotalAnalysts   int     `json:"total_analysts"`
+	ConsensusRating string  `json:"consensus_rating"`
+	PriceTarget     float64 `json:"price_target"`
+	Upside          float64 `json:"upside"`
 }
 
 func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
@@ -193,6 +201,7 @@ func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
 		reflect.TypeFor[FinancialsBalanceShet](),
 		reflect.TypeFor[FinancialsCashFlow](),
 		reflect.TypeFor[FinancialRatios](),
+		reflect.TypeFor[AnalystsRating](),
 	}
 
 	allMetricsFields := make(map[string]map[string]JsonFieldMetadata)

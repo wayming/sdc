@@ -110,22 +110,106 @@ func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStr
 	return nil, nil
 }
 
-func SearchText(node *html.Node, text string) bool {
+// Parse Analyst Ratin page and return JSON text
+func (collector *SACollector) ReadAnalystRatingsPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+	collector.logger.Println("Read " + url)
 
-	if node.Type == html.TextNode {
-		regex, _ := regexp.Compile(".*" + text + ".*")
-		if regex.Match([]byte(node.Data)) {
-			return true
+	htmlContent, err := collector.reader.Read(url, params)
+	if err != nil {
+		return "", err
+	}
+
+	htmlDoc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
+	}
+
+	collector.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
+	indicatorsMap, err := collector.DecodeAnalystRatingsGrid(htmlDoc, dataStructTypeName)
+
+	if err != nil {
+		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
+	}
+	if len(indicatorsMap) == 0 {
+		return "", errors.New("No indicator found from analyst ratings page " + url)
+	}
+
+	jsonData, err := json.Marshal(indicatorsMap)
+	if err != nil {
+		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
+	} else {
+		collector.logger.Println("JSON text generated - " + string(jsonData))
+
+	}
+	return string(jsonData), nil
+}
+
+func (collector *SACollector) DecodeAnalystRatingsGrid(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
+	analystRatinMetrics := make(map[string]interface{})
+
+	htmlFieldTexts := []string{
+		"Total Analysts",
+		"Consensus Rating",
+		"Price Target",
+		"Upside",
+	}
+	for _, fieldText := range htmlFieldTexts {
+		if value := TextOfAdjacentDiv(node, fieldText); len(value) > 0 {
+			normKey := normaliseJSONKey(fieldText)
+			fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
+			if fieldType == nil {
+				return nil, errors.New("Failed to get field type for tag " + normKey)
+			}
+			collector.logger.Println("Normalise " + value + " to " + fieldType.Name() + " value")
+			normVal, err := normaliseJSONValue(value, fieldType)
+			if err != nil {
+				return analystRatinMetrics, err
+			}
+
+			analystRatinMetrics[normKey] = normVal
+		}
+	}
+	return analystRatinMetrics, nil
+}
+
+func TextOfAdjacentDiv(node *html.Node, firstData string) string {
+	if node.Type == html.ElementNode && node.Data == "div" {
+		textNode := FirstTextNode(node)
+		if textNode != nil && strings.TrimSpace(textNode.Data) == firstData {
+			if textNode.Parent != nil && textNode.Parent.NextSibling != nil && textNode.Parent.NextSibling.NextSibling != nil {
+				if adjacentTextNode := FirstTextNode(textNode.Parent.NextSibling.NextSibling); adjacentTextNode != nil {
+					return strings.TrimSpace(adjacentTextNode.Data)
+				}
+			}
 		}
 	}
 
 	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if SearchText(child, text) {
-			return true
+
+		if data := TextOfAdjacentDiv(child, firstData); len(data) > 0 {
+			return data
 		}
 	}
 
-	return false
+	return ""
+}
+
+func SearchText(node *html.Node, text string) *html.Node {
+
+	if node.Type == html.TextNode {
+		regex, _ := regexp.Compile(".*" + text + ".*")
+		if regex.Match([]byte(node.Data)) {
+			return node
+		}
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if textNode := SearchText(child, text); textNode != nil {
+			return textNode
+		}
+	}
+
+	return nil
 }
 
 func FirstTextNode(node *html.Node) *html.Node {
@@ -198,6 +282,9 @@ func stringToFloat64(value string) (any, error) {
 	// Remove commas
 	value = strings.ReplaceAll(value, ",", "")
 
+	// Remove dollors
+	value = strings.ReplaceAll(value, "$", "")
+
 	// Remove (.*)
 	re := regexp.MustCompile(`\(.*\)`)
 	value = re.ReplaceAllString(value, "")
@@ -209,6 +296,9 @@ func stringToFloat64(value string) (any, error) {
 			return float64(0), nil
 		}
 		sign = -1
+		value = value[1:]
+	}
+	if value[0] == '+' {
 		value = value[1:]
 	}
 
@@ -486,7 +576,7 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	if SearchText(htmlDoc, "No quarterly.*available for this stock") {
+	if SearchText(htmlDoc, "No quarterly.*available for this stock") != nil {
 		return "", errors.New("Ignore the symbol " + collector.thisSymbol + ". No quarterly data available")
 	}
 

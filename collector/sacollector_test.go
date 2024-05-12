@@ -43,7 +43,7 @@ func teardownSATest() {
 	testcommon.TeardownTest()
 }
 
-func TestMSCollector_ReadOverallPage(t *testing.T) {
+func TestSACollector_ReadOverallPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		reader     collector.HttpReader
@@ -70,7 +70,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 			dbLoader:   saTestDBLoader,
 			reader:     collector.NewHttpDirectReader(),
 			logger:     testcommon.TestLogger(t.Name()),
-			dbSchema:   MS_TEST_SCHEMA_NAME,
+			dbSchema:   SA_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
 		},
 		args: args{
@@ -111,7 +111,7 @@ func TestMSCollector_ReadOverallPage(t *testing.T) {
 	teardownSATest()
 }
 
-func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
+func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		reader     collector.HttpReader
@@ -138,7 +138,7 @@ func TestMSCollector_ReadPageTimeSeries(t *testing.T) {
 			dbLoader:   saTestDBLoader,
 			reader:     collector.NewHttpDirectReader(),
 			logger:     testcommon.TestLogger(t.Name()),
-			dbSchema:   MS_TEST_SCHEMA_NAME,
+			dbSchema:   SA_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
 		},
 		args: args{
@@ -219,7 +219,7 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 				dbLoader:   saTestDBLoader,
 				reader:     collector.NewHttpDirectReader(),
 				logger:     testcommon.TestLogger(t.Name()),
-				dbSchema:   MS_TEST_SCHEMA_NAME,
+				dbSchema:   SA_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
 			},
 			args: args{
@@ -280,7 +280,7 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 				dbLoader:   saTestDBLoader,
 				reader:     collector.NewHttpDirectReader(),
 				logger:     testcommon.TestLogger(t.Name()),
-				dbSchema:   MS_TEST_SCHEMA_NAME,
+				dbSchema:   SA_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
 			},
 			args: args{
@@ -378,7 +378,7 @@ func TestSearchText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := collector.SearchText(tt.args.node, tt.args.text); got != tt.want {
+			if got := collector.SearchText(tt.args.node, tt.args.text); (got != nil) != tt.want {
 				t.Errorf("SearchText() = %v, want %v", got, tt.want)
 			}
 		})
@@ -447,6 +447,149 @@ func TestCollectFinancialsForSymbol(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
 				t.Errorf("CollectFinancialsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
+	type fields struct {
+		dbLoader   dbloader.DBLoader
+		reader     collector.HttpReader
+		logger     *log.Logger
+		dbSchema   string
+		thisSymbol string
+	}
+	type args struct {
+		url                string
+		params             map[string]string
+		dataStructTypeName string
+	}
+
+	setupSATest(t.Name())
+	defer teardownSATest()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "ReadAnalystRatingsPage",
+			fields: fields{
+				dbLoader:   saTestDBLoader,
+				reader:     collector.NewHttpDirectReader(),
+				logger:     testcommon.TestLogger(t.Name()),
+				dbSchema:   SA_TEST_SCHEMA_NAME,
+				thisSymbol: "nvda",
+			},
+			args: args{
+				url:                "https://stockanalysis.com/stocks/nvda/ratings/",
+				params:             make(map[string]string, 0),
+				dataStructTypeName: reflect.TypeFor[collector.AnalystsRating]().Name(),
+			},
+			want:    "json",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := collector.NewSACollector(
+				tt.fields.dbLoader,
+				tt.fields.reader,
+				tt.fields.logger,
+				tt.fields.dbSchema,
+			)
+			got, err := collector.ReadAnalystRatingsPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SACollector.ReadAnalystRatingsPage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SACollector.ReadAnalystRatingsPage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTextOfAdjacentDiv(t *testing.T) {
+	type args struct {
+		html      string
+		firstData string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "TestTextOfAdjacentDiv",
+			args: args{
+				html: `
+				<div class="mb-4 grid grid-cols-2 grid-rows-2 divide-contrast rounded-lg border border-contrast bg-contrast shadow md:grid-cols-4 md:grid-rows-1 md:divide-x">
+				<div class="p-4 bp:p-5 sm:p-6">
+					<div class="text-sm font-normal text-default xs:text-base">Total Analysts <span class="relative" role="tooltip"><span
+								class="absolute -right-[13px] -top-[3px] cursor-pointer p-1 text-gray-300 hover:text-gray-600 dark:text-dark-400 dark:hover:text-dark-300">
+								<!-- HTML_TAG_START --><svg class="h-[9px] w-[9px]" viewBox="0 0 4 16"
+									fill="currentColor" style="max-width:20px">
+									<path
+										d="M0 6h4v10h-4v-10zm2-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+									</svg><!-- HTML_TAG_END --></span></span>
+					</div>
+					<div class="mt-1 break-words font-semibold leading-8 text-light tiny:text-lg xs:text-xl sm:text-2xl">
+						42</div>
+				</div>
+				<div class="p-4 bp:p-5 sm:p-6 border-l border-contrast md:border-0">
+					<div class="text-sm font-normal text-default xs:text-base">Consensus Rating <span class="relative" role="tooltip"><span
+								class="absolute -right-[13px] -top-[3px] cursor-pointer p-1 text-gray-300 hover:text-gray-600 dark:text-dark-400 dark:hover:text-dark-300">
+								<!-- HTML_TAG_START --><svg class="h-[9px] w-[9px]" viewBox="0 0 4 16"
+									fill="currentColor" style="max-width:20px">
+									<path
+										d="M0 6h4v10h-4v-10zm2-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+									</svg><!-- HTML_TAG_END --></span></span>
+					</div>
+					<div class="mt-1 break-words font-semibold leading-8 text-light tiny:text-lg xs:text-xl sm:text-2xl">
+						Strong Buy</div>
+				</div>
+				<div class="p-4 bp:p-5 sm:p-6 border-t border-contrast md:border-0">
+					<div class="text-sm font-normal text-default xs:text-base">Price Target <span class="relative" role="tooltip"><span
+								class="absolute -right-[13px] -top-[3px] cursor-pointer p-1 text-gray-300 hover:text-gray-600 dark:text-dark-400 dark:hover:text-dark-300">
+								<!-- HTML_TAG_START --><svg class="h-[9px] w-[9px]" viewBox="0 0 4 16"
+									fill="currentColor" style="max-width:20px">
+									<path
+										d="M0 6h4v10h-4v-10zm2-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+									</svg><!-- HTML_TAG_END --></span></span>
+					</div>
+					<div class="mt-1 break-words font-semibold leading-8 text-light tiny:text-lg xs:text-xl sm:text-2xl">
+						$930.17</div>
+				</div>
+				<div class="p-4 bp:p-5 sm:p-6 border-t border-contrast md:border-0 border-l border-contrast md:border-0">
+					<div class="text-sm font-normal text-default xs:text-base">Upside <span class="relative" role="tooltip"><span
+								class="absolute -right-[13px] -top-[3px] cursor-pointer p-1 text-gray-300 hover:text-gray-600 dark:text-dark-400 dark:hover:text-dark-300">
+								<!-- HTML_TAG_START --><svg class="h-[9px] w-[9px]" viewBox="0 0 4 16"
+									fill="currentColor" style="max-width:20px">
+									<path
+										d="M0 6h4v10h-4v-10zm2-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z" />
+									</svg><!-- HTML_TAG_END --></span></span>
+					</div>
+					<div class="mt-1 break-words font-semibold leading-8 text-light tiny:text-lg xs:text-xl sm:text-2xl">
+						+3.49%</div>
+				</div>
+			</div>
+				`,
+				firstData: "Total Analysts",
+			},
+			want: "42",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			htmlDoc, _ := html.Parse(strings.NewReader(tt.args.html))
+			if got := collector.TextOfAdjacentDiv(htmlDoc, tt.args.firstData); got != tt.want {
+				t.Errorf("TextOfAdjacentDiv() = %v, want %v", got, tt.want)
 			}
 		})
 	}
