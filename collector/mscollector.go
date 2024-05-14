@@ -32,34 +32,34 @@ func NewMSCollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log
 	return &collector
 }
 
-func (collector *MSCollector) CollectTickers() error {
+func (collector *MSCollector) CollectTickers() (int64, error) {
 	apiURL := "http://api.marketstack.com/v1/tickers"
 	jsonText, err := collector.reader.Read(apiURL, nil)
 	if err != nil {
-		return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
+		return 0, errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
 
 	return collector.LoadTickers(string(jsonText))
 }
 
-func (collector *MSCollector) LoadTickers(jsonText string) error {
+func (collector *MSCollector) LoadTickers(jsonText string) (int64, error) {
 	var data TickersBody
 	if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
-		return errors.New("Failed to unmarshal json text, Error: " + err.Error())
+		return 0, errors.New("Failed to unmarshal json text, Error: " + err.Error())
 	}
 	dataJSONText, err := json.Marshal(data.Data)
 	if err != nil {
-		return errors.New("Failed to marshal json struct, Error: " + err.Error())
+		return 0, errors.New("Failed to marshal json struct, Error: " + err.Error())
 	}
 
 	var tickers Tickers
 	tickersTable := "ms_tickers"
 	numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJSONText), tickersTable, reflect.TypeOf(tickers))
 	if err != nil {
-		return errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
 	}
 	collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
-	return nil
+	return numOfRows, nil
 
 }
 
@@ -115,7 +115,7 @@ func (collector *MSCollector) CollectEOD() error {
 	return nil
 }
 
-func CollectTickers(schemaName string, csvFile string) error {
+func CollectTickers(schemaName string, csvFile string) (int64, error) {
 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -127,12 +127,12 @@ func CollectTickers(schemaName string, csvFile string) error {
 	if len(csvFile) > 0 {
 		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
 		if err != nil {
-			return errors.New("Failed to open file " + csvFile)
+			return 0, errors.New("Failed to open file " + csvFile)
 		}
 
 		csv, err := io.ReadAll(reader)
 		if err != nil {
-			return errors.New("Failed to read file " + csvFile)
+			return 0, errors.New("Failed to read file " + csvFile)
 		}
 
 		return collector.LoadTickers(string(csv))

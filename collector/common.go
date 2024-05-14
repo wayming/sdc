@@ -34,6 +34,25 @@ func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) 
 	return results, nil
 }
 
+func ClearCache() error {
+	cm := cache.NewCacheManager()
+	if err := cm.Connect(); err != nil {
+		return err
+	}
+	defer cm.Disconnect()
+
+	if err := cm.DeleteSet(CACHE_KEY_PROXY); err != nil {
+		return err
+	}
+	if err := cm.DeleteSet(CACHE_KEY_SYMBOL); err != nil {
+		return err
+	}
+	if err := cm.DeleteSet(CACHE_KEY_SYMBOL_ERROR); err != nil {
+		return err
+	}
+
+	return nil
+}
 func DropSchema(schema string) error {
 	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)

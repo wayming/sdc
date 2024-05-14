@@ -681,21 +681,21 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 
 func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 
-	// if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-	// 	return err
-	// }
-	// if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
-	// 	return err
-	// }
-	// if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
-	// 	return err
-	// }
-	// if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
-	// 	return err
-	// }
-	// if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
-	// 	return err
-	// }
+	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+		return err
+	}
+	if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+		return err
+	}
 	if _, err := collector.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
 		return err
 	}
