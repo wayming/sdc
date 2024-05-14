@@ -150,6 +150,17 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 	return sliceValue.Interface(), nil
 }
 
+func joinInterfaceSlice(slice []interface{}, sep string) string {
+	// Convert each element to string and append to a slice of strings
+	var strSlice []string
+	for _, v := range slice {
+		strSlice = append(strSlice, fmt.Sprintf("%v", v))
+	}
+
+	// Join the slice of strings with the separator
+	return strings.Join(strSlice, sep)
+}
+
 func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
 	var rowsInserted int64
 
@@ -197,6 +208,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	}
 
 	for _, row := range rows {
+		loader.logger.Printf("Execute INSERT: fields[%s], row[%s]", strings.Join(fields, ","), joinInterfaceSlice(row, ","))
 		_, err := stmt.Exec(row...)
 		if err != nil {
 			tx.Rollback()
@@ -207,12 +219,12 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	// Flush
 	_, err = stmt.Exec()
 	if err != nil {
-		log.Fatal(err)
+		loader.logger.Println("Execute error")
 	}
 
 	err = stmt.Close()
 	if err != nil {
-		log.Fatal(err)
+		loader.logger.Println("Close error")
 	}
 
 	// Commit the transaction

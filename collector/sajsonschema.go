@@ -188,7 +188,7 @@ type FinancialRatios struct {
 
 type AnalystsRating struct {
 	Symbol          string  `json:"symbol" db:"PrimaryKey"`
-	TotalAnalysts   int     `json:"total_analysts"`
+	TotalAnalysts   int64   `json:"total_analysts"`
 	ConsensusRating string  `json:"consensus_rating"`
 	PriceTarget     float64 `json:"price_target"`
 	Upside          float64 `json:"upside"`

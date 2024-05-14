@@ -32,7 +32,7 @@ func setupSATest(testName string) {
 	saTestDBLoader.CreateSchema(SA_TEST_SCHEMA_NAME)
 
 	// Load tickes from csv file for testing
-	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers5.json")
+	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers1000.json")
 }
 
 func teardownSATest() {
@@ -409,7 +409,7 @@ func TestCollectFinancials(t *testing.T) {
 		},
 	}
 	setupSATest(t.Name())
-	defer teardownSATest()
+	// defer teardownSATest()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

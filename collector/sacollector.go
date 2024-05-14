@@ -133,8 +133,9 @@ func (collector *SACollector) ReadAnalystRatingsPage(url string, params map[stri
 	if len(indicatorsMap) == 0 {
 		return "", errors.New("No indicator found from analyst ratings page " + url)
 	}
-
-	jsonData, err := json.Marshal(indicatorsMap)
+	indicatorsMap["symbol"] = collector.thisSymbol
+	mapSlice := []map[string]interface{}{indicatorsMap}
+	jsonData, err := json.Marshal(mapSlice)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {
@@ -265,15 +266,36 @@ func normaliseJSONKey(key string) string {
 
 	return key
 }
-
 func stringToFloat64(value string) (any, error) {
+	baseNumber, sign, multi := normaliseValueForNumeric(value)
+	valFloat, err := strconv.ParseFloat(baseNumber, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return float64(sign) * valFloat * float64(multi), nil
+}
+
+func stringToInt64(value string) (any, error) {
+	baseNumber, sign, multi := normaliseValueForNumeric(value)
+	valInt, err := strconv.ParseInt(baseNumber, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return int64(float64(sign) * float64(valInt) * multi), nil
+}
+
+// Normalised input string value for numeric conversion
+// Return normalised string, operator, multiplier
+func normaliseValueForNumeric(value string) (string, int, float64) {
 
 	// Remove spaces
 	value = strings.ReplaceAll(value, " ", "")
 
 	// Handle n/a. Return 0.
 	if strings.ToLower(value) == "n/a" {
-		return 0, nil
+		return "0", 0, 0
 	}
 
 	// Remove double quotes
@@ -290,10 +312,10 @@ func stringToFloat64(value string) (any, error) {
 	value = re.ReplaceAllString(value, "")
 
 	// Sign operator
-	sign := float64(1)
+	sign := 1
 	if value[0] == '-' {
 		if len(value) == 1 {
-			return float64(0), nil
+			return "0", 0, 0
 		}
 		sign = -1
 		value = value[1:]
@@ -304,10 +326,10 @@ func stringToFloat64(value string) (any, error) {
 
 	valLen := len(value)
 	re = regexp.MustCompile(`^[.\d]+[BMT%]?$`)
+	multiplier := float64(1)
+	baseNumber := value
 	if re.Match([]byte(value)) {
 
-		multiplier := float64(1)
-		baseNumber := value
 		switch value[valLen-1] {
 		case 'M':
 			multiplier = multiplier * 1000 * 1000
@@ -322,15 +344,9 @@ func stringToFloat64(value string) (any, error) {
 			multiplier = multiplier / 100
 			baseNumber = value[:valLen-1]
 		}
-		valFloat, err := strconv.ParseFloat(baseNumber, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		return sign * valFloat * multiplier, nil
-	} else {
-		return nil, errors.New("Failed to convert value to " + reflect.Float64.String())
 	}
+
+	return baseNumber, sign, multiplier
 }
 
 func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
@@ -340,6 +356,10 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 	switch vType.Kind() {
 	case reflect.Float64:
 		if convertedValue, err = stringToFloat64(value); err != nil {
+			return nil, err
+		}
+	case reflect.Int64:
+		if convertedValue, err = stringToInt64(value); err != nil {
 			return nil, err
 		}
 	case reflect.String:
@@ -622,6 +642,11 @@ func (collector *SACollector) CollectFinancialsRatios(symbol string, dataStructT
 	return collector.LoadTimeSeriesPage(financialsRatios, dataStructType, "sa_financials_ratios")
 }
 
+func (collector *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
+	collector.thisSymbol = symbol
+	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
+	return collector.LoadAnalystRatingsPage(financialsRatios, dataStructType, "sa_analyst_ratings")
+}
 func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
 
 	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
@@ -638,21 +663,40 @@ func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType refl
 	return numOfRows, nil
 }
 
+func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
+
+	jsonText, err := collector.ReadAnalystRatingsPage(url, nil, dataStructType.Name())
+	if err != nil {
+		return 0, NewSDCError(err, "Failed to scrap data from url "+url)
+	}
+
+	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
+	}
+
+	collector.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
+	return numOfRows, nil
+}
+
 func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 
-	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-		return err
-	}
-	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
-		return err
-	}
-	if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
-		return err
-	}
-	if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
-		return err
-	}
-	if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+	// if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+	// 	return err
+	// }
+	// if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+	// 	return err
+	// }
+	// if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+	// 	return err
+	// }
+	// if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+	// 	return err
+	// }
+	// if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+	// 	return err
+	// }
+	if _, err := collector.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
 		return err
 	}
 	return nil
