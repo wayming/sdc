@@ -201,10 +201,19 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}
 
-	stmt, err := tx.Prepare(pq.CopyIn(tableName, fields...))
+	// conflictResolution := " ON CONFLICT DO UPDATE SET "
+	// for idx, field := range fields {
+	// 	conflictResolution += field + " = EXCLUDED." + field
+	// 	if idx < len(fields)-1 {
+	// 		conflictResolution += ","
+	// 	}
+	// }
+
+	prepareSQL := pq.CopyIn(tableName, fields...)
+	stmt, err := tx.Prepare(prepareSQL)
 	if err != nil {
 		tx.Rollback()
-		return 0, errors.New("Failed to prepare CopyIn statement. Error: " + err.Error())
+		return 0, fmt.Errorf("failed to prepare CopyIn statement. SQL: %s Error: %s", prepareSQL, err.Error())
 	}
 
 	for _, row := range rows {
@@ -219,18 +228,23 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	// Flush
 	_, err = stmt.Exec()
 	if err != nil {
-		loader.logger.Println("Execute error")
+		errMsg := fmt.Sprintf("failed to execute CopyIn statement. Error: %s", err.Error())
+		loader.logger.Printf(errMsg)
+		return 0, errors.New(errMsg)
+
 	}
 
 	err = stmt.Close()
 	if err != nil {
-		loader.logger.Println("Close error")
+		loader.logger.Printf("Close error %s\n", err.Error())
 	}
 
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		return 0, errors.New("Failed to commit CopyIn statement. Error: " + err.Error())
+		errMsg := fmt.Sprintf("failed to commit CopyIn statement. Error: %s", err.Error())
+		loader.logger.Printf(errMsg)
+		return 0, errors.New(errMsg)
 	}
 	return int64(len(rows)), nil
 }

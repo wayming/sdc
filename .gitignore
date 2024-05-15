@@ -4,7 +4,6 @@
 go/
 logs/
 .viminfo
-main.go
 main
 .bash_history
 .psql_history

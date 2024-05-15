@@ -2,7 +2,7 @@ package collector
 
 type Tickers struct {
 	Name          string `json:"name"`
-	Symbol        string `json:"symbol"`
+	Symbol        string `json:"symbol" db:"PrimaryKey"`
 	HasIntraday   bool   `json:"has_intraday"`
 	HasEod        bool   `json:"has_eod"`
 	Country       string `json:"country"`
@@ -12,7 +12,7 @@ type Tickers struct {
 }
 
 type StockExchange struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" db:"PrimaryKey"`
 	Acronym     string `json:"acronym"`
 	Mic         string `json:"mic"`
 	Country     string `json:"country"`
@@ -29,7 +29,7 @@ type Intraday struct {
 	Close    float64 `json:"close"`
 	Volume   float64 `json:"volume"`
 	Date     string  `json:"date"`
-	Symbol   string  `json:"symbol"`
+	Symbol   string  `json:"symbol" db:"PrimaryKey"`
 	Exchange string  `json:"exchange"`
 }
 
@@ -46,7 +46,7 @@ type EOD struct {
 	AdjVolume   float64 `json:"adj_volume"`
 	SplitFactor float64 `json:"split_factor"`
 	Dividend    float64 `json:"dividend"`
-	Symbol      string  `json:"symbol"`
+	Symbol      string  `json:"symbol" db:"PrimaryKey"`
 	Exchange    string  `json:"exchange"`
 	Date        string  `json:"date"`
 }
