@@ -22,3 +22,4 @@ collector/logs
 .parallel/
 .gitconfig
 pgadmin_data/pgadmin4.db
+sdc

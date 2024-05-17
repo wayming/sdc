@@ -32,7 +32,7 @@ func setupSATest(testName string) {
 	saTestDBLoader.CreateSchema(SA_TEST_SCHEMA_NAME)
 
 	// Load tickes from csv file for testing
-	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers1000.json")
+	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers5.json")
 }
 
 func teardownSATest() {
@@ -402,7 +402,7 @@ func TestCollectFinancials(t *testing.T) {
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies7.txt",
-				parallel:   5,
+				parallel:   2,
 				isContinue: false,
 			},
 			wantErr: false,

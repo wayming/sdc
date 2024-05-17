@@ -161,9 +161,27 @@ func joinInterfaceSlice(slice []interface{}, sep string) string {
 	return strings.Join(strSlice, sep)
 }
 
-func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
-	var rowsInserted int64
+func (loader *PGLoader) CreateTableByJsonStruct(tableName string, jsonStructType reflect.Type) error {
+	converter := json2db.NewJsonToPGSQLConverter()
 
+	// Create table
+	tableCreateSQL, err := converter.GenCreateTable(tableName, jsonStructType)
+	if err != nil {
+		return err
+	}
+	loader.logger.Println("SQL=", tableCreateSQL)
+
+	tx, _ := loader.db.Begin()
+	if _, err := tx.Exec(tableCreateSQL); err != nil {
+		return errors.New("Failed to execute SQL " + tableCreateSQL + ". Error: " + err.Error())
+	} else {
+		loader.logger.Println("Execute SQL: ", tableCreateSQL)
+	}
+	tx.Commit()
+	return nil
+}
+
+func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error) {
 	loader.logger.Println("Load JSON text:", jsonText)
 
 	if loader.schema == "" {
@@ -171,21 +189,6 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	}
 
 	converter := json2db.NewJsonToPGSQLConverter()
-
-	// Create table
-	tableCreateSQL, err := converter.GenCreateTable(tableName, jsonStructType)
-	if err != nil {
-		return rowsInserted, err
-	}
-	loader.logger.Println("SQL=", tableCreateSQL)
-
-	tx, _ := loader.db.Begin()
-	if _, err := tx.Exec(tableCreateSQL); err != nil {
-		return 0, errors.New("Failed to execute SQL " + tableCreateSQL + ". Error: " + err.Error())
-	} else {
-		loader.logger.Println("Execute SQL: ", tableCreateSQL)
-	}
-	tx.Commit()
 
 	// Insert
 	fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
@@ -196,7 +199,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	}
 
 	// Start a transaction
-	tx, err = loader.db.Begin()
+	tx, err := loader.db.Begin()
 	if err != nil {
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}

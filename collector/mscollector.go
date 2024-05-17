@@ -39,6 +39,9 @@ func (collector *MSCollector) CollectTickers() (int64, error) {
 		return 0, errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
 	}
 
+	if err := collector.dbLoader.CreateTableByJsonStruct(TABLE_MS_TICKERS, reflect.TypeFor[Tickers]()); err != nil {
+		return 0, err
+	}
 	return collector.LoadTickers(string(jsonText))
 }
 
@@ -52,13 +55,11 @@ func (collector *MSCollector) LoadTickers(jsonText string) (int64, error) {
 		return 0, errors.New("Failed to marshal json struct, Error: " + err.Error())
 	}
 
-	var tickers Tickers
-	tickersTable := "ms_tickers"
-	numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJSONText), tickersTable, reflect.TypeOf(tickers))
+	numOfRows, err := collector.dbLoader.LoadByJsonText(string(dataJSONText), TABLE_MS_TICKERS, reflect.TypeFor[Tickers]())
 	if err != nil {
-		return 0, errors.New("Failed to load json text to table " + tickersTable + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load json text to table " + TABLE_MS_TICKERS + ". Error: " + err.Error())
 	}
-	collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+tickersTable+" table")
+	collector.logger.Println(numOfRows, "rows were loaded into ", collector.dbSchema, ":"+TABLE_MS_TICKERS+" table")
 	return numOfRows, nil
 
 }
@@ -133,6 +134,10 @@ func CollectTickers(schemaName string, csvFile string) (int64, error) {
 		csv, err := io.ReadAll(reader)
 		if err != nil {
 			return 0, errors.New("Failed to read file " + csvFile)
+		}
+
+		if err := collector.dbLoader.CreateTableByJsonStruct(TABLE_MS_TICKERS, reflect.TypeFor[Tickers]()); err != nil {
+			return 0, err
 		}
 
 		return collector.LoadTickers(string(csv))

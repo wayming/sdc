@@ -568,18 +568,17 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
-	overalTable := "sa_overall"
 	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
 	if err != nil {
 		return 0, NewSDCError(err, "Failed to scrap data from url "+overallUrl)
 	}
 
-	numOfRows, err := collector.loader.LoadByJsonText(jsonText, overalTable, reflect.TypeFor[StockOverview]())
+	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERALL, reflect.TypeFor[StockOverview]())
 	if err != nil {
-		return 0, errors.New("Failed to load data into table " + overalTable + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERALL + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println(numOfRows, "rows have been loaded into", overalTable)
+	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERALL)
 	return numOfRows, nil
 }
 
@@ -621,31 +620,31 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 func (collector *SACollector) CollectFinancialsIncome(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, "sa_financials_income")
+	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, TABLE_SA_FINANCIALS_INCOME)
 }
 
 func (collector *SACollector) CollectFinancialsBalanceSheet(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsBalanceSheet, dataStructType, "sa_financials_balance_sheet")
+	return collector.LoadTimeSeriesPage(financialsBalanceSheet, dataStructType, TABLE_SA_FINANCIALS_BALANCE_SHEET)
 }
 
 func (collector *SACollector) CollectFinancialsCashFlow(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsICashFlow, dataStructType, "sa_financials_cash_flow")
+	return collector.LoadTimeSeriesPage(financialsICashFlow, dataStructType, TABLE_SA_FINANCIALS_CASH_FLOW)
 }
 
 func (collector *SACollector) CollectFinancialsRatios(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsRatios, dataStructType, "sa_financials_ratios")
+	return collector.LoadTimeSeriesPage(financialsRatios, dataStructType, TABLE_SA_FINANCIALS_RATIOS)
 }
 
 func (collector *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
 	collector.thisSymbol = symbol
 	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
-	return collector.LoadAnalystRatingsPage(financialsRatios, dataStructType, "sa_analyst_ratings")
+	return collector.LoadAnalystRatingsPage(financialsRatios, dataStructType, TABLE_SA_ANALYST_RATINGS)
 }
 func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
 
@@ -679,6 +678,25 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 	return numOfRows, nil
 }
 
+func (collector *SACollector) CreateTables() error {
+	allTables := map[string]reflect.Type{
+		TABLE_SA_OVERALL:                  reflect.TypeFor[StockOverview](),
+		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
+		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
+		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),
+		TABLE_SA_FINANCIALS_RATIOS:        reflect.TypeFor[FinancialRatios](),
+		TABLE_SA_ANALYST_RATINGS:          reflect.TypeFor[AnalystsRating](),
+	}
+
+	for k, v := range allTables {
+		if err := collector.loader.CreateTableByJsonStruct(k, v); err != nil {
+			return err
+		}
+	}
+
+	collector.logger.Println("All tables created")
+	return nil
+}
 func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 
 	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
@@ -743,6 +761,22 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", loaded)
 	}
 
+	// Create tables
+	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+	if err := collector.CreateTables(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+		return err
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("All tables created")
+	}
+
 	var wg sync.WaitGroup
 	outChan := make(chan string)
 	for i := 0; i < parallel; i++ {
@@ -784,7 +818,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					break
 				}
 
-				nextSymbol, err := cacheManager.GetFromSet(CACHE_KEY_SYMBOL)
+				nextSymbol, err := cacheManager.PopFromSet(CACHE_KEY_SYMBOL)
 				if err != nil {
 					logger.Printf("[Go%s] Failed to get symbol from cache. Error:%s", goID, err.Error())
 					outChan <- err.Error()
@@ -816,13 +850,6 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					// }
 					// continue
 				}
-
-				logger.Printf("[Go%s] Remove %s from cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL)
-				if err := cacheManager.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
-					logger.Printf("[Go%s] error: %s", goID, err.Error())
-					outChan <- err.Error()
-				}
-
 			}
 
 			logger.Println("[Go" + goID + "] finished.")

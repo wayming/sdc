@@ -71,6 +71,23 @@ func (m *CacheManager) GetFromSet(key string) (string, error) {
 	return value, nil
 }
 
+func (m *CacheManager) PopFromSet(key string) (string, error) {
+	length, err := m.GetLength(key)
+	if err != nil {
+		return "", errors.New("Failed to pop the length of set key " + key + " from cache. Error: " + err.Error())
+	}
+	if length == 0 {
+		return "", nil
+	}
+
+	value, err := m.clientHandle.SPop(key).Result()
+	if err != nil {
+		return "", errors.New("Failed to pop a value from cache key " + key + ". Error: " + err.Error())
+	}
+	sdclogger.SDCLoggerInstance.Printf("Pop %s from cache key %s", value, key)
+	return value, nil
+}
+
 func (m *CacheManager) GetAllFromSet(key string) ([]string, error) {
 	allMembers, err := m.clientHandle.SMembers(key).Result()
 	if err != nil {
