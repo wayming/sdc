@@ -75,7 +75,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			if err := collector.CollectTickers(); (err != nil) != tt.wantErr {
+			if total, err := collector.CollectTickers(); (err != nil || total == 0) != tt.wantErr {
 				t.Errorf("MSCollector.CollectTickers() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -118,7 +118,7 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			if err := collector.CollectTickers(); (err != nil) != tt.wantErr {
+			if total, err := collector.CollectTickers(); (err != nil || total == 0) != tt.wantErr {
 				t.Errorf("MSCollector.CollectTickers() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := collector.CollectEOD(); (err != nil) != tt.wantErr {
