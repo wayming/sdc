@@ -2,10 +2,12 @@ package collector
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,16 +29,49 @@ func nextId() int {
 	return counter
 }
 
+type RedirectReader struct {
+}
+
 type HttpReader interface {
 	Read(url string, params map[string]string) (string, error)
+	RedirectedUrl(url string) (string, error)
 }
 
 type HttpProxyReader struct {
+	RedirectReader
 	Cache *cache.CacheManager
 	key   string
 }
 
-func HttpCode(url string) (int, error) {
+func (reader RedirectReader) RedirectedUrl(url string) (string, error) {
+	tokens := strings.Split(url, "//")
+	if len(tokens) != 2 {
+		return "", fmt.Errorf("unknown url format for %s", url)
+	}
+	baseURL := tokens[0] + "//" + strings.Split(tokens[1], "/")[0]
+	wgetCmd := exec.Command("wget", "--max-redirect=0", "-S", url)
+	output, err := wgetCmd.CombinedOutput()
+	if wgetCmd.ProcessState.ExitCode() == 8 {
+		// Has redirect
+		pattern := "\\s*Location:\\s*(.*)"
+		regExp, err := regexp.Compile(pattern)
+		if err != nil {
+			return "", err
+		}
+		match := regExp.FindStringSubmatch(string(output))
+		if len(match) <= 0 {
+			return "", fmt.Errorf("failed to find patthern %s from output %s", pattern, string(output))
+		}
+		return baseURL + match[1], nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to run command %s. Error: %s", wgetCmd.String(), err.Error())
+	}
+	return "", nil
+
+}
+
+func getHttpCode(url string) (int, error) {
 	cmd := exec.Command("curl", "-w", "%{http_code}", url)
 	output, err := cmd.Output()
 	if err != nil {
@@ -81,7 +116,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 		if err != nil {
 			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.key, strings.Join(cmd.Args, " "), err.Error())
 			if cmd.ProcessState.ExitCode() == 8 {
-				httpCode, httpCodeErr := HttpCode(url)
+				httpCode, httpCodeErr := getHttpCode(url)
 				if httpCodeErr != nil {
 					sdclogger.SDCLoggerInstance.Printf("Failed to get http code for url %s", url)
 				}
@@ -116,12 +151,14 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 }
 
 type HttpDirectReader struct {
+	RedirectReader
 	key string
 }
 
 func NewHttpDirectReader() *HttpDirectReader {
 	return &HttpDirectReader{key: strconv.Itoa(nextId())}
 }
+
 func (reader *HttpDirectReader) Read(url string, params map[string]string) (string, error) {
 	limiter := rate.NewLimiter(rate.Limit(1), 1)
 	defaultRetryInterval := 65

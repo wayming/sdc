@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+type RedirectedSymbols struct {
+	Symbol           string `json:"symbol" db:"PrimaryKey"`
+	RedirectedSymbol string `json:"redirected_symbol`
+}
+
 type StockOverview struct {
 	FiftyTwoWeekRange string  `json:"52_week_range"`
 	Analysts          string  `json:"analysts"`

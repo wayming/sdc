@@ -720,6 +720,27 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 	return nil
 }
 
+func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
+	url := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
+	redirectedURL, _ := collector.reader.RedirectedUrl(url)
+	if len(redirectedURL) == 0 {
+		collector.logger.Printf("no redirected symbol found for %s", symbol)
+		return ""
+	}
+
+	pattern := "stocks/([A-Za-z]+)/"
+	regexp, err := regexp.Compile(pattern)
+	if err != nil {
+		collector.logger.Printf("failed to compile pattern %s", pattern)
+	}
+
+	match := regexp.FindStringSubmatch(redirectedURL)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return ""
+}
+
 func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) error {
 	collector.logger.Println("Begin collecting financials for [" + strings.Join(symbols, ",") + "].")
 	collected := 0
@@ -737,6 +758,36 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 	fmt.Println("Ignored symbols are: [" + strings.Join(ignored, ",") + "]")
 	return nil
 }
+
+// // Entry function
+// func ProcessRedirectedSymbols(schemaName string, proxyFile string, parallel int) error {
+// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+// 	dbLoader.Connect(os.Getenv("PGHOST"),
+// 		os.Getenv("PGPORT"),
+// 		os.Getenv("PGUSER"),
+// 		os.Getenv("PGPASSWORD"),
+// 		os.Getenv("PGDATABASE"))
+// 	defer dbLoader.Disconnect()
+
+// 	type queryResult struct {
+// 		Symbol string
+// 	}
+
+// 	sqlQuerySymbol := "select symbol from ms_tickers"
+// 	results, err := dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
+// 	if err != nil {
+// 		return fmt.Errorf("Failed to run query [%s]. Error: %s", sqlQuerySymbol, err.Error())
+// 	}
+
+// 	queryResults, ok := results.([]queryResult)
+// 	if !ok {
+// 		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
+// 	}
+
+// 	for _, row := range queryResults {
+
+// 	}
+// }
 
 // Entry function
 func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) error {

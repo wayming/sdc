@@ -124,3 +124,37 @@ func TestHttpDirectReader_Read(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirectUrl(t *testing.T) {
+	type args struct {
+		url string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "TestRedirectUrl",
+			args: args{
+				url: "https://stockanalysis.com/stocks/fb/financials/?p=quarterly",
+			},
+			want:    "https://stockanalysis.com/stocks/meta/financials/?period=quarterly",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			redirectReader := collector.RedirectReader{}
+			got, err := redirectReader.RedirectedUrl(tt.args.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RedirectUrl() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("RedirectUrl() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

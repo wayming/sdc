@@ -265,6 +265,7 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 	}
 
 	setupSATest(t.Name())
+	defer teardownSATest()
 
 	tests := []struct {
 		name    string
@@ -308,8 +309,6 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 			}
 		})
 	}
-
-	teardownSATest()
 }
 
 func Test_stringToFloat64(t *testing.T) {
@@ -590,6 +589,51 @@ func TestTextOfAdjacentDiv(t *testing.T) {
 			htmlDoc, _ := html.Parse(strings.NewReader(tt.args.html))
 			if got := collector.TextOfAdjacentDiv(htmlDoc, tt.args.firstData); got != tt.want {
 				t.Errorf("TextOfAdjacentDiv() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSACollector_getRedirectedSymbol(t *testing.T) {
+	type fields struct {
+		dbSchema string
+		dbLoader dbloader.DBLoader
+		reader   collector.HttpReader
+		logger   *log.Logger
+	}
+	type args struct {
+		symbol string
+	}
+
+	setupSATest(t.Name())
+	defer teardownSATest()
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "getRedirectedSymbol",
+			fields: fields{
+				dbSchema: SA_TEST_SCHEMA_NAME,
+				dbLoader: saTestDBLoader,
+				reader:   collector.NewHttpDirectReader(),
+				logger:   testcommon.TestLogger(t.Name()),
+			},
+			args: args{
+				symbol: "fb",
+			},
+			want: "meta",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col := collector.NewSACollector(tt.fields.dbLoader, tt.fields.reader, tt.fields.logger, tt.fields.dbSchema)
+			if got := col.GetRedirectedSymbol(tt.args.symbol); got != tt.want {
+				t.Errorf("SACollector.GetRedirectedSymbol() = %v, want %v", got, tt.want)
 			}
 		})
 	}
