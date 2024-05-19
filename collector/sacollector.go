@@ -570,7 +570,7 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewSDCError(err, "Failed to scrap data from url "+overallUrl)
+		return 0, NewCollectorError(err, "Failed to scrap data from url "+overallUrl)
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERALL, reflect.TypeFor[StockOverview]())
@@ -650,7 +650,7 @@ func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType refl
 
 	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewSDCError(err, "Failed to scrap data from url "+url)
+		return 0, NewCollectorError(err, "Failed to scrap data from url "+url)
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
@@ -666,7 +666,7 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 
 	jsonText, err := collector.ReadAnalystRatingsPage(url, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewSDCError(err, "Failed to scrap data from url "+url)
+		return 0, NewCollectorError(err, "Failed to scrap data from url "+url)
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
@@ -784,8 +784,12 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 // 		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
 // 	}
 
-// 	for _, row := range queryResults {
+// 	httpReader :=
+// 	collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
+// 	redirectMap := make(map[string]string)
+// 	for _, row := range queryResults {
+// 		redirectedSymbol :=
 // 	}
 // }
 
@@ -851,7 +855,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 			defer dbLoader.Disconnect()
 
 			// http reader
-			httpReader := NewHttpProxyReader(cacheManager, goID)
+			httpReader := NewHttpProxyReader(cacheManager, CACHE_KEY_PROXY, goID)
 
 			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 

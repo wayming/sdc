@@ -29,46 +29,15 @@ func nextId() int {
 	return counter
 }
 
-type RedirectReader struct {
-}
-
 type HttpReader interface {
 	Read(url string, params map[string]string) (string, error)
 	RedirectedUrl(url string) (string, error)
 }
 
 type HttpProxyReader struct {
-	RedirectReader
-	Cache *cache.CacheManager
-	key   string
-}
-
-func (reader RedirectReader) RedirectedUrl(url string) (string, error) {
-	tokens := strings.Split(url, "//")
-	if len(tokens) != 2 {
-		return "", fmt.Errorf("unknown url format for %s", url)
-	}
-	baseURL := tokens[0] + "//" + strings.Split(tokens[1], "/")[0]
-	wgetCmd := exec.Command("wget", "--max-redirect=0", "-S", url)
-	output, err := wgetCmd.CombinedOutput()
-	if wgetCmd.ProcessState.ExitCode() == 8 {
-		// Has redirect
-		pattern := "\\s*Location:\\s*(.*)"
-		regExp, err := regexp.Compile(pattern)
-		if err != nil {
-			return "", err
-		}
-		match := regExp.FindStringSubmatch(string(output))
-		if len(match) <= 0 {
-			return "", fmt.Errorf("failed to find patthern %s from output %s", pattern, string(output))
-		}
-		return baseURL + match[1], nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to run command %s. Error: %s", wgetCmd.String(), err.Error())
-	}
-	return "", nil
-
+	Cache         *cache.CacheManager
+	goKey         string
+	proxyCacheKey string
 }
 
 func getHttpCode(url string) (int, error) {
@@ -86,17 +55,78 @@ func getHttpCode(url string) (int, error) {
 	return httpCode, nil
 }
 
-func NewHttpProxyReader(cache *cache.CacheManager, goID string) *HttpProxyReader {
-	reader := &HttpProxyReader{Cache: cache, key: goID}
+func getWgetRedirectResponse(wgetCmd *exec.Cmd) (string, error) {
+	output, err := wgetCmd.CombinedOutput()
+
+	if err != nil {
+		if wgetCmd.ProcessState.ExitCode() == 8 {
+			// Has redirect
+			pattern := "\\s*Location:\\s*(.*)"
+			regExp, err := regexp.Compile(pattern)
+			if err != nil {
+				return "", err
+			}
+			match := regExp.FindStringSubmatch(string(output))
+			if len(match) <= 0 {
+				return "", fmt.Errorf("failed to find patthern %s from output %s", pattern, string(output))
+			}
+			return match[1], nil
+		}
+		return "", NewWgetError(fmt.Sprintf("failed to run command %s. Error: %s", wgetCmd.String(), err.Error()), wgetCmd.ProcessState.ExitCode())
+	}
+	return "", fmt.Errorf("no redirected url found. wget command returns %d", wgetCmd.ProcessState.ExitCode())
+}
+
+func NewHttpProxyReader(cache *cache.CacheManager, proxyCacheKey string, goID string) *HttpProxyReader {
+	reader := &HttpProxyReader{Cache: cache, proxyCacheKey: proxyCacheKey, goKey: goID}
 	return reader
+}
+
+func (reader HttpProxyReader) RedirectedUrl(url string) (string, error) {
+	tokens := strings.Split(url, "//")
+	if len(tokens) != 2 {
+		return "", fmt.Errorf("unknown url format for %s", url)
+	}
+	baseURL := tokens[0] + "//" + strings.Split(tokens[1], "/")[0]
+
+	for {
+		proxy, err := reader.Cache.GetFromSet(reader.proxyCacheKey)
+		if err != nil {
+			return "", err
+		}
+		if proxy == "" {
+			return "", errors.New("no proxy server available")
+		}
+
+		wgetCmd := exec.Command("wget",
+			"--max-redirect=0", "-S", url,
+			"-e", "use_proxy=yes",
+			"--proxy-user="+os.Getenv("PROXYUSER"),
+			"--proxy-password="+os.Getenv("PROXYPASSWORD"),
+			"-e", "https_proxy="+proxy, url)
+		redirectedUrl, err := getWgetRedirectResponse(wgetCmd)
+		if err != nil {
+			if wgetError, ok := err.(WgetError); ok {
+				// Retry on network error
+				if wgetError.StatusCode() == WGET_ERROR_CODE_SERVER_ERROR {
+					sdclogger.SDCLoggerInstance.Printf("Failed to run wget for url %s with proxy %s. Try next proxy server.", url, proxy)
+					continue
+				}
+			}
+			return "", err
+		}
+
+		return baseURL + redirectedUrl, nil
+	}
+
 }
 
 func (reader *HttpProxyReader) Read(url string, params map[string]string) (string, error) {
 	fileName := strings.ReplaceAll(url, "http://", "")
 	fileName = strings.ReplaceAll(fileName, "/", "_")
-	htmlFile := "logs/reader" + reader.key + "_" + fileName + ".html"
+	htmlFile := "logs/reader" + reader.goKey + "_" + fileName + ".html"
 	for {
-		proxy, err := reader.Cache.GetFromSet(CACHE_KEY_PROXY)
+		proxy, err := reader.Cache.GetFromSet(reader.proxyCacheKey)
 		if err != nil {
 			return "", err
 		}
@@ -107,15 +137,16 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 		cmd := exec.Command("wget",
 			"--timeout=10", "--tries=1",
 			"-O", htmlFile,
-			"-a", "logs/reader"+reader.key+"_wget.log",
+			"-a", "logs/reader"+reader.goKey+"_wget.log",
 			"-e", "use_proxy=yes",
 			"--proxy-user="+os.Getenv("PROXYUSER"),
 			"--proxy-password="+os.Getenv("PROXYPASSWORD"),
 			"-e", "https_proxy="+proxy, url)
 		err = cmd.Run()
 		if err != nil {
-			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.key, strings.Join(cmd.Args, " "), err.Error())
+			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.goKey, strings.Join(cmd.Args, " "), err.Error())
 			if cmd.ProcessState.ExitCode() == 8 {
+				// Server error
 				httpCode, httpCodeErr := getHttpCode(url)
 				if httpCodeErr != nil {
 					sdclogger.SDCLoggerInstance.Printf("Failed to get http code for url %s", url)
@@ -130,17 +161,17 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			}
 
 			// Try next proxy
-			reader.Cache.DeleteFromSet(CACHE_KEY_PROXY, proxy)
-			len, err := reader.Cache.GetLength(CACHE_KEY_PROXY)
+			reader.Cache.DeleteFromSet(reader.proxyCacheKey, proxy)
+			len, err := reader.Cache.GetLength(reader.proxyCacheKey)
 			if err != nil {
-				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to get number of proxies. Error: %s", reader.key, err.Error())
+				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to get number of proxies. Error: %s", reader.goKey, err.Error())
 			} else {
-				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Remove proxy server %s, %d left.", reader.key, proxy, len)
+				sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Remove proxy server %s, %d left.", reader.goKey, proxy, len)
 			}
 			continue
 		}
 
-		sdclogger.SDCLoggerInstance.Printf("Reader[%s]: command [%s] done", reader.key, strings.Join(cmd.Args, " "))
+		sdclogger.SDCLoggerInstance.Printf("Reader[%s]: command [%s] done", reader.goKey, strings.Join(cmd.Args, " "))
 		htmlContent, err := os.ReadFile(htmlFile)
 		if err != nil {
 			sdclogger.SDCLoggerInstance.Printf("Failed to read file %s. Error: %s", htmlFile, err.Error())
@@ -151,12 +182,25 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 }
 
 type HttpDirectReader struct {
-	RedirectReader
 	key string
 }
 
 func NewHttpDirectReader() *HttpDirectReader {
 	return &HttpDirectReader{key: strconv.Itoa(nextId())}
+}
+
+func (reader HttpDirectReader) RedirectedUrl(url string) (string, error) {
+	tokens := strings.Split(url, "//")
+	if len(tokens) != 2 {
+		return "", fmt.Errorf("unknown url format for %s", url)
+	}
+	baseURL := tokens[0] + "//" + strings.Split(tokens[1], "/")[0]
+	wgetCmd := exec.Command("wget", "--max-redirect=0", "-S", url)
+	redirectedUrl, err := getWgetRedirectResponse(wgetCmd)
+	if err != nil {
+		return "", err
+	}
+	return baseURL + redirectedUrl, nil
 }
 
 func (reader *HttpDirectReader) Read(url string, params map[string]string) (string, error) {

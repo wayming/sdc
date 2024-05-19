@@ -2,6 +2,9 @@ package collector
 
 import "errors"
 
+const WGET_ERROR_CODE_NETWORK = int(4)
+const WGET_ERROR_CODE_SERVER_ERROR = int(8)
+
 // WgetError represents a custom error type with a status code.
 type WgetError struct {
 	text   string
@@ -50,7 +53,7 @@ func (e HttpServerError) StatusCode() int {
 	return e.status
 }
 
-func NewSDCError(e error, msg string) error {
+func NewCollectorError(e error, msg string) error {
 	switch etype := e.(type) {
 	case WgetError:
 		return NewWgetError(msg, etype.StatusCode())
