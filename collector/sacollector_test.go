@@ -652,7 +652,7 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 	}
 
 	setupSATest(t.Name())
-	// defer teardownSATest()
+	defer teardownSATest()
 
 	tests := []struct {
 		name    string
