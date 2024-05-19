@@ -16,12 +16,13 @@ import (
 const SA_TEST_SCHEMA_NAME = "sdc_test"
 
 var saTestDBLoader *dbloader.PGLoader
+var saTestLogger *log.Logger
 
 func setupSATest(testName string) {
 	testcommon.SetupTest(testName)
-
+	saTestLogger = testcommon.TestLogger(testName)
 	collector.CacheCleanup()
-	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, testcommon.TestLogger(testName))
+	saTestDBLoader = dbloader.NewPGLoader(SA_TEST_SCHEMA_NAME, saTestLogger)
 	saTestDBLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -634,6 +635,54 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 			col := collector.NewSACollector(tt.fields.dbLoader, tt.fields.reader, tt.fields.logger, tt.fields.dbSchema)
 			if got := col.GetRedirectedSymbol(tt.args.symbol); got != tt.want {
 				t.Errorf("SACollector.GetRedirectedSymbol() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSACollector_MapRedirectedSymbol(t *testing.T) {
+	type fields struct {
+		dbSchema string
+		dbLoader dbloader.DBLoader
+		reader   collector.HttpReader
+		logger   *log.Logger
+	}
+	type args struct {
+		symbol string
+	}
+
+	setupSATest(t.Name())
+	// defer teardownSATest()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "MapRedirectedSymbol",
+			fields: fields{
+				dbSchema: SA_TEST_SCHEMA_NAME,
+				dbLoader: saTestDBLoader,
+				reader:   collector.NewHttpDirectReader(),
+				logger:   saTestLogger,
+			},
+			args: args{
+				symbol: "fb",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col := collector.NewSACollector(tt.fields.dbLoader, tt.fields.reader, tt.fields.logger, tt.fields.dbSchema)
+			if err := col.CreateTables(); err != nil {
+				t.Errorf("SACollector.MapRedirectedSymbol() Failed to create tables error = %v", err)
+			}
+			if err := col.MapRedirectedSymbol(tt.args.symbol); (err != nil) != tt.wantErr {
+				t.Errorf("SACollector.MapRedirectedSymbol() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

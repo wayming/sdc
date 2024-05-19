@@ -680,6 +680,7 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 
 func (collector *SACollector) CreateTables() error {
 	allTables := map[string]reflect.Type{
+		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
 		TABLE_SA_OVERALL:                  reflect.TypeFor[StockOverview](),
 		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
 		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
@@ -741,6 +742,31 @@ func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
 	return ""
 }
 
+func (collector *SACollector) MapRedirectedSymbol(symbol string) error {
+	redirected := collector.GetRedirectedSymbol(symbol)
+	if len(redirected) == 0 {
+		collector.logger.Printf("no redirect found for symbol %s", symbol)
+		return nil
+	}
+	redirectMap := make(map[string]string)
+	redirectMap["symbol"] = symbol
+	redirectMap["redirected_symbol"] = redirected
+	mapSlice := []map[string]string{redirectMap}
+	jsonText, err := json.Marshal(mapSlice)
+	if err != nil {
+		return errors.New("Failed to marshal redirect map to JSON text. Error: " + err.Error())
+	} else {
+		collector.logger.Println("JSON text generated - " + string(jsonText))
+	}
+
+	numOfRows, err := collector.loader.LoadByJsonText(string(jsonText), TABLE_SA_SYMBOL_REDIRECT, reflect.TypeFor[RedirectedSymbols]())
+	if err != nil {
+		return errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
+	}
+
+	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_SYMBOL_REDIRECT)
+	return nil
+}
 func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) error {
 	collector.logger.Println("Begin collecting financials for [" + strings.Join(symbols, ",") + "].")
 	collected := 0
@@ -784,7 +810,7 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 // 		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
 // 	}
 
-// 	httpReader :=
+// 	httpReader := NewHttpProxyReader()
 // 	collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
 // 	redirectMap := make(map[string]string)
@@ -803,6 +829,9 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	defer cacheManager.Disconnect()
 
 	if !isContinue {
+		if err := ClearCache(); err != nil {
+			return err
+		}
 		loaded, err := cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
 		if err != nil {
 			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
@@ -891,19 +920,6 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 						logger.Printf("[Go%s] error: %s", goID, err.Error())
 						outChan <- err.Error()
 					}
-					// switch etype := err.(type) {
-					// case HttpServerError:
-					// 	if etype.StatusCode() == 8 {
-					// 		logger.Printf("[Go%s] Ignore the redirected symbol %s", goID, nextSymbol)
-					// 		if err := cacheManager.DeleteFromSet(CACHE_KEY_SYMBOL, nextSymbol); err != nil {
-					// 			logger.Printf("[Go%s] error: %s", goID, err.Error())
-					// 			outChan <- err.Error()
-					// 		}
-					// 	}
-					// default:
-					// 	outChan <- err.Error()
-					// }
-					// continue
 				}
 			}
 

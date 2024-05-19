@@ -7,7 +7,7 @@ import (
 
 type RedirectedSymbols struct {
 	Symbol           string `json:"symbol" db:"PrimaryKey"`
-	RedirectedSymbol string `json:"redirected_symbol`
+	RedirectedSymbol string `json:"redirected_symbol"`
 }
 
 type StockOverview struct {
