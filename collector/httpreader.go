@@ -83,6 +83,9 @@ func NewHttpProxyReader(cache *cache.CacheManager, proxyCacheKey string, goID st
 }
 
 func (reader HttpProxyReader) RedirectedUrl(url string) (string, error) {
+	fileName := strings.ReplaceAll(url, "http://", "")
+	fileName = strings.ReplaceAll(fileName, "/", "_")
+	htmlFile := "logs/reader" + reader.goKey + "_" + fileName + ".html"
 	tokens := strings.Split(url, "//")
 	if len(tokens) != 2 {
 		return "", fmt.Errorf("unknown url format for %s", url)
@@ -101,6 +104,7 @@ func (reader HttpProxyReader) RedirectedUrl(url string) (string, error) {
 		wgetCmd := exec.Command("wget",
 			"--max-redirect=0", "-S", url,
 			"-e", "use_proxy=yes",
+			"-O", htmlFile,
 			"--proxy-user="+os.Getenv("PROXYUSER"),
 			"--proxy-password="+os.Getenv("PROXYPASSWORD"),
 			"-e", "https_proxy="+proxy, url)

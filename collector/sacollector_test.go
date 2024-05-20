@@ -395,6 +395,7 @@ func TestCollectFinancials(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
+		want    int64
 		wantErr bool
 	}{
 		{
@@ -405,6 +406,7 @@ func TestCollectFinancials(t *testing.T) {
 				parallel:   2,
 				isContinue: false,
 			},
+			want:    5,
 			wantErr: false,
 		},
 	}
@@ -413,8 +415,12 @@ func TestCollectFinancials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := collector.CollectFinancials(tt.args.schemaName, tt.args.proxyFile, tt.args.parallel, tt.args.isContinue); (err != nil) != tt.wantErr {
+			num, err := collector.CollectFinancials(tt.args.schemaName, tt.args.proxyFile, tt.args.parallel, tt.args.isContinue)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("CollectFinancials() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if num != tt.want {
+				t.Errorf("CollectFinancials() want = %v, got = %v", tt.want, num)
 			}
 		})
 	}
@@ -624,7 +630,7 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 				logger:   testcommon.TestLogger(t.Name()),
 			},
 			args: args{
-				symbol: "fb",
+				symbol: "FB",
 			},
 			want: "meta",
 		},
@@ -658,6 +664,7 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		want    string
 		wantErr bool
 	}{
 		{
@@ -671,6 +678,7 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 			args: args{
 				symbol: "fb",
 			},
+			want:    "meta",
 			wantErr: false,
 		},
 	}
@@ -681,8 +689,12 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 			if err := col.CreateTables(); err != nil {
 				t.Errorf("SACollector.MapRedirectedSymbol() Failed to create tables error = %v", err)
 			}
-			if err := col.MapRedirectedSymbol(tt.args.symbol); (err != nil) != tt.wantErr {
+			redirected, err := col.MapRedirectedSymbol(tt.args.symbol)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.MapRedirectedSymbol() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if redirected != tt.want {
+				t.Errorf("SACollector.MapRedirectedSymbol() want = %v, got = %v", tt.want, redirected)
 			}
 		})
 	}

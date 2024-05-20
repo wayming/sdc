@@ -722,6 +722,7 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 }
 
 func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
+	symbol = strings.ToLower(symbol)
 	url := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
 	redirectedURL, _ := collector.reader.RedirectedUrl(url)
 	if len(redirectedURL) == 0 {
@@ -742,11 +743,12 @@ func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
 	return ""
 }
 
-func (collector *SACollector) MapRedirectedSymbol(symbol string) error {
+func (collector *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
+	symbol = strings.ToLower(symbol)
 	redirected := collector.GetRedirectedSymbol(symbol)
 	if len(redirected) == 0 {
 		collector.logger.Printf("no redirect found for symbol %s", symbol)
-		return nil
+		return "", nil
 	}
 	redirectMap := make(map[string]string)
 	redirectMap["symbol"] = symbol
@@ -754,18 +756,18 @@ func (collector *SACollector) MapRedirectedSymbol(symbol string) error {
 	mapSlice := []map[string]string{redirectMap}
 	jsonText, err := json.Marshal(mapSlice)
 	if err != nil {
-		return errors.New("Failed to marshal redirect map to JSON text. Error: " + err.Error())
+		return "", errors.New("Failed to marshal redirect map to JSON text. Error: " + err.Error())
 	} else {
 		collector.logger.Println("JSON text generated - " + string(jsonText))
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(string(jsonText), TABLE_SA_SYMBOL_REDIRECT, reflect.TypeFor[RedirectedSymbols]())
 	if err != nil {
-		return errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
+		return "", errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
 	}
 
 	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_SYMBOL_REDIRECT)
-	return nil
+	return redirected, nil
 }
 func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) error {
 	collector.logger.Println("Begin collecting financials for [" + strings.Join(symbols, ",") + "].")
@@ -785,64 +787,34 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 	return nil
 }
 
-// // Entry function
-// func ProcessRedirectedSymbols(schemaName string, proxyFile string, parallel int) error {
-// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
-// 	dbLoader.Connect(os.Getenv("PGHOST"),
-// 		os.Getenv("PGPORT"),
-// 		os.Getenv("PGUSER"),
-// 		os.Getenv("PGPASSWORD"),
-// 		os.Getenv("PGDATABASE"))
-// 	defer dbLoader.Disconnect()
-
-// 	type queryResult struct {
-// 		Symbol string
-// 	}
-
-// 	sqlQuerySymbol := "select symbol from ms_tickers"
-// 	results, err := dbLoader.RunQuery(sqlQuerySymbol, reflect.TypeFor[queryResult]())
-// 	if err != nil {
-// 		return fmt.Errorf("Failed to run query [%s]. Error: %s", sqlQuerySymbol, err.Error())
-// 	}
-
-// 	queryResults, ok := results.([]queryResult)
-// 	if !ok {
-// 		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
-// 	}
-
-// 	httpReader := NewHttpProxyReader()
-// 	collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
-
-// 	redirectMap := make(map[string]string)
-// 	for _, row := range queryResults {
-// 		redirectedSymbol :=
-// 	}
-// }
-
 // Entry function
-func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) error {
+func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) (int64, error) {
+	var allSymbols int64
+	var errorSymbols int64
+	var err error
+
 	// shared by all go routines
 	cacheManager := cache.NewCacheManager()
 	if err := cacheManager.Connect(); err != nil {
-		return err
+		return 0, err
 	}
 	defer cacheManager.Disconnect()
 
 	if !isContinue {
 		if err := ClearCache(); err != nil {
-			return err
+			return 0, err
 		}
-		loaded, err := cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
+		allSymbols, err = cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
 		if err != nil {
-			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
+			return 0, errors.New("Failed to load symbols to cache. Error: " + err.Error())
 		}
-		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", loaded)
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
 
-		loaded, err = cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
+		allProxies, err := cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
 		if err != nil {
-			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
+			return 0, errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}
-		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", loaded)
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
 	}
 
 	// Create tables
@@ -856,7 +828,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 	if err := collector.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return err
+		return 0, err
 	} else {
 		sdclogger.SDCLoggerInstance.Printf("All tables created")
 	}
@@ -888,16 +860,16 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 
 			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
-			for len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len > 0; {
+			for remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols > 0; {
 
-				if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
+				if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
 					errorStr := fmt.Sprintf("[Go%s]No proxy server available", goID)
 					logger.Println(errorStr)
 					outChan <- errors.New(errorStr).Error()
 					break
 				}
 
-				if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); len == 0 {
+				if remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols == 0 {
 					logger.Printf("[Go%s]No symbol left", goID)
 					break
 				}
@@ -911,6 +883,20 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 				if nextSymbol == "" {
 					logger.Printf("[Go%s]No symbol left", goID)
 					break
+				}
+
+				// If redirected
+				redirected, err := collector.MapRedirectedSymbol(nextSymbol)
+				if err != nil {
+					logger.Printf("[Go%s] error: %s", goID, err.Error())
+					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
+					if err := cacheManager.AddToSet(CACHE_KEY_SYMBOL_ERROR, nextSymbol); err != nil {
+						logger.Printf("[Go%s] error: %s", goID, err.Error())
+						outChan <- err.Error()
+					}
+				}
+				if len(redirected) > 0 {
+					nextSymbol = redirected
 				}
 
 				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
@@ -938,11 +924,11 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 		errorMessage += fmt.Sprintf("%s\n", out)
 	}
 
-	if len, _ := cacheManager.GetLength(CACHE_KEY_PROXY); len == 0 {
+	if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
 		errorMessage += "Running out of proxy servers.\n"
 	}
 
-	if len, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); len > 0 {
+	if errorSymbols, _ = cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); errorSymbols > 0 {
 		leftSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(leftSymbols, ","))
 	} else {
@@ -950,10 +936,10 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	}
 
 	if len(errorMessage) > 0 {
-		return errors.New(errorMessage)
+		return (allSymbols - errorSymbols), errors.New(errorMessage)
 	}
 
-	return nil
+	return (allSymbols - errorSymbols), nil
 }
 
 func CollectFinancialsForSymbol(schemaName string, symbol string) error {

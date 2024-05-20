@@ -10,7 +10,7 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-func LoadSymbols(cacheManager *CacheManager, key string, fromSchema string) (int, error) {
+func LoadSymbols(cacheManager *CacheManager, key string, fromSchema string) (int64, error) {
 	dbLoader := dbloader.NewPGLoader(fromSchema, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -37,5 +37,5 @@ func LoadSymbols(cacheManager *CacheManager, key string, fromSchema string) (int
 		cacheManager.AddToSet(key, strings.ToLower(row.Symbol))
 	}
 
-	return len(queryResults), nil
+	return int64(len(queryResults)), nil
 }

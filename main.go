@@ -47,10 +47,10 @@ func main() {
 		}
 	}
 
+	var num int64
 	if len(*loadOpt) > 0 {
 		switch *loadOpt {
 		case "tickers":
-			var num int64
 			if tickersJSONOpt == nil {
 				num, err = collector.CollectTickers(SCHEMA_NAME, "")
 			} else {
@@ -65,13 +65,15 @@ func main() {
 		case "financials":
 			if len(*symbolOpt) > 0 {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
+				num = 1
 			} else {
-				err = collector.CollectFinancials(SCHEMA_NAME, *proxyOpt, *parallalOpt, *continueOpt)
-
+				num, err = collector.CollectFinancials(SCHEMA_NAME, *proxyOpt, *parallalOpt, *continueOpt)
 			}
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
+			} else {
+				fmt.Printf("%d symbols loaded\n", num)
 			}
 		default:
 			fmt.Println("Unknown load option " + *loadOpt)
