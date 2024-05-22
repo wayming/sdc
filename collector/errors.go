@@ -54,12 +54,13 @@ func (e HttpServerError) StatusCode() int {
 }
 
 func NewCollectorError(e error, msg string) error {
+	fullMessage := msg + " Error: " + e.Error()
 	switch etype := e.(type) {
 	case WgetError:
-		return NewWgetError(msg, etype.StatusCode())
+		return NewWgetError(fullMessage, etype.StatusCode())
 	case HttpServerError:
-		return NewHttpServerError(msg, etype.StatusCode())
+		return NewHttpServerError(fullMessage, etype.StatusCode())
 	default:
-		return errors.New(msg + " Error: " + e.Error())
+		return errors.New(fullMessage)
 	}
 }

@@ -92,14 +92,14 @@ func TestSACollector_ReadOverallPage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := collector.NewSACollector(
+			col := collector.NewSACollector(
 				tt.fields.dbLoader,
 				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			collector.SetSymbol(tt.fields.thisSymbol)
-			got, err := collector.ReadOverallPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
+			col.SetSymbol(tt.fields.thisSymbol)
+			got, err := col.ReadOverallPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -170,15 +170,15 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := collector.NewSACollector(
+			col := collector.NewSACollector(
 				tt.fields.dbLoader,
 				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			collector.SetSymbol(tt.fields.thisSymbol)
+			col.SetSymbol(tt.fields.thisSymbol)
 
-			got, err := collector.ReadTimeSeriesPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
+			got, err := col.ReadTimeSeriesPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MSCollector.ReadTimeSeriesPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -232,13 +232,13 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := collector.NewSACollector(
+			col := collector.NewSACollector(
 				tt.fields.dbLoader,
 				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.CollectOverallMetrics(tt.args.symbol, tt.args.dataStructType)
+			got, err := col.CollectOverallMetrics(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.CollectOverallMetrics() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -294,13 +294,13 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := collector.NewSACollector(
+			col := collector.NewSACollector(
 				tt.fields.dbLoader,
 				tt.fields.reader,
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.CollectFinancialsIncome(tt.args.symbol, tt.args.dataStructType)
+			got, err := col.CollectFinancialsIncome(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SACollector.CollectFinancialsIncome() error = %v, wantErr %v", err, tt.wantErr)
 				return

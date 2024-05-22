@@ -815,6 +815,10 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 			return 0, errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
+	} else {
+		if err := cacheManager.MoveSet("SYMBOLS_ERROR", "SYMBOLS"); err != nil {
+			return 0, fmt.Errorf("Failed to restore the error symbols. Error: %s", err.Error())
+		}
 	}
 
 	// Create tables
@@ -956,6 +960,13 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 	httpReader := NewHttpDirectReader()
 
 	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+
+	if err := collector.CreateTables(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+		return err
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("All tables created")
+	}
 
 	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {
 		return err

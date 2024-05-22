@@ -80,6 +80,7 @@ type FinancialsBalanceShet struct {
 	CashCashEquivalents      float64   `json:"cash_cash_equivalents"`
 	CashEquivalents          float64   `json:"cash_equivalents"`
 	CashGrowth               float64   `json:"cash_growth"`
+	CommonStock              float64   `json:"common_stock"`
 	ComprehensiveIncome      float64   `json:"comprehensive_income"`
 	CurrentDebt              float64   `json:"current_debt"`
 	DebtGrowth               float64   `json:"debt_growth"`

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/go-redis/redis"
@@ -114,11 +115,14 @@ func (m *CacheManager) GetLength(key string) (int64, error) {
 	return length, nil
 }
 
-func (m *CacheManager) DeleteSet(key string) error {
-	_, err := m.clientHandle.Del(key).Result()
-	if err != nil {
-		return errors.New("Failed to delete " + key + " from cache. Error: " + err.Error())
+func (m *CacheManager) MoveSet(fromKey string, toKey string) error {
+	val, err := m.PopFromSet(fromKey)
+	for err != nil && len(val) > 0 {
+		if err2 := m.AddToSet(toKey, val); err != nil {
+			return fmt.Errorf("failed to add value %s to set %s. Error: %s", val, toKey, err2.Error())
+		}
+
+		val, err = m.PopFromSet(fromKey)
 	}
-	sdclogger.SDCLoggerInstance.Printf("Delete %s from cache", key)
-	return nil
+	return err
 }
