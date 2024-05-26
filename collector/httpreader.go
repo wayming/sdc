@@ -134,7 +134,8 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			"-e", "https_proxy="+proxy, url)
 
 		if cmd.GetWgetError() != nil {
-			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s", reader.goKey, strings.Join(cmd.Args, " "), err.Error())
+			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s",
+				reader.goKey, strings.Join(cmd.Args, " "), cmd.GetErrorMessage())
 			if cmd.HasServerError() {
 				if cmd.HasServerRedirectedError() {
 					sdclogger.SDCLoggerInstance.Printf("url %s has been redirected.", url)

@@ -2,7 +2,6 @@ package collector_test
 
 import (
 	"os"
-	"os/exec"
 	"regexp"
 	"testing"
 
@@ -19,11 +18,7 @@ func setupHttpReaderTest(testName string) {
 }
 
 func teardownHttpReaderTest() {
-	if err := exec.Command(
-		// "/usr/bin/redis-cli ", "-h", os.Getenv("REDISHOST"), "DEL", PROXY_CACHE_KEY).Run(); err != nil {
-		"/usr/bin/ls", "/usr/bin/redis-cli").Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to delete key %s from cache. Error: %s", PROXY_CACHE_TEST_KEY, err.Error())
-	}
+	testcommon.RunReidsCliCommand("DEL " + PROXY_CACHE_TEST_KEY)
 	testcommon.TeardownTest()
 }
 
@@ -45,7 +40,7 @@ func TestHttpProxyReader_Read(t *testing.T) {
 		{
 			name: "TestHttpProxyReader_Read",
 			fields: fields{
-				ProxyFile: os.Getenv("SDC_HOME") + "/data/proxies4.txt",
+				ProxyFile: os.Getenv("SDC_HOME") + "/data/proxies1.txt",
 			},
 			args: args{
 				url:    "https://stockanalysis.com/stocks/msft",

@@ -32,14 +32,25 @@ type WgetCmd struct {
 	errorMessage string
 }
 
+func Ternary[T any](condition bool, trueVal, falseVal T) T {
+	if condition {
+		return trueVal
+	}
+	return falseVal
+}
+
 func NewWgetCmd(arg ...string) *WgetCmd {
 	cmd := exec.Command("wget", arg...)
 	cmdOutput, cmdError := cmd.CombinedOutput()
+	var cmdErrorStr string
+	if cmdError != nil {
+		cmdErrorStr = cmdError.Error()
+	}
 	cmdExitCode := cmd.ProcessState.ExitCode()
 	httpCode := getHttpCode(string(cmdOutput))
 	errorMessage := fmt.Sprintf(
 		"wget command %s. Error: %s. Exit code: %d. Http Code: %d",
-		cmd.String(), cmdError.Error(), cmdExitCode, httpCode)
+		cmd.String(), cmdErrorStr, cmdExitCode, httpCode)
 	return &WgetCmd{
 		cmd,
 		string(cmdOutput),
@@ -56,9 +67,11 @@ func getHttpCode(output string) int {
 		sdclogger.SDCLoggerInstance.Panicf("Failed to compile regular expression %s", pattern)
 	}
 	match := regExp.FindStringSubmatch(output)
-	if len(match) <= 0 {
-		sdclogger.SDCLoggerInstance.Println()
+	if len(match) <= 1 {
+		sdclogger.SDCLoggerInstance.Printf("Failed to find patern %s from output %s", pattern, output)
+		return 0
 	}
+
 	if code, err := strconv.Atoi(match[1]); err != nil {
 		return 0
 	} else {
