@@ -57,14 +57,14 @@ func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTyp
 			if attr.Key == "data-test" && attr.Val == "overview-info" {
 				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
 				if err != nil {
-					return nil, errors.New("Faield to decode html table overview-info. Error: " + err.Error())
+					return nil, errors.New("Failed to decode html table overview-info. Error: " + err.Error())
 				}
 
 			}
 			if attr.Key == "data-test" && attr.Val == "overview-quote" {
 				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
 				if err != nil {
-					return nil, errors.New("Faield to decode html table overview-quote. Error: " + err.Error())
+					return nil, errors.New("Failed to decode html table overview-quote. Error: " + err.Error())
 				}
 
 			}
@@ -90,7 +90,7 @@ func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStr
 			if attr.Key == "data-test" && attr.Val == "financials" {
 				indicatorMaps, err := collector.DecodeTimeSeriesTable(node, dataStructTypeName)
 				if err != nil {
-					return nil, errors.New("Faield to decode html table financials. Error: " + err.Error())
+					return nil, errors.New("Failed to decode html table financials. Error: " + err.Error())
 				}
 				return indicatorMaps, nil
 			}

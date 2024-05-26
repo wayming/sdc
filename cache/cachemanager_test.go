@@ -24,7 +24,7 @@ func TeardownCacheManagerTest() {
 	defer redisHandle.Close()
 
 	if err := redisHandle.Del(CACHE_KEY_PROXY_TEST).Err(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Faield to drop cache set %s. Error: %s", CACHE_KEY_PROXY_TEST, err.Error())
+		sdclogger.SDCLoggerInstance.Printf("Failed to drop cache set %s. Error: %s", CACHE_KEY_PROXY_TEST, err.Error())
 	}
 
 	testcommon.TeardownTest()

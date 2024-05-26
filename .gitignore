@@ -24,3 +24,7 @@ collector/logs
 pgadmin_data/pgadmin4.db
 sdc
 .rediscli_history
+docker/pg_data/
+docker/pgadmin_data
+docker/redis_data
+sdc

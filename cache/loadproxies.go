@@ -34,7 +34,7 @@ func isProxyValid(proxy string) bool {
 	parts := strings.Split(proxy, ":")
 	cmd := exec.Command("nc", "-w", "5", "-zv", parts[0], parts[1])
 	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Faield to ping "+proxy+". Error: ", err.Error())
+		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxy+". Error: ", err.Error())
 		return false
 	}
 	if cmd.ProcessState.ExitCode() != 0 {
@@ -49,7 +49,7 @@ func isProxyValid(proxy string) bool {
 		"-a", "logs/proxy_test.log",
 		"https://stockanalysis.com/")
 	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Faield to ping "+proxy+". Error: ", err.Error())
+		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxy+". Error: ", err.Error())
 		return false
 	}
 	if cmd.ProcessState.ExitCode() != 0 {

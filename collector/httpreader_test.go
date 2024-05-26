@@ -22,7 +22,7 @@ func teardownHttpReaderTest() {
 	if err := exec.Command(
 		// "/usr/bin/redis-cli ", "-h", os.Getenv("REDISHOST"), "DEL", PROXY_CACHE_KEY).Run(); err != nil {
 		"/usr/bin/ls", "/usr/bin/redis-cli").Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Faield to delete key %s from cache. Error: %s", PROXY_CACHE_TEST_KEY, err.Error())
+		sdclogger.SDCLoggerInstance.Printf("Failed to delete key %s from cache. Error: %s", PROXY_CACHE_TEST_KEY, err.Error())
 	}
 	testcommon.TeardownTest()
 }

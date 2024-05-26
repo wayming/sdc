@@ -24,7 +24,7 @@ func (m *CacheManager) Disconnect() error {
 	}
 
 	if err := m.clientHandle.Close(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Faield to disconnect from redis. Error %s", err.Error())
+		sdclogger.SDCLoggerInstance.Printf("Failed to disconnect from redis. Error %s", err.Error())
 	}
 	m.clientHandle = nil
 
@@ -115,9 +115,17 @@ func (m *CacheManager) GetLength(key string) (int64, error) {
 	return length, nil
 }
 
+func (m *CacheManager) DeleteSet(key string) error {
+	_, err := m.clientHandle.Del(key).Result()
+	if err != nil {
+		return errors.New("Failed to delete " + key + " from cache. Error: " + err.Error())
+	}
+	sdclogger.SDCLoggerInstance.Printf("Delete %s from cache", key)
+	return nil
+}
 func (m *CacheManager) MoveSet(fromKey string, toKey string) error {
 	val, err := m.PopFromSet(fromKey)
-	for err != nil && len(val) > 0 {
+	for err == nil && len(val) > 0 {
 		if err2 := m.AddToSet(toKey, val); err != nil {
 			return fmt.Errorf("failed to add value %s to set %s. Error: %s", val, toKey, err2.Error())
 		}
