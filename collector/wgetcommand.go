@@ -10,8 +10,10 @@ import (
 )
 
 const WGET_EXIT_CODE_SEVER_ERROR = 8
+const WGET_EXIT_CODE_SUCCESSFUL = 0
 
 var WGET_EXIT_CODE_MAP = map[int]string{
+	WGET_EXIT_CODE_SUCCESSFUL:  "Download Successful",
 	WGET_EXIT_CODE_SEVER_ERROR: "Server Error",
 }
 
@@ -79,6 +81,8 @@ func getHttpCode(output string) int {
 	}
 }
 
+// Get the redirected url
+// Return empty string if redirected url is not found.
 func (c *WgetCmd) RedirectedUrl() (string, error) {
 	if c.cmdError != nil {
 		if c.cmdExitCode == WGET_EXIT_CODE_SEVER_ERROR {
@@ -94,18 +98,26 @@ func (c *WgetCmd) RedirectedUrl() (string, error) {
 			}
 			return match[1], nil
 		}
-		return "", fmt.Errorf("failed to run command %s. Error: %s. Exit code: %s", c.Cmd.String(), c.cmdError.Error(), WGET_EXIT_CODE_MAP[c.cmdExitCode])
+		return "", c.WgetError()
+	} else {
+		return "", fmt.Errorf("no redirected url found")
 	}
-	return "", fmt.Errorf("no redirected url found. wget command returns %d", c.cmdExitCode)
-
 }
 
 func (c *WgetCmd) GetErrorMessage() string {
 	return c.errorMessage
 }
 
-func (c *WgetCmd) GetWgetError() error {
-	return c.cmdError
+func (c *WgetCmd) WgetError() error {
+	return NewWgetError(c.errorMessage, c.cmdExitCode)
+}
+
+func (c *WgetCmd) HttpServerError() error {
+	return NewHttpServerError(c.errorMessage, c.httpCode)
+}
+
+func (c *WgetCmd) Succeeded() bool {
+	return c.cmdExitCode == WGET_EXIT_CODE_SUCCESSFUL
 }
 
 func (c *WgetCmd) HasServerError() bool {

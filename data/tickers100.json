@@ -1,0 +1,1609 @@
+{
+    "pagination": {
+        "limit": 1000,
+        "offset": 0,
+        "count": 1000,
+        "total": 13153
+    },
+    "data": [{
+            "name": "Microsoft Corporation",
+            "symbol": "MSFT",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Apple Inc",
+            "symbol": "AAPL",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Amazon.com Inc",
+            "symbol": "AMZN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Alphabet Inc - Class C",
+            "symbol": "GOOG",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Alphabet Inc - Class A",
+            "symbol": "GOOGL",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Meta Platforms Inc - Class A",
+            "symbol": "FB",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Vodafone Group plc",
+            "symbol": "VOD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Intel Corp",
+            "symbol": "INTC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Comcast Corp - Class A",
+            "symbol": "CMCSA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "PepsiCo Inc",
+            "symbol": "PEP",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Adobe Inc",
+            "symbol": "ADBE",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Cisco Systems Inc",
+            "symbol": "CSCO",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "NVIDIA Corp",
+            "symbol": "NVDA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Netflix Inc",
+            "symbol": "NFLX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Tesla Inc",
+            "symbol": "TSLA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Costco Wholesale Corp",
+            "symbol": "COST",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "PayPal Holdings Inc",
+            "symbol": "PYPL",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "AMGEN Inc",
+            "symbol": "AMGN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Sanofi",
+            "symbol": "SNY",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "ASML Holding NV",
+            "symbol": "ASML",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Broadcom Inc",
+            "symbol": "AVGO",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Texas Instruments Inc",
+            "symbol": "TXN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Charter Communications Inc - Class A",
+            "symbol": "CHTR",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Starbucks Corp",
+            "symbol": "SBUX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Gilead Sciences Inc",
+            "symbol": "GILD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Qualcomm Inc",
+            "symbol": "QCOM",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "T-Mobile US Inc",
+            "symbol": "TMUS",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Mondelez International Inc - Class A",
+            "symbol": "MDLZ",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Fiserv Inc",
+            "symbol": "FISV",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "CME Group Inc - Class A",
+            "symbol": "CME",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Intuit Inc",
+            "symbol": "INTU",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Booking Holdings Inc",
+            "symbol": "BKNG",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Automatic Data Processing Inc",
+            "symbol": "ADP",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Intuitive Surgical Inc",
+            "symbol": "ISRG",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Vertex Pharmaceuticals Inc",
+            "symbol": "VRTX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Micron Technology Inc",
+            "symbol": "MU",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Advanced Micro Devices Inc",
+            "symbol": "AMD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Biogen Inc",
+            "symbol": "BIIB",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "CSX Corp",
+            "symbol": "CSX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Applied Materials Inc",
+            "symbol": "AMAT",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Equinix Inc",
+            "symbol": "EQIX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "JD.com Inc",
+            "symbol": "JD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Regeneron Pharmaceuticals Inc",
+            "symbol": "REGN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Activision Blizzard Inc",
+            "symbol": "ATVI",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Exelon Corp",
+            "symbol": "EXC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Lam Research Corp",
+            "symbol": "LRCX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "NetEase Inc",
+            "symbol": "NTES",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Walgreens Boots Alliance Inc",
+            "symbol": "WBA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Autodesk Inc",
+            "symbol": "ADSK",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Illumina Inc",
+            "symbol": "ILMN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Analog Devices Inc",
+            "symbol": "ADI",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Ross Stores Inc",
+            "symbol": "ROST",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Workday Inc - Class A",
+            "symbol": "WDAY",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Marriott International Inc - Class A",
+            "symbol": "MAR",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Atlassian Corporation - Class A",
+            "symbol": "TEAM",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Monster Beverage Corp",
+            "symbol": "MNST",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Xcel Energy Inc",
+            "symbol": "XEL",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Cognizant Technology Solutions Corp - Class A",
+            "symbol": "CTSH",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "SBA Communications Corp - Class A",
+            "symbol": "SBAC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "NXP Semiconductors NV",
+            "symbol": "NXPI",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Baidu Inc",
+            "symbol": "BIDU",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "MercadoLibre Inc",
+            "symbol": "MELI",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Electronic Arts Inc",
+            "symbol": "EA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Kraft Heinz Company",
+            "symbol": "KHC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Zoom Video Communications Inc - Class A",
+            "symbol": "ZM",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "EBay Inc",
+            "symbol": "EBAY",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "T. Rowe Price Group Inc",
+            "symbol": "TROW",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Lululemon Athletica Inc",
+            "symbol": "LULU",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Cintas Corporation",
+            "symbol": "CTAS",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Paychex Inc",
+            "symbol": "PAYX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Sirius XM Holdings Inc",
+            "symbol": "SIRI",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "O`Reilly Automotive Inc",
+            "symbol": "ORLY",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Verisk Analytics Inc",
+            "symbol": "VRSK",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Costar Group Inc",
+            "symbol": "CSGP",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Willis Towers Watson Public Ltd Company",
+            "symbol": "WLTW",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Dexcom Inc",
+            "symbol": "DXCM",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "KLA Corp",
+            "symbol": "KLAC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Telefonaktiebolaget L M Ericsson",
+            "symbol": "ERIC",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Liberty Broadband Corp - Series C",
+            "symbol": "LBRDK",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Splunk Inc",
+            "symbol": "SPLK",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Paccar Inc",
+            "symbol": "PCAR",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Liberty Broadband Corp - Series A",
+            "symbol": "LBRDA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "PDD Holdings Inc",
+            "symbol": "PDD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Verisign Inc",
+            "symbol": "VRSN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Cerner Corp",
+            "symbol": "CERN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Idexx Laboratories Inc",
+            "symbol": "IDXX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Microchip Technology Inc",
+            "symbol": "MCHP",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Ansys Inc",
+            "symbol": "ANSS",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Synopsys Inc",
+            "symbol": "SNPS",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "XP Inc - Class A",
+            "symbol": "XP",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Alexion Pharmaceuticals Inc",
+            "symbol": "ALXN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "AMTD IDEA Group",
+            "symbol": "AMTD",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Xilinx Inc",
+            "symbol": "XLNX",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Fastenal Company",
+            "symbol": "FAST",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Copart Inc",
+            "symbol": "CPRT",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Seagen Inc",
+            "symbol": "SGEN",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Cadence Design Systems Inc",
+            "symbol": "CDNS",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Match Group Inc - New",
+            "symbol": "MTCH",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Nasdaq Inc - 144A",
+            "symbol": "NDAQ",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        },
+        {
+            "name": "Fox Corporation - Class A",
+            "symbol": "FOXA",
+            "has_intraday": false,
+            "has_eod": true,
+            "country": null,
+            "stock_exchange": {
+                "name": "NASDAQ Stock Exchange",
+                "acronym": "NASDAQ",
+                "mic": "XNAS",
+                "country": "USA",
+                "country_code": "US",
+                "city": "New York",
+                "website": "www.nasdaq.com"
+            }
+        }
+    ]
+}

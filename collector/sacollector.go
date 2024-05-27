@@ -698,27 +698,30 @@ func (collector *SACollector) CreateTables() error {
 	collector.logger.Println("All tables created")
 	return nil
 }
+
+// Collect data from various pages. Only return the last error
 func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
+	var retErr error
 
 	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-		return err
+		retErr = err
 	}
 	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
-		return err
+		retErr = err
 	}
 	if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
-		return err
+		retErr = err
 	}
 	if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
-		return err
+		retErr = err
 	}
 	if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
-		return err
+		retErr = err
 	}
 	if _, err := collector.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
-		return err
+		retErr = err
 	}
-	return nil
+	return retErr
 }
 
 func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
@@ -782,8 +785,8 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 			collected++
 		}
 	}
-	fmt.Println("Collected financials for " + strconv.Itoa(collected) + " symbols.")
-	fmt.Println("Ignored symbols are: [" + strings.Join(ignored, ",") + "]")
+	collector.logger.Println("Collected financials for " + strconv.Itoa(collected) + " symbols.")
+	collector.logger.Println("Ignored symbols are: [" + strings.Join(ignored, ",") + "]")
 	return nil
 }
 
@@ -816,8 +819,8 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 		}
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
 	} else {
-		if err := cacheManager.MoveSet("SYMBOLS_ERROR", "SYMBOLS"); err != nil {
-			return 0, fmt.Errorf("Failed to restore the error symbols. Error: %s", err.Error())
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
+			return 0, fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
 		}
 	}
 
@@ -894,9 +897,17 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
-					if err := cacheManager.AddToSet(CACHE_KEY_SYMBOL_ERROR, nextSymbol); err != nil {
-						logger.Printf("[Go%s] error: %s", goID, err.Error())
-						outChan <- err.Error()
+
+					cacheKey := CACHE_KEY_SYMBOL_ERROR
+					e, ok := err.(HttpServerError)
+					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+						cacheKey := CACHE_KEY_SYMBOL_NOT_FOUND
+						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
+					}
+
+					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+						outChan <- cacheError.Error()
 					}
 				}
 				if len(redirected) > 0 {
@@ -906,10 +917,19 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
-					if err := cacheManager.AddToSet(CACHE_KEY_SYMBOL_ERROR, nextSymbol); err != nil {
-						logger.Printf("[Go%s] error: %s", goID, err.Error())
-						outChan <- err.Error()
+
+					cacheKey := CACHE_KEY_SYMBOL_ERROR
+					e, ok := err.(HttpServerError)
+					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+						cacheKey := CACHE_KEY_SYMBOL_NOT_FOUND
+						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
 					}
+
+					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+						outChan <- cacheError.Error()
+					}
+
 				}
 			}
 
@@ -932,9 +952,16 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 		errorMessage += "Running out of proxy servers.\n"
 	}
 
-	if errorSymbols, _ = cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); errorSymbols > 0 {
-		leftSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
-		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(leftSymbols, ","))
+	if errorLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
+		errorSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
+		errorMessage += fmt.Sprintf("Error symbols [%s]\n", strings.Join(errorSymbols, ","))
+	} else {
+		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
+	}
+
+	if notFoundLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_NOT_FOUND); notFoundLen > 0 {
+		notFoundSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
+		errorMessage += fmt.Sprintf("Not found symbols [%s]\n", strings.Join(notFoundSymbols, ","))
 	} else {
 		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
 	}

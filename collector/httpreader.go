@@ -133,7 +133,17 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			"--proxy-password="+os.Getenv("PROXYPASSWORD"),
 			"-e", "https_proxy="+proxy, url)
 
-		if cmd.GetWgetError() != nil {
+		if cmd.Succeeded() {
+			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: command [%s] done", reader.goKey, cmd.String())
+			htmlContent, err := os.ReadFile(htmlFile)
+			if err != nil {
+				sdclogger.SDCLoggerInstance.Printf("Failed to read file %s. Error: %s", htmlFile, err.Error())
+				return "", err
+			} else {
+				return string(htmlContent), nil
+			}
+
+		} else {
 			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: Failed to run comand [%s], Error: %s",
 				reader.goKey, strings.Join(cmd.Args, " "), cmd.GetErrorMessage())
 			if cmd.HasServerError() {
@@ -142,7 +152,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 				}
 
 				sdclogger.SDCLoggerInstance.Println("Do not retry for server errors")
-				return "", errors.New(cmd.GetErrorMessage())
+				return "", cmd.HttpServerError()
 			}
 
 			// Delete the proxy if network error
@@ -156,16 +166,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 				continue
 			}
 
-			return "", errors.New(cmd.GetErrorMessage())
-		} else {
-			sdclogger.SDCLoggerInstance.Printf("Reader[%s]: command [%s] done", reader.goKey, cmd.String())
-			htmlContent, err := os.ReadFile(htmlFile)
-			if err != nil {
-				sdclogger.SDCLoggerInstance.Printf("Failed to read file %s. Error: %s", htmlFile, err.Error())
-				return "", err
-			} else {
-				return string(htmlContent), nil
-			}
+			return "", cmd.WgetError()
 		}
 
 	}

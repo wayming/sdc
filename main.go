@@ -18,7 +18,7 @@ func main() {
 			"financials: Download financials information for all tickers from SA and load them into database.")
 	tickersJSONOpt := flag.String("tickers_json", "", "Load tickers from JSON file instead of MS.")
 	symbolOpt := flag.String("symbol", "", "Load financials for the specified symbol only. Can only be used with option -load financials")
-	parallalOpt := flag.Int("parallal", 1, "Parallel streams of loading")
+	parallelOpt := flag.Int("parallel", 1, "Parallel streams of loading")
 	resetDBOpt := flag.Bool("reset_db", false, "Drop the existing data.")
 	resetCacheOpt := flag.Bool("reset_cache", false, "Reset the caches.")
 	proxyOpt := flag.String("proxy", "", "File with list of proxy servers. Must be set when loading financials for multiple symbols.")
@@ -67,7 +67,7 @@ func main() {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				num, err = collector.CollectFinancials(SCHEMA_NAME, *proxyOpt, *parallalOpt, *continueOpt)
+				num, err = collector.CollectFinancials(SCHEMA_NAME, *proxyOpt, *parallelOpt, *continueOpt)
 			}
 			if err != nil {
 				fmt.Println(err.Error())
