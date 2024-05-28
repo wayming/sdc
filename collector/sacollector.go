@@ -570,7 +570,7 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewCollectorError(err, "Failed to scrap data from url "+overallUrl)
+		return 0, err
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERALL, reflect.TypeFor[StockOverview]())
@@ -650,7 +650,7 @@ func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType refl
 
 	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewCollectorError(err, "Failed to scrap data from url "+url)
+		return 0, err
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
@@ -666,7 +666,7 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 
 	jsonText, err := collector.ReadAnalystRatingsPage(url, nil, dataStructType.Name())
 	if err != nil {
-		return 0, NewCollectorError(err, "Failed to scrap data from url "+url)
+		return 0, err
 	}
 
 	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
@@ -705,6 +705,8 @@ func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
 
 	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
 		retErr = err
+		collector.logger.Printf("Skip scraping other pages if failed to scrap overall page. Error: %s", retErr.Error())
+		return retErr
 	}
 	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
 		retErr = err
@@ -750,7 +752,7 @@ func (collector *SACollector) MapRedirectedSymbol(symbol string) (string, error)
 	symbol = strings.ToLower(symbol)
 	redirected := collector.GetRedirectedSymbol(symbol)
 	if len(redirected) == 0 {
-		collector.logger.Printf("no redirect found for symbol %s", symbol)
+		collector.logger.Printf("no redirected found for symbol %s", symbol)
 		return "", nil
 	}
 	redirectMap := make(map[string]string)
@@ -993,6 +995,21 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 		return err
 	} else {
 		sdclogger.SDCLoggerInstance.Printf("All tables created")
+	}
+
+	// If redirected
+	redirected, err := collector.MapRedirectedSymbol(symbol)
+	if err != nil {
+		e, ok := err.(HttpServerError)
+		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
+		}
+		return err
+	}
+	if len(redirected) > 0 {
+		sdclogger.SDCLoggerInstance.Printf("Symbol %s is redirected to %s", symbol, redirected)
+
+		symbol = redirected
 	}
 
 	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {

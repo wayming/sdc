@@ -458,6 +458,78 @@ func TestCollectFinancialsForSymbol(t *testing.T) {
 	}
 }
 
+func TestCollectFinancialsForSymbolRedirected(t *testing.T) {
+	type args struct {
+		schemaName string
+		symbol     string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestCollectFinancialsForSymbolRedirected",
+			args: args{
+				schemaName: SA_TEST_SCHEMA_NAME,
+				symbol:     "fb",
+			},
+			wantErr: false,
+		},
+	}
+
+	setupSATest(t.Name())
+	defer teardownSATest()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancialsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
+	type args struct {
+		schemaName string
+		symbol     string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "TestCollectFinancialsForSymbolNotFound",
+			args: args{
+				schemaName: SA_TEST_SCHEMA_NAME,
+				symbol:     "NotFound",
+			},
+		},
+	}
+
+	setupSATest(t.Name())
+	defer teardownSATest()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol)
+			if err == nil {
+				t.Errorf("CollectFinancialsForSymbol() want error but succeeded")
+			}
+
+			if httpErr, ok := err.(collector.HttpServerError); ok {
+				if httpErr.StatusCode() != collector.HTTP_ERROR_NOT_FOUND {
+					t.Errorf("Expected HTTP error code %d, got %d", collector.HTTP_ERROR_NOT_FOUND, httpErr.StatusCode())
+				}
+			} else {
+				t.Errorf("Did not get the expected HttpServerError. Got %s", err.Error())
+			}
+
+		})
+	}
+}
+
 func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader

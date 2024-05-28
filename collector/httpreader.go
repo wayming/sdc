@@ -261,7 +261,7 @@ func (reader *HttpDirectReader) Read(url string, params map[string]string) (stri
 				}
 			}
 			// Return on error other than too many requests or retrr exhausted
-			return "", errors.New("Received non-succes status " + res.Status + " in requesting url " + url)
+			return "", NewHttpServerError("Received non-succes status "+res.Status+" in requesting url "+url, res.StatusCode)
 		}
 		defer res.Body.Close()
 

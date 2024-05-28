@@ -94,7 +94,7 @@ func (c *WgetCmd) RedirectedUrl() (string, error) {
 			}
 			match := regExp.FindStringSubmatch(c.cmdOutput)
 			if len(match) <= 0 {
-				return "", fmt.Errorf("failed to find patthern %s from output %s", pattern, c.cmdOutput)
+				return "", fmt.Errorf("failed to find pattern %s from output %s", pattern, c.cmdOutput)
 			}
 			return match[1], nil
 		}
