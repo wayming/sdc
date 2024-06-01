@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,15 +16,79 @@ import (
 )
 
 type ParallelCollector interface {
-	Execute(parallel int) (int64, error)
-	collectorDo(col *SACollector, cache *cache.CacheManager, symbol string) error
+	Execute(schemaName string, parallel int) (int64, error)
+	collectorDo(col *SACollector, symbol string) error
 }
 
 type BaseParallelCollector struct {
 }
 
-func (c *BaseParallelCollector) collectorDo(col *SACollector, cache *cache.CacheManager, symbol string) error {
+type RedirectedParallelCollector struct {
+	BaseParallelCollector
+}
+
+type FinancialOverviewParallelCollector struct {
+	BaseParallelCollector
+}
+
+type FinancialDetailsParallelCollector struct {
+	BaseParallelCollector
+}
+
+func NewRedirectedParallelCollector() ParallelCollector {
+	return &RedirectedParallelCollector{}
+}
+
+func NewFinancialOverviewParallelCollector() ParallelCollector {
+	return &FinancialOverviewParallelCollector{}
+}
+
+func NewFinancialDetailsParallelCollector() ParallelCollector {
+	return &FinancialDetailsParallelCollector{}
+}
+
+func (c *BaseParallelCollector) collectorDo(col *SACollector, symbol string) error {
 	sdclogger.SDCLoggerInstance.Panicln("collectorDo method of the BaseParallelCollector is not expectd to be used")
+	// Should not reach here
+	return nil
+}
+
+func (c *RedirectedParallelCollector) collectorDo(col *SACollector, symbol string) error {
+	if _, err := col.MapRedirectedSymbol(symbol); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (c *FinancialOverviewParallelCollector) collectorDo(col *SACollector, symbol string) error {
+	if _, err := col.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (c *FinancialDetailsParallelCollector) collectorDo(col *SACollector, symbol string) error {
+	var retErr error
+
+	if _, err := col.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
+		retErr = err
+	}
+
+	return retErr
 }
 
 func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64, error) {
@@ -31,7 +96,6 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 	var allSymbols int64
 	var errorSymbols int64
 	var invalidSymbols int64
-	var err error
 
 	// shared by all go routines
 	cm := cache.NewCacheManager()
@@ -95,48 +159,22 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 				err = c.collectorDo(col, cm, nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
+					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
+
+					cacheKey := CACHE_KEY_SYMBOL_ERROR
+					e, ok := err.(HttpServerError)
+					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+						cacheKey := CACHE_KEY_SYMBOL_INVALID
+						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
+					}
+
+					if cacheError := cm.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+						outChan <- cacheError.Error()
+					}
+
 					outChan <- err.Error()
 				}
-
-				// // If redirected
-				// redirected, err := collector.MapRedirectedSymbol(nextSymbol)
-				// if err != nil {
-				// 	logger.Printf("[Go%s] error: %s", goID, err.Error())
-				// 	logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
-
-				// 	cacheKey := CACHE_KEY_SYMBOL_ERROR
-				// 	e, ok := err.(HttpServerError)
-				// 	if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-				// 		cacheKey := CACHE_KEY_SYMBOL_INVALID
-				// 		logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
-				// 	}
-
-				// 	if cacheError := cm.AddToSet(cacheKey, nextSymbol); cacheError != nil {
-				// 		logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
-				// 		outChan <- cacheError.Error()
-				// 	}
-				// }
-				// if len(redirected) > 0 {
-				// 	nextSymbol = redirected
-				// }
-
-				// if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
-				// 	logger.Printf("[Go%s] error: %s", goID, err.Error())
-				// 	logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
-
-				// 	cacheKey := CACHE_KEY_SYMBOL_ERROR
-				// 	e, ok := err.(HttpServerError)
-				// 	if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-				// 		cacheKey := CACHE_KEY_SYMBOL_INVALID
-				// 		logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
-				// 	}
-
-				// 	if cacheError := cm.AddToSet(cacheKey, nextSymbol); cacheError != nil {
-				// 		logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
-				// 		outChan <- cacheError.Error()
-				// 	}
-
-				// }
 			}
 
 			logger.Println("[Go" + goID + "] finished.")

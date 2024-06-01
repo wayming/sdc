@@ -15,7 +15,8 @@ func main() {
 		"Load stock infomration into database. "+
 			"Supported options include:\n"+
 			"tickers: Download tickers information from MS and load them into database.\n"+
-			"financials: Download financials information for all tickers from SA and load them into database.")
+			"financialOverviews: Download financial overviews information for all tickers from SA and load them into database.\n"+
+			"financialDetails: Download financial details information for all tickers from SA and load them into database.")
 	tickersJSONOpt := flag.String("tickers_json", "", "Load tickers from JSON file instead of MS.")
 	symbolOpt := flag.String("symbol", "", "Load financials for the specified symbol only. Can only be used with option -load financials")
 	parallelOpt := flag.Int("parallel", 1, "Parallel streams of loading")
@@ -62,12 +63,39 @@ func main() {
 			} else {
 				fmt.Printf("%d tickers loaded\n", num)
 			}
-		case "financials":
+
+			pCollector := &collector.RedirectedParallelCollector{}
+			num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			} else {
+				fmt.Printf("%d tickers loaded\n", num)
+			}
+
+		case "financialOverviews":
 			if len(*symbolOpt) > 0 {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				num, err = collector.CollectFinancials(SCHEMA_NAME, *proxyOpt, *parallelOpt, *continueOpt)
+				if err := collector.CollectInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err != nil {
+					pCollector := &collector.FinancialOverviewParallelCollector{}
+					num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
+				}
+			}
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			} else {
+				fmt.Printf("%d symbols loaded\n", num)
+			}
+		case "financialDetails":
+			if len(*symbolOpt) > 0 {
+				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
+				num = 1
+			} else {
+				pCollector := &collector.FinancialDetailsParallelCollector{}
+				num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
 			}
 			if err != nil {
 				fmt.Println(err.Error())

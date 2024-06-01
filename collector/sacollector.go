@@ -793,36 +793,34 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 }
 
 // Entry function
-func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) (int64, error) {
+func CollectInit(schemaName string, proxyFile string, isContinue bool) error {
 	var allSymbols int64
-	var errorSymbols int64
 	var err error
 
-	// shared by all go routines
 	cacheManager := cache.NewCacheManager()
 	if err := cacheManager.Connect(); err != nil {
-		return 0, err
+		return err
 	}
 	defer cacheManager.Disconnect()
 
 	if !isContinue {
 		if err := ClearCache(); err != nil {
-			return 0, err
+			return err
 		}
 		allSymbols, err = cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
 		if err != nil {
-			return 0, errors.New("Failed to load symbols to cache. Error: " + err.Error())
+			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
 		}
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
 
 		allProxies, err := cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
 		if err != nil {
-			return 0, errors.New("Failed to load proxies to cache. Error: " + err.Error())
+			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
 	} else {
 		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
-			return 0, fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
 		}
 	}
 
@@ -837,9 +835,21 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 	if err := collector.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return 0, err
+		return err
 	} else {
 		sdclogger.SDCLoggerInstance.Printf("All tables created")
+		return nil
+	}
+
+}
+
+// Entry function
+func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) (int64, error) {
+	var allSymbols int64
+	var errorSymbols int64
+
+	if err := CollectInit(schemaName, proxyFile, isContinue); err != nil {
+		return 0, err
 	}
 
 	var wg sync.WaitGroup
