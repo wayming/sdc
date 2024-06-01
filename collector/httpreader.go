@@ -125,7 +125,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 			return "", errors.New("no proxy server available")
 		}
 
-		cmd := NewWgetCmd("--timeout=10", "--tries=1",
+		cmd := NewWgetCmd("--timeout=10", "--tries=1", "-S",
 			"-O", htmlFile,
 			"-a", "logs/reader"+reader.goKey+"_wget.log",
 			"-e", "use_proxy=yes",

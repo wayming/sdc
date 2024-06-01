@@ -903,7 +903,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					cacheKey := CACHE_KEY_SYMBOL_ERROR
 					e, ok := err.(HttpServerError)
 					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-						cacheKey := CACHE_KEY_SYMBOL_NOT_FOUND
+						cacheKey := CACHE_KEY_SYMBOL_INVALID
 						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
 					}
 
@@ -923,7 +923,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					cacheKey := CACHE_KEY_SYMBOL_ERROR
 					e, ok := err.(HttpServerError)
 					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-						cacheKey := CACHE_KEY_SYMBOL_NOT_FOUND
+						cacheKey := CACHE_KEY_SYMBOL_INVALID
 						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
 					}
 
@@ -961,7 +961,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
 	}
 
-	if notFoundLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_NOT_FOUND); notFoundLen > 0 {
+	if notFoundLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_INVALID); notFoundLen > 0 {
 		notFoundSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		errorMessage += fmt.Sprintf("Not found symbols [%s]\n", strings.Join(notFoundSymbols, ","))
 	} else {

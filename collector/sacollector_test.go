@@ -33,7 +33,11 @@ func setupSATest(testName string) {
 	saTestDBLoader.CreateSchema(SA_TEST_SCHEMA_NAME)
 
 	// Load tickes from csv file for testing
-	collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers5.json")
+	if testName == "TestCollectFinancialsNotFound" {
+		collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickersNotFound.json")
+	} else {
+		collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickers5.json")
+	}
 }
 
 func teardownSATest() {
@@ -402,7 +406,7 @@ func TestCollectFinancials(t *testing.T) {
 			name: "TestCollectFinancials",
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
-				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies7.txt",
+				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies10.txt",
 				parallel:   2,
 				isContinue: false,
 			},
@@ -411,7 +415,48 @@ func TestCollectFinancials(t *testing.T) {
 		},
 	}
 	setupSATest(t.Name())
-	// defer teardownSATest()
+	defer teardownSATest()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			num, err := collector.CollectFinancials(tt.args.schemaName, tt.args.proxyFile, tt.args.parallel, tt.args.isContinue)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancials() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if num != tt.want {
+				t.Errorf("CollectFinancials() want = %v, got = %v", tt.want, num)
+			}
+		})
+	}
+}
+
+func TestCollectFinancialsNotFound(t *testing.T) {
+	type args struct {
+		schemaName string
+		proxyFile  string
+		parallel   int
+		isContinue bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "TestCollectFinancialsNotFound",
+			args: args{
+				schemaName: SA_TEST_SCHEMA_NAME,
+				proxyFile:  os.Getenv("SDC_HOME") + "/data/proxies10.txt",
+				parallel:   1,
+				isContinue: false,
+			},
+			want:    5,
+			wantErr: false,
+		},
+	}
+	setupSATest(t.Name())
+	defer teardownSATest()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
