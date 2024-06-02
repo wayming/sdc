@@ -15,83 +15,19 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-type ParallelCollector interface {
+type IParallelCollector interface {
 	Execute(schemaName string, parallel int) (int64, error)
+}
+
+type ICollectWorker interface {
 	collectorDo(col *SACollector, symbol string) error
 }
 
-type BaseParallelCollector struct {
+type ParallelCollector struct {
+	ifc ICollectWorker
 }
 
-type RedirectedParallelCollector struct {
-	BaseParallelCollector
-}
-
-type FinancialOverviewParallelCollector struct {
-	BaseParallelCollector
-}
-
-type FinancialDetailsParallelCollector struct {
-	BaseParallelCollector
-}
-
-func NewRedirectedParallelCollector() ParallelCollector {
-	return &RedirectedParallelCollector{}
-}
-
-func NewFinancialOverviewParallelCollector() ParallelCollector {
-	return &FinancialOverviewParallelCollector{}
-}
-
-func NewFinancialDetailsParallelCollector() ParallelCollector {
-	return &FinancialDetailsParallelCollector{}
-}
-
-func (c *BaseParallelCollector) collectorDo(col *SACollector, symbol string) error {
-	sdclogger.SDCLoggerInstance.Panicln("collectorDo method of the BaseParallelCollector is not expectd to be used")
-	// Should not reach here
-	return nil
-}
-
-func (c *RedirectedParallelCollector) collectorDo(col *SACollector, symbol string) error {
-	if _, err := col.MapRedirectedSymbol(symbol); err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
-
-func (c *FinancialOverviewParallelCollector) collectorDo(col *SACollector, symbol string) error {
-	if _, err := col.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
-
-func (c *FinancialDetailsParallelCollector) collectorDo(col *SACollector, symbol string) error {
-	var retErr error
-
-	if _, err := col.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
-		retErr = err
-	}
-	if _, err := col.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
-		retErr = err
-	}
-	if _, err := col.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
-		retErr = err
-	}
-	if _, err := col.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
-		retErr = err
-	}
-	if _, err := col.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
-		retErr = err
-	}
-
-	return retErr
-}
-
-func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64, error) {
+func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, error) {
 
 	var allSymbols int64
 	var errorSymbols int64
@@ -103,6 +39,14 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 		return 0, err
 	}
 	defer cm.Disconnect()
+
+	// Get total number of symbols to be processed
+	if allSymbols, _ = cm.GetLength(CACHE_KEY_SYMBOL); allSymbols > 0 {
+		sdclogger.SDCLoggerInstance.Printf("%d symbols to be processed in parallel(%d).", allSymbols, parallel)
+	} else {
+		sdclogger.SDCLoggerInstance.Println("No symbol found.")
+		return 0, nil
+	}
 
 	var wg sync.WaitGroup
 	outChan := make(chan string)
@@ -156,7 +100,7 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 					break
 				}
 
-				err = c.collectorDo(col, cm, nextSymbol)
+				err = pw.ifc.collectorDo(col, nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
@@ -198,18 +142,28 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 		errorMessage += "Running out of proxy servers.\n"
 	}
 
+	// Check left symbols
+	if errorLen, _ := cm.GetLength(CACHE_KEY_SYMBOL); errorLen > 0 {
+		errorSymbols, _ := cm.GetAllFromSet(CACHE_KEY_SYMBOL)
+		errorMessage += fmt.Sprintf("Left symbols [%s]\n", strings.Join(errorSymbols, ","))
+	} else {
+		sdclogger.SDCLoggerInstance.Println("No left symbol.")
+	}
+
 	// Check error symbols
 	if errorLen, _ := cm.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
 		errorSymbols, _ := cm.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		errorMessage += fmt.Sprintf("Error symbols [%s]\n", strings.Join(errorSymbols, ","))
 	} else {
-		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
+		sdclogger.SDCLoggerInstance.Println("No error symbol.")
 	}
 
 	// Check invalid symbols
 	if invalidLen, _ := cm.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
 		invalidSymbols, _ := cm.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
 		errorMessage += fmt.Sprintf("Invalid symbols [%s]\n", strings.Join(invalidSymbols, ","))
+	} else {
+		sdclogger.SDCLoggerInstance.Println("No invalid symbol.")
 	}
 
 	if len(errorMessage) > 0 {
@@ -217,4 +171,75 @@ func (c *BaseParallelCollector) Execute(schemaName string, parallel int) (int64,
 	} else {
 		return (allSymbols - errorSymbols - invalidSymbols), nil
 	}
+}
+
+type RedirectedWorker struct {
+	// ParallelCollector
+}
+
+type FinancialOverviewWorker struct {
+	// ParallelCollector
+}
+
+type FinancialDetailsWorker struct {
+	// ParallelCollector
+}
+
+func (c *RedirectedWorker) collectorDo(col *SACollector, symbol string) error {
+	if rsymbol, err := col.MapRedirectedSymbol(symbol); err != nil {
+		return err
+	} else if len(rsymbol) > 0 {
+		symbol = rsymbol
+	}
+
+	cm := cache.NewCacheManager()
+	if err := cm.Connect(); err != nil {
+		return err
+	}
+	defer cm.Disconnect()
+	cm.AddToSet(CACHE_KEY_SYMBOL_REDIRECTED, symbol)
+	return nil
+}
+
+func (c *FinancialOverviewWorker) collectorDo(col *SACollector, symbol string) error {
+	if _, err := col.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (c *FinancialDetailsWorker) collectorDo(col *SACollector, symbol string) error {
+	var retErr error
+
+	if _, err := col.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+		retErr = err
+	}
+	if _, err := col.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
+		retErr = err
+	}
+
+	return retErr
+}
+
+func NewRedirectedParallelCollector() IParallelCollector {
+
+	return &ParallelCollector{ifc: &RedirectedWorker{}}
+}
+
+func NewFinancialOverviewParallelCollector() IParallelCollector {
+	return &ParallelCollector{ifc: &FinancialOverviewWorker{}}
+}
+
+func NewFinancialDetailsParallelCollector() IParallelCollector {
+	return &ParallelCollector{ifc: &FinancialDetailsWorker{}}
 }

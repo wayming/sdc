@@ -793,7 +793,7 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 }
 
 // Entry function
-func CollectInit(schemaName string, proxyFile string, isContinue bool) error {
+func CollectorInit(schemaName string, proxyFile string, isContinue bool) error {
 	var allSymbols int64
 	var err error
 
@@ -848,9 +848,15 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	var allSymbols int64
 	var errorSymbols int64
 
-	if err := CollectInit(schemaName, proxyFile, isContinue); err != nil {
+	if err := CollectorInit(schemaName, proxyFile, isContinue); err != nil {
 		return 0, err
 	}
+
+	cacheManager := cache.NewCacheManager()
+	if err := cacheManager.Connect(); err != nil {
+		return 0, err
+	}
+	defer cacheManager.Disconnect()
 
 	var wg sync.WaitGroup
 	outChan := make(chan string)
