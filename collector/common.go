@@ -110,5 +110,7 @@ func CacheCleanup() {
 	cm.DeleteSet(CACHE_KEY_PROXY)
 	cm.DeleteSet(CACHE_KEY_SYMBOL)
 	cm.DeleteSet(CACHE_KEY_SYMBOL_ERROR)
+	cm.DeleteSet(CACHE_KEY_SYMBOL_REDIRECTED)
+	cm.DeleteSet(CACHE_KEY_SYMBOL_INVALID)
 	cm.Disconnect()
 }

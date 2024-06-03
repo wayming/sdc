@@ -96,22 +96,21 @@ func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, er
 					continue
 				}
 				if nextSymbol == "" {
-					logger.Printf("[Go%s]No symbol left", goID)
+					logger.Printf("[Go%s] No symbol left", goID)
 					break
 				}
 
 				err = pw.ifc.collectorDo(col, nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
-					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
 
 					cacheKey := CACHE_KEY_SYMBOL_ERROR
 					e, ok := err.(HttpServerError)
 					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-						cacheKey := CACHE_KEY_SYMBOL_INVALID
-						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
+						cacheKey = CACHE_KEY_SYMBOL_INVALID
 					}
 
+					logger.Printf("[Go%s] Add %s to cache key %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
 					if cacheError := cm.AddToSet(cacheKey, nextSymbol); cacheError != nil {
 						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
 						outChan <- cacheError.Error()

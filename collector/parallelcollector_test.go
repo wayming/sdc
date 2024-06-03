@@ -3,6 +3,7 @@ package collector_test
 import (
 	"log"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/wayming/sdc/cache"
@@ -91,7 +92,9 @@ func TestRedirectedParallelCollector_Execute(t *testing.T) {
 	setupParallelCollectorTest(t.Name())
 	defer teardownpcTest()
 
-	pcTestCacheManager.AddToSet(collector.CACHE_KEY_SYMBOL, "fb")
+	symbol := "fb"
+	redirected := "meta"
+	pcTestCacheManager.AddToSet(collector.CACHE_KEY_SYMBOL, symbol)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,8 +108,107 @@ func TestRedirectedParallelCollector_Execute(t *testing.T) {
 			}
 
 			symbols, _ := pcTestCacheManager.GetAllFromSet(collector.CACHE_KEY_SYMBOL_REDIRECTED)
-			if len(symbols) != 1 || symbols[0] != "meta" {
-				t.Errorf("Got %v from %s key, want %v", symbols, collector.CACHE_KEY_SYMBOL_REDIRECTED, []string{"meta"})
+			expected := []string{redirected}
+			if !reflect.DeepEqual(symbols, expected) {
+				t.Errorf("Got %v from %s key, want %v", symbols, collector.CACHE_KEY_SYMBOL_REDIRECTED, expected)
+			}
+		})
+	}
+}
+
+func TestFinancialOverviewParallelCollector_Execute(t *testing.T) {
+	type args struct {
+		schemaName string
+		parallel   int
+	}
+	tests := []struct {
+		name    string
+		c       collector.IParallelCollector
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "TestFinancialOverviewParallelCollector_Execute",
+			c:    collector.NewFinancialOverviewParallelCollector(),
+			args: args{
+				schemaName: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
+				parallel:   1,
+			},
+			want:    1,
+			wantErr: true,
+		},
+	}
+
+	setupParallelCollectorTest(t.Name())
+	defer teardownpcTest()
+
+	symbol := "NotExists"
+	pcTestCacheManager.AddToSet(collector.CACHE_KEY_SYMBOL, symbol)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.c.Execute(tt.args.schemaName, tt.args.parallel)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FinancialOverviewParallelCollector.Execute() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("FinancialOverviewParallelCollector.Execute() = %v, want %v", got, tt.want)
+			}
+
+			symbols, _ := pcTestCacheManager.GetAllFromSet(collector.CACHE_KEY_SYMBOL_INVALID)
+			expected := []string{symbol}
+			if !reflect.DeepEqual(symbols, expected) {
+				t.Errorf("Got %v from %s key, want %v", symbols, collector.CACHE_KEY_SYMBOL_REDIRECTED, expected)
+			}
+		})
+	}
+}
+
+func TestFinancialDetailsParallelCollector_Execute(t *testing.T) {
+	type args struct {
+		schemaName string
+		parallel   int
+	}
+	tests := []struct {
+		name    string
+		c       collector.IParallelCollector
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "TestFinancialDetailsParallelCollector_Execute",
+			c:    collector.NewFinancialDetailsParallelCollector(),
+			args: args{
+				schemaName: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
+				parallel:   1,
+			},
+			want:    1,
+			wantErr: false,
+		},
+	}
+
+	setupParallelCollectorTest(t.Name())
+	defer teardownpcTest()
+
+	symbol := "msft"
+	pcTestCacheManager.AddToSet(collector.CACHE_KEY_SYMBOL, symbol)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.c.Execute(tt.args.schemaName, tt.args.parallel)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FinancialDetailsParallelCollector.Execute() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("FinancialDetailsParallelCollector.Execute() = %v, want %v", got, tt.want)
+			}
+
+			if numSymbols, _ := pcTestCacheManager.GetLength(collector.CACHE_KEY_SYMBOL_ERROR); numSymbols > 0 {
+				t.Errorf("FinancialDetailsParallelCollector.Execute() got %d symbols in %s, want %d", numSymbols, collector.CACHE_KEY_SYMBOL_ERROR, 0)
 			}
 		})
 	}

@@ -68,13 +68,14 @@ func getHttpCode(output string) int {
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Panicf("Failed to compile regular expression %s", pattern)
 	}
-	match := regExp.FindStringSubmatch(output)
-	if len(match) <= 1 {
-		sdclogger.SDCLoggerInstance.Printf("Failed to find patern %s from output %s", pattern, output)
+	matches := regExp.FindAllStringSubmatch(output, -1)
+	if len(matches) <= 1 {
+		sdclogger.SDCLoggerInstance.Printf("No match for patern %s from output %s", pattern, output)
 		return 0
 	}
 
-	if code, err := strconv.Atoi(match[1]); err != nil {
+	lastMatch := matches[len(matches)-1]
+	if code, err := strconv.Atoi(lastMatch[1]); err != nil {
 		return 0
 	} else {
 		return code
