@@ -67,8 +67,7 @@ func teardownpcTest() {
 
 func TestRedirectedParallelCollector_Execute(t *testing.T) {
 	type args struct {
-		schemaName string
-		parallel   int
+		parallel int
 	}
 	tests := []struct {
 		name    string
@@ -79,10 +78,12 @@ func TestRedirectedParallelCollector_Execute(t *testing.T) {
 	}{
 		{
 			name: "TestRedirectedParallelCollector_Execute",
-			c:    collector.NewRedirectedParallelCollector(),
+			c: &collector.ParallelCollector{
+				Worker: &collector.RedirectedWorker{},
+				Schema: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
+			},
 			args: args{
-				schemaName: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
-				parallel:   1,
+				parallel: 1,
 			},
 			want:    1,
 			wantErr: false,
@@ -98,7 +99,7 @@ func TestRedirectedParallelCollector_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.Execute(tt.args.schemaName, tt.args.parallel)
+			got, err := tt.c.Execute(tt.args.parallel)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RedirectedParallelCollector.Execute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -118,8 +119,7 @@ func TestRedirectedParallelCollector_Execute(t *testing.T) {
 
 func TestFinancialOverviewParallelCollector_Execute(t *testing.T) {
 	type args struct {
-		schemaName string
-		parallel   int
+		parallel int
 	}
 	tests := []struct {
 		name    string
@@ -130,10 +130,12 @@ func TestFinancialOverviewParallelCollector_Execute(t *testing.T) {
 	}{
 		{
 			name: "TestFinancialOverviewParallelCollector_Execute",
-			c:    collector.NewFinancialOverviewParallelCollector(),
+			c: &collector.ParallelCollector{
+				Worker: &collector.FinancialOverviewWorker{},
+				Schema: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
+			},
 			args: args{
-				schemaName: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
-				parallel:   1,
+				parallel: 1,
 			},
 			want:    1,
 			wantErr: true,
@@ -148,7 +150,7 @@ func TestFinancialOverviewParallelCollector_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.Execute(tt.args.schemaName, tt.args.parallel)
+			got, err := tt.c.Execute(tt.args.parallel)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FinancialOverviewParallelCollector.Execute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -168,8 +170,7 @@ func TestFinancialOverviewParallelCollector_Execute(t *testing.T) {
 
 func TestFinancialDetailsParallelCollector_Execute(t *testing.T) {
 	type args struct {
-		schemaName string
-		parallel   int
+		parallel int
 	}
 	tests := []struct {
 		name    string
@@ -180,10 +181,12 @@ func TestFinancialDetailsParallelCollector_Execute(t *testing.T) {
 	}{
 		{
 			name: "TestFinancialDetailsParallelCollector_Execute",
-			c:    collector.NewFinancialDetailsParallelCollector(),
+			c: &collector.ParallelCollector{
+				Worker: &collector.FinancialDetailsWorker{},
+				Schema: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
+			},
 			args: args{
-				schemaName: PARALLEL_COLLECOR_TEST_SCHEMA_NAME,
-				parallel:   1,
+				parallel: 1,
 			},
 			want:    1,
 			wantErr: false,
@@ -198,7 +201,7 @@ func TestFinancialDetailsParallelCollector_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.Execute(tt.args.schemaName, tt.args.parallel)
+			got, err := tt.c.Execute(tt.args.parallel)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FinancialDetailsParallelCollector.Execute() error = %v, wantErr %v", err, tt.wantErr)
 				return

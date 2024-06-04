@@ -64,8 +64,8 @@ func main() {
 				fmt.Printf("%d tickers loaded\n", num)
 			}
 
-			pCollector := &collector.RedirectedParallelCollector{}
-			num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
+			pCollector := collector.NewRedirectedParallelCollector()
+			num, err = pCollector.Execute(*parallelOpt)
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
@@ -78,9 +78,9 @@ func main() {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				if err := collector.CollectInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err != nil {
-					pCollector := &collector.FinancialOverviewParallelCollector{}
-					num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
+				if err = collector.CollectorInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err == nil {
+					pCollector := collector.NewFinancialOverviewParallelCollector()
+					num, err = pCollector.Execute(*parallelOpt)
 				}
 			}
 			if err != nil {
@@ -94,8 +94,10 @@ func main() {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				pCollector := &collector.FinancialDetailsParallelCollector{}
-				num, err = pCollector.Execute(SCHEMA_NAME, *parallelOpt)
+				if err = collector.CollectorInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err == nil {
+					pCollector := collector.NewFinancialDetailsParallelCollector()
+					num, err = pCollector.Execute(*parallelOpt)
+				}
 			}
 			if err != nil {
 				fmt.Println(err.Error())

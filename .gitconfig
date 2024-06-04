@@ -2,4 +2,4 @@
 	email = wayming.z@gmail.com
 	name = way
 [credential]
-	helper = "!f() { /home/appuser/.vscode-server/bin/0ee08df0cf4527e40edc9aa28f4b5bd38bbff2b2/node /tmp/vscode-remote-containers-a8eded8a-7d02-410d-a354-0a345b95f146.js git-credential-helper $*; }; f"
+	helper = "!f() { /home/appuser/.vscode-server/bin/0ee08df0cf4527e40edc9aa28f4b5bd38bbff2b2/node /tmp/vscode-remote-containers-030d6973-e351-46fa-9b8b-7e4113df2392.js git-credential-helper $*; }; f"

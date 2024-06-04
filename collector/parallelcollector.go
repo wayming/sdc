@@ -16,18 +16,20 @@ import (
 )
 
 type IParallelCollector interface {
-	Execute(schemaName string, parallel int) (int64, error)
+	Execute(parallel int) (int64, error)
 }
 
 type ICollectWorker interface {
 	collectorDo(col *SACollector, symbol string) error
+	// collectorInit(schemaName string, proxyFile string, isContinue bool) error
 }
 
 type ParallelCollector struct {
-	ifc ICollectWorker
+	Worker ICollectWorker
+	Schema string
 }
 
-func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, error) {
+func (pw *ParallelCollector) Execute(parallel int) (int64, error) {
 
 	var allSymbols int64
 	var errorSymbols int64
@@ -100,7 +102,7 @@ func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, er
 					break
 				}
 
-				err = pw.ifc.collectorDo(col, nextSymbol)
+				err = pw.Worker.collectorDo(col, nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 
@@ -121,7 +123,7 @@ func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, er
 			}
 
 			logger.Println("[Go" + goID + "] finished.")
-		}(strconv.Itoa(i), schemaName, outChan, &wg)
+		}(strconv.Itoa(i), pw.Schema, outChan, &wg)
 	}
 
 	go func() {
@@ -173,15 +175,58 @@ func (pw *ParallelCollector) Execute(schemaName string, parallel int) (int64, er
 }
 
 type RedirectedWorker struct {
-	// ParallelCollector
 }
 
 type FinancialOverviewWorker struct {
-	// ParallelCollector
 }
 
 type FinancialDetailsWorker struct {
-	// ParallelCollector
+}
+
+func (c *RedirectedWorker) collectorInit(schemaName string, proxyFile string, isContinue bool) error {
+	cacheManager := cache.NewCacheManager()
+	if err := cacheManager.Connect(); err != nil {
+		return err
+	}
+	defer cacheManager.Disconnect()
+
+	if isContinue {
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
+			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+		}
+	} else {
+		if err := ClearCache(); err != nil {
+			return err
+		}
+		allSymbols, err := cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
+		if err != nil {
+			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
+		}
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
+
+		allProxies, err := cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
+		if err != nil {
+			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
+		}
+		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
+	}
+
+	// Create tables
+	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+	if err := collector.CreateTables(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+		return err
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("All tables created")
+		return nil
+	}
 }
 
 func (c *RedirectedWorker) collectorDo(col *SACollector, symbol string) error {
@@ -200,6 +245,26 @@ func (c *RedirectedWorker) collectorDo(col *SACollector, symbol string) error {
 	return nil
 }
 
+func (c *FinancialOverviewWorker) collectorInit(isContinue bool) error {
+	cacheManager := cache.NewCacheManager()
+	if err := cacheManager.Connect(); err != nil {
+		return err
+	}
+	defer cacheManager.Disconnect()
+
+	if isContinue {
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
+			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+		}
+	} else {
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
+			return fmt.Errorf("failed to restore the redirected symbols. Error: %s", err.Error())
+		}
+		allSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL)
+		sdclogger.SDCLoggerInstance.Printf("%d symbols to process", allSymbols)
+	}
+	return nil
+}
 func (c *FinancialOverviewWorker) collectorDo(col *SACollector, symbol string) error {
 	if _, err := col.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
 		return err
@@ -208,6 +273,26 @@ func (c *FinancialOverviewWorker) collectorDo(col *SACollector, symbol string) e
 	}
 }
 
+func (c *FinancialDetailsWorker) collectorInit(isContinue bool) error {
+	cacheManager := cache.NewCacheManager()
+	if err := cacheManager.Connect(); err != nil {
+		return err
+	}
+	defer cacheManager.Disconnect()
+
+	if isContinue {
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
+			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+		}
+	} else {
+		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
+			return fmt.Errorf("failed to restore the redirected symbols. Error: %s", err.Error())
+		}
+		allSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL)
+		sdclogger.SDCLoggerInstance.Printf("%d symbols to process", allSymbols)
+	}
+	return nil
+}
 func (c *FinancialDetailsWorker) collectorDo(col *SACollector, symbol string) error {
 	var retErr error
 
@@ -230,15 +315,20 @@ func (c *FinancialDetailsWorker) collectorDo(col *SACollector, symbol string) er
 	return retErr
 }
 
-func NewRedirectedParallelCollector() IParallelCollector {
-
-	return &ParallelCollector{ifc: &RedirectedWorker{}}
+func NewRedirectedParallelCollector(schemaName string, proxyFile string, isContinue bool) IParallelCollector {
+	worker := RedirectedWorker{}
+	worker.collectorInit(schemaName, proxyFile, isContinue)
+	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }
 
-func NewFinancialOverviewParallelCollector() IParallelCollector {
-	return &ParallelCollector{ifc: &FinancialOverviewWorker{}}
+func NewFinancialOverviewParallelCollector(schemaName string, isContinue bool) IParallelCollector {
+	worker := FinancialOverviewWorker{}
+	worker.collectorInit(isContinue)
+	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }
 
-func NewFinancialDetailsParallelCollector() IParallelCollector {
-	return &ParallelCollector{ifc: &FinancialDetailsWorker{}}
+func NewFinancialDetailsParallelCollector(schemaName string, isContinue bool) IParallelCollector {
+	worker := FinancialDetailsWorker{}
+	worker.collectorInit(isContinue)
+	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }
