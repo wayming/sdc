@@ -18,11 +18,11 @@ func main() {
 			"financialOverviews: Download financial overviews information for all tickers from SA and load them into database.\n"+
 			"financialDetails: Download financial details information for all tickers from SA and load them into database.")
 	tickersJSONOpt := flag.String("tickers_json", "", "Load tickers from JSON file instead of MS.")
-	symbolOpt := flag.String("symbol", "", "Load financials for the specified symbol only. Can only be used with option -load financials")
+	symbolOpt := flag.String("symbol", "", "Load financials for the specified symbol only. Can only be used with option -load financialOverviews or financialDetails")
 	parallelOpt := flag.Int("parallel", 1, "Parallel streams of loading")
 	resetDBOpt := flag.Bool("reset_db", false, "Drop the existing data.")
 	resetCacheOpt := flag.Bool("reset_cache", false, "Reset the caches.")
-	proxyOpt := flag.String("proxy", "", "File with list of proxy servers. Must be set when loading financials for multiple symbols.")
+	proxyOpt := flag.String("proxy", "", "File with list of proxy servers.")
 	continueOpt := flag.Bool("continue", false, "Whether or not continue with the load")
 
 	flag.Parse()
@@ -64,7 +64,7 @@ func main() {
 				fmt.Printf("%d tickers loaded\n", num)
 			}
 
-			pCollector := collector.NewRedirectedParallelCollector()
+			pCollector := collector.NewRedirectedParallelCollector(SCHEMA_NAME, *proxyOpt, *continueOpt)
 			num, err = pCollector.Execute(*parallelOpt)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -78,10 +78,8 @@ func main() {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				if err = collector.CollectorInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err == nil {
-					pCollector := collector.NewFinancialOverviewParallelCollector()
-					num, err = pCollector.Execute(*parallelOpt)
-				}
+				pCollector := collector.NewFinancialOverviewParallelCollector(SCHEMA_NAME, *continueOpt)
+				num, err = pCollector.Execute(*parallelOpt)
 			}
 			if err != nil {
 				fmt.Println(err.Error())
@@ -94,10 +92,8 @@ func main() {
 				err = collector.CollectFinancialsForSymbol(SCHEMA_NAME, *symbolOpt)
 				num = 1
 			} else {
-				if err = collector.CollectorInit(SCHEMA_NAME, *proxyOpt, *continueOpt); err == nil {
-					pCollector := collector.NewFinancialDetailsParallelCollector()
-					num, err = pCollector.Execute(*parallelOpt)
-				}
+				pCollector := collector.NewFinancialDetailsParallelCollector(SCHEMA_NAME, *continueOpt)
+				num, err = pCollector.Execute(*parallelOpt)
 			}
 			if err != nil {
 				fmt.Println(err.Error())

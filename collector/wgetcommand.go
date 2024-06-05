@@ -63,7 +63,7 @@ func NewWgetCmd(arg ...string) *WgetCmd {
 	}
 }
 func getHttpCode(output string) int {
-	pattern := "\\s*HTTP/[0-9]\\.[0-9]\\s*([0-9]+)\\s+.*"
+	pattern := "\\s*HTTP\\/[0-9]\\.[0-9]\\s*([0-9]+)\\s+.*"
 	regExp, err := regexp.Compile(pattern)
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Panicf("Failed to compile regular expression %s", pattern)

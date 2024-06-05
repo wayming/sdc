@@ -134,3 +134,17 @@ func (m *CacheManager) MoveSet(fromKey string, toKey string) error {
 	}
 	return err
 }
+
+func (m *CacheManager) CopySet(fromKey string, toKey string) error {
+	var err error
+	all, err := m.clientHandle.SMembers(fromKey).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get all memebers from set %s. Error: %s", fromKey, err.Error())
+	}
+	for _, member := range all {
+		if err = m.AddToSet(toKey, member); err != nil {
+			return fmt.Errorf("failed to add value %s to set %s. Error: %s", member, toKey, err.Error())
+		}
+	}
+	return err
+}

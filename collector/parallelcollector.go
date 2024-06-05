@@ -257,7 +257,7 @@ func (c *FinancialOverviewWorker) collectorInit(isContinue bool) error {
 			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
 		}
 	} else {
-		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
+		if err := cacheManager.CopySet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
 			return fmt.Errorf("failed to restore the redirected symbols. Error: %s", err.Error())
 		}
 		allSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL)
@@ -285,7 +285,7 @@ func (c *FinancialDetailsWorker) collectorInit(isContinue bool) error {
 			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
 		}
 	} else {
-		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
+		if err := cacheManager.CopySet(CACHE_KEY_SYMBOL_REDIRECTED, CACHE_KEY_SYMBOL); err != nil {
 			return fmt.Errorf("failed to restore the redirected symbols. Error: %s", err.Error())
 		}
 		allSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL)

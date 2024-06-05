@@ -87,7 +87,8 @@ func (reader HttpProxyReader) RedirectedUrl(url string) (string, error) {
 			return "", errors.New("no proxy server available")
 		}
 
-		wgetCmd := NewWgetCmd("--max-redirect=0", "-S", url,
+		wgetCmd := NewWgetCmd("--max-redirect=0", "-S",
+			"-T", "5",
 			"-e", "use_proxy=yes",
 			"-O", htmlFile,
 			"--proxy-user="+os.Getenv("PROXYUSER"),
@@ -126,6 +127,7 @@ func (reader *HttpProxyReader) Read(url string, params map[string]string) (strin
 		}
 
 		cmd := NewWgetCmd("--timeout=10", "--tries=1", "-S",
+			"-T", "5",
 			"-O", htmlFile,
 			// "-a", "logs/reader"+reader.goKey+"_wget.log",
 			"-e", "use_proxy=yes",

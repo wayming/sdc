@@ -61,7 +61,12 @@ func ClearCache() error {
 	if err := cm.DeleteSet(CACHE_KEY_SYMBOL_ERROR); err != nil {
 		return err
 	}
-
+	if err := cm.DeleteSet(CACHE_KEY_SYMBOL_REDIRECTED); err != nil {
+		return err
+	}
+	if err := cm.DeleteSet(CACHE_KEY_SYMBOL_INVALID); err != nil {
+		return err
+	}
 	return nil
 }
 func DropSchema(schema string) error {
