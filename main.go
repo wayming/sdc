@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/wayming/sdc/collector"
 )
@@ -11,6 +12,9 @@ import (
 const SCHEMA_NAME = "sdc"
 
 func main() {
+
+	runtime.GOMAXPROCS(200)
+
 	loadOpt := flag.String("load", "",
 		"Load stock infomration into database. "+
 			"Supported options include:\n"+
@@ -61,7 +65,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			} else {
-				fmt.Printf("%d tickers loaded\n", num)
+				fmt.Printf("%d symbols loaded\n", num)
 			}
 
 			pCollector := collector.NewRedirectedParallelCollector(SCHEMA_NAME, *proxyOpt, *continueOpt)
@@ -70,7 +74,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			} else {
-				fmt.Printf("%d tickers loaded\n", num)
+				fmt.Printf("%d symbols redirected\n", num)
 			}
 
 		case "financialOverviews":

@@ -573,12 +573,12 @@ func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructTyp
 		return 0, err
 	}
 
-	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERALL, reflect.TypeFor[StockOverview]())
+	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERVIEW, reflect.TypeFor[StockOverview]())
 	if err != nil {
-		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERALL + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERVIEW + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERALL)
+	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERVIEW)
 	return numOfRows, nil
 }
 
@@ -681,7 +681,7 @@ func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType 
 func (collector *SACollector) CreateTables() error {
 	allTables := map[string]reflect.Type{
 		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
-		TABLE_SA_OVERALL:                  reflect.TypeFor[StockOverview](),
+		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
 		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
 		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
 		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),

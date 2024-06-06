@@ -69,7 +69,7 @@ func getHttpCode(output string) int {
 		sdclogger.SDCLoggerInstance.Panicf("Failed to compile regular expression %s", pattern)
 	}
 	matches := regExp.FindAllStringSubmatch(output, -1)
-	if len(matches) <= 1 {
+	if len(matches) <= 0 {
 		sdclogger.SDCLoggerInstance.Printf("No match for patern %s from output %s", pattern, output)
 		return 0
 	}

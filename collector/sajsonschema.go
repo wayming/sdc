@@ -52,6 +52,8 @@ type FinancialsIncome struct {
 	GrossProfit              float64   `json:"gross_profit"`
 	IncomeTax                float64   `json:"income_tax"`
 	InterestExpenseIncome    float64   `json:"interest_expense_income"`
+	InterestExpense          float64   `json:"interest_expense"`
+	InterestIncome           float64   `json:"interest_income"`
 	NetIncome                float64   `json:"net_income"`
 	NetIncomeCommon          float64   `json:"net_income_common"`
 	NetIncomeGrowth          float64   `json:"net_income_growth"`
@@ -75,48 +77,52 @@ type FinancialsIncome struct {
 }
 
 type FinancialsBalanceShet struct {
-	AccountsPayable          float64   `json:"accounts_payable"`
-	BookValuePerShare        float64   `json:"book_value_per_share"`
-	CashCashEquivalents      float64   `json:"cash_cash_equivalents"`
-	CashEquivalents          float64   `json:"cash_equivalents"`
-	CashGrowth               float64   `json:"cash_growth"`
-	CommonStock              float64   `json:"common_stock"`
-	ComprehensiveIncome      float64   `json:"comprehensive_income"`
-	CurrentDebt              float64   `json:"current_debt"`
-	DebtGrowth               float64   `json:"debt_growth"`
-	DeferredRevenue          float64   `json:"deferred_revenue"`
-	GoodwillAndIntangibles   float64   `json:"goodwill_and_intangibles"`
-	Inventory                float64   `json:"inventory"`
-	LongTermDebt             float64   `json:"long_term_debt"`
-	LongTermInvestments      float64   `json:"long_term_investments"`
-	NetCashDebt              float64   `json:"net_cash_debt"`
-	NetCashDebtGrowth        float64   `json:"net_cash_debt_growth"`
-	NetCashPerShare          float64   `json:"net_cash_per_share"`
-	OtherCurrentAssets       float64   `json:"other_current_assets"`
-	OtherCurrentLiabilities  float64   `json:"other_current_liabilities"`
-	OtherLongTermAssets      float64   `json:"other_long_term_assets"`
-	OtherLongTermLiabilities float64   `json:"other_long_term_liabilities"`
-	PropertyPlantEquipment   float64   `json:"property_plant_equipment"`
-	QuarterEnded             time.Time `json:"quarter_ended" db:"PrimaryKey"`
-	Receivables              float64   `json:"receivables"`
-	RetainedEarnings         float64   `json:"retained_earnings"`
-	ShareholdersEquity       float64   `json:"shareholders_equity"`
-	Symbol                   string    `json:"symbol" db:"PrimaryKey"`
-	ShortTermInvestments     float64   `json:"short_term_investments"`
-	TotalAssets              float64   `json:"total_assets"`
-	TotalCurrentAssets       float64   `json:"total_current_assets"`
-	TotalCurrentLiabilities  float64   `json:"total_current_liabilities"`
-	TotalDebt                float64   `json:"total_debt"`
-	TotalLiabilities         float64   `json:"total_liabilities"`
-	TotalLongTermAssets      float64   `json:"total_long_term_assets"`
-	TotalLongTermLiabilities float64   `json:"total_long_term_liabilities"`
-	WorkingCapital           float64   `json:"working_capital"`
+	AccountsPayable           float64   `json:"accounts_payable"`
+	BookValuePerShare         float64   `json:"book_value_per_share"`
+	CashCashEquivalents       float64   `json:"cash_cash_equivalents"`
+	CashEquivalents           float64   `json:"cash_equivalents"`
+	CashGrowth                float64   `json:"cash_growth"`
+	CommonStock               float64   `json:"common_stock"`
+	ComprehensiveIncome       float64   `json:"comprehensive_income"`
+	CurrentDebt               float64   `json:"current_debt"`
+	DebtGrowth                float64   `json:"debt_growth"`
+	DeferredRevenue           float64   `json:"deferred_revenue"`
+	Goodwill                  float64   `json:"goodwill"`
+	GoodwillAndIntangibles    float64   `json:"goodwill_and_intangibles"`
+	IntangibleAssets          float64   `json:"intangible_assets"`
+	Inventory                 float64   `json:"inventory"`
+	LongTermDebt              float64   `json:"long_term_debt"`
+	LongTermInvestments       float64   `json:"long_term_investments"`
+	NetCashDebt               float64   `json:"net_cash_debt"`
+	NetCashDebtGrowth         float64   `json:"net_cash_debt_growth"`
+	NetCashPerShare           float64   `json:"net_cash_per_share"`
+	OtherCurrentAssets        float64   `json:"other_current_assets"`
+	OtherCurrentLiabilities   float64   `json:"other_current_liabilities"`
+	OtherLongTermAssets       float64   `json:"other_long_term_assets"`
+	OtherLongTermLiabilities  float64   `json:"other_long_term_liabilities"`
+	PropertyPlantEquipment    float64   `json:"property_plant_equipment"`
+	QuarterEnded              time.Time `json:"quarter_ended" db:"PrimaryKey"`
+	Receivables               float64   `json:"receivables"`
+	RetainedEarnings          float64   `json:"retained_earnings"`
+	ShareholdersEquity        float64   `json:"shareholders_equity"`
+	Symbol                    string    `json:"symbol" db:"PrimaryKey"`
+	ShortTermInvestments      float64   `json:"short_term_investments"`
+	TotalAssets               float64   `json:"total_assets"`
+	TotalCurrentAssets        float64   `json:"total_current_assets"`
+	TotalCurrentLiabilities   float64   `json:"total_current_liabilities"`
+	TotalDebt                 float64   `json:"total_debt"`
+	TotalLiabilities          float64   `json:"total_liabilities"`
+	TotalLiabilitiesAndEquity float64   `json:"total_liabilities_and_equity"`
+	TotalLongTermAssets       float64   `json:"total_long_term_assets"`
+	TotalLongTermLiabilities  float64   `json:"total_long_term_liabilities"`
+	WorkingCapital            float64   `json:"working_capital"`
 }
 
 type FinancialsCashFlow struct {
 	Acquisitions             float64   `json:"acquisitions"`
 	CaptialExpenditures      float64   `json:"capital_expenditures"`
 	ChangeInInvestments      float64   `json:"change_in_investments"`
+	CommonStockIssued        float64   `json:"common_stock_issued"`
 	CostOfRevenue            float64   `json:"cost_of_revenue"`
 	DebtIssuedPaid           float64   `json:"debt_issued_paid"`
 	DepreciationAmortization float64   `json:"depreciation_amortization"`
@@ -161,21 +167,25 @@ type FinancialsCashFlow struct {
 	ResearchDevelopment      float64   `json:"research_development"`
 	Revenue                  float64   `json:"revenue"`
 	RevenueGrowthYOY         float64   `json:"revenue_growth_yoy"`
-	Symbol                   string    `json:"symbol" db:"PrimaryKey"`
 	SellingGeneralAdmin      float64   `json:"selling_general_admin"`
 	ShareBasedCompensation   float64   `json:"share_based_compensation"`
 	ShareIssuanceRepurchase  float64   `json:"share_issuance_repurchase"`
 	SharesChange             float64   `json:"shares_change"`
 	SharesOutstandingBasic   float64   `json:"shares_outstanding_basic"`
 	SharesOutstandingDiluted float64   `json:"shares_outstanding_diluted"`
+	ShareRepurchases         float64   `json:"share_repurchases"`
+	Symbol                   string    `json:"symbol" db:"PrimaryKey"`
 }
 
 type FinancialRatios struct {
+	AssetTurnover          float64   `json:"asset_turnover"`
 	BuybackYieldDilution   float64   `json:"buyback_yield_dilution"`
 	CurrentRatio           float64   `json:"current_ratio"`
 	DebtEquityRatio        float64   `json:"debt_equity_ratio"`
 	DividendYield          float64   `json:"dividend_yield"`
 	EnterpriseValue        float64   `json:"enterprise_value"`
+	EarningsYield          float64   `json:"earnings_yield"`
+	FCFYield               float64   `json:"fcf_yield"`
 	InterestCoverage       float64   `json:"interest_coverage"`
 	MarketCapGrowth        float64   `json:"market_cap_growth"`
 	MarketCapitalization   float64   `json:"market_capitalization"`
@@ -187,7 +197,9 @@ type FinancialRatios struct {
 	PSRatio                float64   `json:"ps_ratio"`
 	QuarterEnded           time.Time `json:"quarter_ended" db:"PrimaryKey"`
 	QuickRatio             float64   `json:"quick_ratio"`
+	ReturnOnAssetsROA      float64   `json:"return_on_assets_roa"`
 	ReturnOnCapitalROIC    float64   `json:"return_on_capital_roic"`
+	ReturnOnEquityROE      float64   `json:"return_on_equity_roe"`
 	Symbol                 string    `json:"symbol" db:"PrimaryKey"`
 	TotalShareholderReturn float64   `json:"total_shareholder_return"`
 }
