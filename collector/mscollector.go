@@ -42,10 +42,10 @@ func (collector *MSCollector) CollectTickers() (int64, error) {
 	if err := collector.dbLoader.CreateTableByJsonStruct(TABLE_MS_TICKERS, reflect.TypeFor[Tickers]()); err != nil {
 		return 0, err
 	}
-	return collector.LoadTickers(string(jsonText))
+	return collector.LoadToDB(string(jsonText))
 }
 
-func (collector *MSCollector) LoadTickers(jsonText string) (int64, error) {
+func (collector *MSCollector) LoadToDB(jsonText string) (int64, error) {
 	var data TickersBody
 	if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
 		return 0, errors.New("Failed to unmarshal json text, Error: " + err.Error())
@@ -116,6 +116,7 @@ func (collector *MSCollector) CollectEOD() error {
 	return nil
 }
 
+// Entry Function
 func CollectTickers(schemaName string, csvFile string) (int64, error) {
 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
