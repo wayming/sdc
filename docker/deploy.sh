@@ -3,6 +3,7 @@
 docker stack rm sdc
 docker build -t stock_data_collector -f Dockerfile.sdc .
 docker build -t postgres_sdc -f Dockerfile.pg .
+docker build -t openbb -f Dockerfile.openbb .
 while [ 1 ];
 do
     docker stack ps sdc

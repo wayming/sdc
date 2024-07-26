@@ -111,6 +111,21 @@ services:
     command: redis-server --appendonly yes
     networks:
       - overlay_network
+
+  openbb:
+    image: openbb
+    build:
+      context: .
+      dockerfile: ./Dockerfile.openbb
+    volumes:
+      - ..:/home/appuser
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    ports:
+      - "8001:8001"
+    deploy:
+      replicas: 1
+    networks:
+      - overlay_network
       
 secrets:
   pg_pass_file:
@@ -129,6 +144,7 @@ secrets:
     # generated from docker secret command
     # echo "password" | docker secret create proxy_pass_file -
     external: true
+
 
 networks:
   overlay_network:
