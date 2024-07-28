@@ -1,7 +1,5 @@
 package collector
 
-import "errors"
-
 const WGET_ERROR_CODE_NETWORK = int(4)
 const WGET_ERROR_CODE_SERVER_ERROR = int(8)
 
@@ -33,19 +31,16 @@ func (e WgetError) StatusCode() int {
 type HttpServerError struct {
 	text   string
 	status int
+	hd     map[string][]string
 }
 
 // NewHttpServerError creates a new HttpServerError instance with the given error message and status code.
-func NewHttpServerError(errorMsg string, httpStatusCode int) HttpServerError {
+func NewHttpServerError(status int, header map[string][]string, errorMsg string) HttpServerError {
 	return HttpServerError{
 		text:   errorMsg,
-		status: httpStatusCode,
+		status: status,
+		hd:     header,
 	}
-}
-
-// Error returns the message body associated with the HttpServerError instance.
-func (e HttpServerError) Error() string {
-	return e.text
 }
 
 // StatusCode returns the status code associated with the HttpServerError instance.
@@ -53,14 +48,24 @@ func (e HttpServerError) StatusCode() int {
 	return e.status
 }
 
-func NewCollectorError(e error, msg string) error {
-	fullMessage := msg + " Error: " + e.Error()
-	switch etype := e.(type) {
-	case WgetError:
-		return NewWgetError(fullMessage, etype.StatusCode())
-	case HttpServerError:
-		return NewHttpServerError(fullMessage, etype.StatusCode())
-	default:
-		return errors.New(fullMessage)
-	}
+// StatusCode returns the status code associated with the HttpServerError instance.
+func (e HttpServerError) ResponseHeader() map[string][]string {
+	return e.hd
 }
+
+// Error returns the message body associated with the HttpServerError instance.
+func (e HttpServerError) Error() string {
+	return e.text
+}
+
+// func NewCollectorError(e error, msg string) error {
+// 	fullMessage := msg + " Error: " + e.Error()
+// 	switch etype := e.(type) {
+// 	case WgetError:
+// 		return NewWgetError(fullMessage, etype.StatusCode())
+// 	case HttpServerError:
+// 		return NewHttpServerError(etype.StatusCode(), etype.ResponseHeader(), fullMessage)
+// 	default:
+// 		return errors.New(fullMessage)
+// 	}
+// }
