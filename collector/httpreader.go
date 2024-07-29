@@ -95,11 +95,11 @@ type ProxyClient struct {
 	http.Client
 }
 
-func NewLocalClient() *LocalClient {
-	return &LocalClient{http.Client{}}
+func NewLocalClient() *http.Client {
+	return &http.Client{}
 }
 
-func NewProxyClient(server string, port string) *ProxyClient {
+func NewProxyClient(server string, port string) *http.Client {
 	proxyURL, err := url.Parse("http://" + server + ":" + port)
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to parse proxy url http://%s:%s: %v", server, port, err)
@@ -107,5 +107,5 @@ func NewProxyClient(server string, port string) *ProxyClient {
 
 	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 
-	return &ProxyClient{http.Client{Transport: transport}}
+	return &http.Client{Transport: transport}
 }

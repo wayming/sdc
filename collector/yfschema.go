@@ -2,6 +2,9 @@ package collector
 
 import "reflect"
 
+const FY_TICKERS = "FYTickers"
+const FY_EOD = "FYEOD"
+
 type FYTickers struct {
 	Symbol            string  `json:"symbol"`
 	Name              string  `json:"name"`
@@ -22,16 +25,16 @@ type FYEOD struct {
 	Dividend   float64 `json:"dividend"`
 }
 
-type FYTickersBody struct {
-	Data []FYTickers `json:"results"`
+type FYEODBody struct {
+	Data []FYEOD `json:"results"`
 }
 
 var FYDataTables = map[string]string{
-	"FYTickers": "fy_tickers",
-	"FYEOD":     "fy_eod",
+	FY_TICKERS: "fy_tickers",
+	FY_EOD:     "fy_eod",
 }
 
 var FYDataTypes = map[string]reflect.Type{
-	"FYTickers": reflect.TypeFor[FYTickers](),
-	"FYEOD":     reflect.TypeFor[FYEOD](),
+	FY_TICKERS: reflect.TypeFor[FYTickers](),
+	FY_EOD:     reflect.TypeFor[FYEOD](),
 }
