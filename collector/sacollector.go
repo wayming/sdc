@@ -22,14 +22,14 @@ import (
 type SACollector struct {
 	dbSchema      string
 	loader        dbloader.DBLoader
-	reader        HttpReader
+	reader        IHttpReader
 	logger        *log.Logger
 	metricsFields map[string]map[string]JsonFieldMetadata
 	accessKey     string
 	thisSymbol    string
 }
 
-func NewSACollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger, schema string) *SACollector {
+func NewSACollector(loader dbloader.DBLoader, httpReader IHttpReader, logger *log.Logger, schema string) *SACollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := SACollector{
@@ -881,7 +881,12 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 			defer dbLoader.Disconnect()
 
 			// http reader
-			httpReader := NewHttpProxyReader(cacheManager, CACHE_KEY_PROXY, goID)
+			proxy, err := cacheManager.GetFromSet(CACHE_KEY_PROXY)
+			if err != nil {
+				outChan <- err.Error()
+				return
+			}
+			httpReader := NewHttpReader(NewProxyClient(proxy))
 
 			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
@@ -1002,7 +1007,7 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 	defer dbLoader.Disconnect()
 
 	// http reader
-	httpReader := NewHttpDirectReader()
+	httpReader := NewHttpReader(NewLocalClient())
 
 	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 

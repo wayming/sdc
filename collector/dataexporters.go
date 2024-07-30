@@ -19,7 +19,7 @@ type FileExporter struct {
 func NewYFFileExporter() *FileExporter {
 	dir := os.Getenv("SDC_HOME") + "/data/YF"
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %w", dir, err)
+		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 	return &FileExporter{path: dir}
 }
@@ -27,7 +27,7 @@ func NewYFFileExporter() *FileExporter {
 func (e FileExporter) Export(entity string, data string) error {
 	fileName := e.path + "/" + entity + ".csv"
 	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
-		sdclogger.SDCLoggerInstance.Fatalf("Failed to write to file %s: %w", fileName, err)
+		sdclogger.SDCLoggerInstance.Fatalf("Failed to write to file %s: %v", fileName, err)
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func (e DBExporter) Export(entity string, data string) error {
 
 	numOfRows, err := e.db.LoadByJsonText(data, FYDataTables[entity], FYDataTypes[entity])
 	if err != nil {
-		return fmt.Errorf("Failed to load json text to table %s: %w", FYDataTables[entity], err)
+		return fmt.Errorf("failed to load json text to table %s: %v", FYDataTables[entity], err)
 	}
 	sdclogger.SDCLoggerInstance.Printf("%d rows were loaded into %s:%s", numOfRows, e.schema, FYDataTables[entity])
 	return nil
@@ -71,4 +71,5 @@ func (e *YFDataExporter) Export(entity string, data string) error {
 			return err
 		}
 	}
+	return nil
 }

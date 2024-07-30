@@ -14,13 +14,13 @@ import (
 
 type MSCollector struct {
 	dbLoader    dbloader.DBLoader
-	reader      HttpReader
+	reader      IHttpReader
 	logger      *log.Logger
 	dbSchema    string
 	msAccessKey string
 }
 
-func NewMSCollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger, schema string) *MSCollector {
+func NewMSCollector(loader dbloader.DBLoader, httpReader IHttpReader, logger *log.Logger, schema string) *MSCollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := MSCollector{
@@ -124,7 +124,7 @@ func CollectTickers(schemaName string, csvFile string) (int64, error) {
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	reader := NewHttpDirectReader()
+	reader := NewHttpReader(NewLocalClient())
 	collector := NewMSCollector(dbLoader, reader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 	if len(csvFile) > 0 {
 		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
@@ -141,7 +141,7 @@ func CollectTickers(schemaName string, csvFile string) (int64, error) {
 			return 0, err
 		}
 
-		return collector.LoadTickers(string(csv))
+		return collector.dbLoader.LoadByJsonText(string(csv), TABLE_MS_TICKERS, reflect.TypeFor[Tickers]())
 	} else {
 		return collector.CollectTickers()
 	}

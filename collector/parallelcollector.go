@@ -73,8 +73,12 @@ func (pw *ParallelCollector) Execute(parallel int) (int64, error) {
 			defer dbLoader.Disconnect()
 
 			// http reader
-			httpReader := NewHttpProxyReader(cm, CACHE_KEY_PROXY, goID)
-
+			proxy, err := cm.GetFromSet(CACHE_KEY_PROXY)
+			if err != nil {
+				outChan <- err.Error()
+				return
+			}
+			httpReader := NewHttpReader(NewProxyClient(proxy))
 			col := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
 			for remainingSymbols, _ := cm.GetLength(CACHE_KEY_SYMBOL); remainingSymbols > 0; {

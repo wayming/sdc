@@ -114,7 +114,7 @@ func (c *WgetCmd) WgetError() error {
 }
 
 func (c *WgetCmd) HttpServerError() error {
-	return NewHttpServerError(c.errorMessage, c.httpCode)
+	return NewHttpServerError(c.httpCode, nil, c.errorMessage)
 }
 
 func (c *WgetCmd) Succeeded() bool {

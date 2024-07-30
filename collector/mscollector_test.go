@@ -43,7 +43,7 @@ func teardownMSTest() {
 func TestMSCollector_CollectTickers(t *testing.T) {
 	type fields struct {
 		dbLoader    dbloader.DBLoader
-		reader      collector.HttpReader
+		reader      collector.IHttpReader
 		logger      *log.Logger
 		dbSchema    string
 		msAccessKey string
@@ -60,7 +60,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 			name: "CollectTickers",
 			fields: fields{
 				dbLoader:    msTestDBLoader,
-				reader:      collector.NewHttpDirectReader(),
+				reader:      collector.NewHttpReader(collector.NewLocalClient()),
 				logger:      testcommon.TestLogger(t.Name()),
 				dbSchema:    MS_TEST_SCHEMA_NAME,
 				msAccessKey: os.Getenv("MSACCESSKEY"),
@@ -87,7 +87,7 @@ func TestMSCollector_CollectTickers(t *testing.T) {
 func TestMSCollector_CollectEOD(t *testing.T) {
 	type fields struct {
 		dbLoader    dbloader.DBLoader
-		reader      collector.HttpReader
+		reader      collector.IHttpReader
 		logger      *log.Logger
 		dbSchema    string
 		msAccessKey string
@@ -103,7 +103,7 @@ func TestMSCollector_CollectEOD(t *testing.T) {
 			name: "CollectEOD",
 			fields: fields{
 				dbLoader:    msTestDBLoader,
-				reader:      collector.NewHttpDirectReader(),
+				reader:      collector.NewHttpReader(collector.NewLocalClient()),
 				logger:      testcommon.TestLogger(t.Name()),
 				dbSchema:    MS_TEST_SCHEMA_NAME,
 				msAccessKey: os.Getenv("MSACCESSKEY"),

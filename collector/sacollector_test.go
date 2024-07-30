@@ -51,7 +51,7 @@ func teardownSATest() {
 func TestSACollector_ReadOverallPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
-		reader     collector.HttpReader
+		reader     collector.IHttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -73,7 +73,7 @@ func TestSACollector_ReadOverallPage(t *testing.T) {
 		name: "ReadOverallPage",
 		fields: fields{
 			dbLoader:   saTestDBLoader,
-			reader:     collector.NewHttpDirectReader(),
+			reader:     collector.NewHttpReader(collector.NewLocalClient()),
 			logger:     testcommon.TestLogger(t.Name()),
 			dbSchema:   SA_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
@@ -119,7 +119,7 @@ func TestSACollector_ReadOverallPage(t *testing.T) {
 func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
-		reader     collector.HttpReader
+		reader     collector.IHttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -141,7 +141,7 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 		name: "ReadPageTimeSeries",
 		fields: fields{
 			dbLoader:   saTestDBLoader,
-			reader:     collector.NewHttpDirectReader(),
+			reader:     collector.NewHttpReader(collector.NewLocalClient()),
 			logger:     testcommon.TestLogger(t.Name()),
 			dbSchema:   SA_TEST_SCHEMA_NAME,
 			thisSymbol: "msft",
@@ -198,7 +198,7 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 func TestSACollector_CollectOverallMetrics(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
-		reader     collector.HttpReader
+		reader     collector.IHttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -222,7 +222,7 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 			name: "CollectOverallMetrics",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
-				reader:     collector.NewHttpDirectReader(),
+				reader:     collector.NewHttpReader(collector.NewLocalClient()),
 				logger:     testcommon.TestLogger(t.Name()),
 				dbSchema:   SA_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
@@ -259,7 +259,7 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
-		reader     collector.HttpReader
+		reader     collector.IHttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -284,7 +284,7 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 			name: "CollectFinancialsIncome",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
-				reader:     collector.NewHttpDirectReader(),
+				reader:     collector.NewHttpReader(collector.NewLocalClient()),
 				logger:     testcommon.TestLogger(t.Name()),
 				dbSchema:   SA_TEST_SCHEMA_NAME,
 				thisSymbol: "msft",
@@ -578,7 +578,7 @@ func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
 func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
-		reader     collector.HttpReader
+		reader     collector.IHttpReader
 		logger     *log.Logger
 		dbSchema   string
 		thisSymbol string
@@ -603,7 +603,7 @@ func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
 			name: "ReadAnalystRatingsPage",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
-				reader:     collector.NewHttpDirectReader(),
+				reader:     collector.NewHttpReader(collector.NewLocalClient()),
 				logger:     testcommon.TestLogger(t.Name()),
 				dbSchema:   SA_TEST_SCHEMA_NAME,
 				thisSymbol: "nvda",
@@ -722,7 +722,7 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 	type fields struct {
 		dbSchema string
 		dbLoader dbloader.DBLoader
-		reader   collector.HttpReader
+		reader   collector.IHttpReader
 		logger   *log.Logger
 	}
 	type args struct {
@@ -743,7 +743,7 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 			fields: fields{
 				dbSchema: SA_TEST_SCHEMA_NAME,
 				dbLoader: saTestDBLoader,
-				reader:   collector.NewHttpDirectReader(),
+				reader:   collector.NewHttpReader(collector.NewLocalClient()),
 				logger:   testcommon.TestLogger(t.Name()),
 			},
 			args: args{
@@ -767,7 +767,7 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 	type fields struct {
 		dbSchema string
 		dbLoader dbloader.DBLoader
-		reader   collector.HttpReader
+		reader   collector.IHttpReader
 		logger   *log.Logger
 	}
 	type args struct {
@@ -789,7 +789,7 @@ func TestSACollector_MapRedirectedSymbol(t *testing.T) {
 			fields: fields{
 				dbSchema: SA_TEST_SCHEMA_NAME,
 				dbLoader: saTestDBLoader,
-				reader:   collector.NewHttpDirectReader(),
+				reader:   collector.NewHttpReader(collector.NewLocalClient()),
 				logger:   saTestLogger,
 			},
 			args: args{

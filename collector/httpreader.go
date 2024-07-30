@@ -84,6 +84,8 @@ func (r *HttpReader) Read(url string, params map[string]string) (string, error) 
 	body, err := io.ReadAll(res.Body)
 	if err == nil {
 		return string(body), nil
+	} else {
+		return "", nil
 	}
 }
 
@@ -99,10 +101,10 @@ func NewLocalClient() *http.Client {
 	return &http.Client{}
 }
 
-func NewProxyClient(server string, port string) *http.Client {
-	proxyURL, err := url.Parse("http://" + server + ":" + port)
+func NewProxyClient(proxy string) *http.Client {
+	proxyURL, err := url.Parse("http://" + proxy)
 	if err != nil {
-		sdclogger.SDCLoggerInstance.Fatalf("Failed to parse proxy url http://%s:%s: %v", server, port, err)
+		sdclogger.SDCLoggerInstance.Fatalf("Failed to parse proxy url http://%s: %v", proxy, err)
 	}
 
 	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
