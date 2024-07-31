@@ -34,59 +34,6 @@ func (c *YFCollector) Tickers() error {
 		return fmt.Errorf("failed to load data from %s: %v ", apiURL, err)
 	}
 	textJSON = strings.ReplaceAll(textJSON, "`", "")
-	// textJSON = `{
-	// 	"results": [
-	// 		{
-	// 			"symbol": "A",
-	// 			"name": "Agilent Technologies, Inc. Common Stock",
-	// 			"nasdaq_traded": "Y",
-	// 			"exchange": "N",
-	// 			"market_category": null,
-	// 			"etf": "N",
-	// 			"round_lot_size": 100,
-	// 			"test_issue": "N",
-	// 			"financial_status": null,
-	// 			"cqs_symbol": "A",
-	// 			"nasdaq_symbol": "A",
-	// 			"next_shares": "N"
-	// 		}
-	// 	],
-	// 	"provider": "nasdaq",
-	// 	"warnings": [
-	// 		{
-	// 			"category": "OpenBBWarning",
-	// 			"message": "Parameter 'limit' is not supported by nasdaq. Available for: intrinio."
-	// 		},
-	// 		{
-	// 			"category": "FutureWarning",
-	// 			"message": "Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set "
-	// 		}
-	// 	],
-	// 	"chart": null,
-	// 	"extra": {
-	// 		"metadata": {
-	// 			"arguments": {
-	// 				"provider_choices": {
-	// 					"provider": "nasdaq"
-	// 				},
-	// 				"standard_params": {
-	// 					"query": "",
-	// 					"is_symbol": false,
-	// 					"use_cache": true
-	// 				},
-	// 				"extra_params": {
-	// 					"active": true,
-	// 					"limit": 100000,
-	// 					"is_etf": null,
-	// 					"is_fund": false
-	// 				}
-	// 			},
-	// 			"duration": 4196819148,
-	// 			"route": "/equity/search",
-	// 			"timestamp": "2024-07-30T12:56:09.154604"
-	// 		}
-	// 	}
-	// }`
 	dataText, err := ExtractData(textJSON, reflect.TypeFor[FYTickersResponse]())
 	if err != nil {
 		return err
@@ -107,15 +54,14 @@ func (c *YFCollector) EOD() error {
 	// /http://localhost:8001/api/v1/equity/price/historical?chart=false&provider=yfinance&symbol=MSFT&interval=1d&adjustment=splits_only&extended_hours=false&adjusted=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=100000&include_actions=true&prepost=false
 	apiURL := "http://openbb:8001/api/v1/equity/price/historical?chart=false&provider=yfinance&interval=1d&adjustment=splits_only&extended_hours=false&adjusted=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=100000&include_actions=true&prepost=false"
 
-	sql := "select symbol from " + FYDataTables[FY_EOD] + " limit 20"
+	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 20"
 	results, err := c.db.RunQuery(sql, reflect.TypeFor[queryResult]())
 	if err != nil {
 		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
 	}
 	queryResults, ok := results.([]queryResult)
 	if !ok {
-		return errors.New("failed to run assert the query results are returned as a slice of queryResults")
-
+		return errors.New("failed to assert the slice of queryResults")
 	}
 
 	for _, row := range queryResults {

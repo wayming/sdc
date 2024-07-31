@@ -11,6 +11,7 @@ echo "export PROXYPASSWORD=$proxykey" >> ~/.profile
 
 echo "export SDC_HOME=/home/appuser" >> ~/.profile
 
+echo "export PATH=/home/appuser/go/bin:$PATH" >> ~/.profile
 sleep infinity
 
 /bin/bash
