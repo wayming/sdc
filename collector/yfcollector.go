@@ -66,6 +66,7 @@ func (c *YFCollector) EOD() error {
 
 	for _, row := range queryResults {
 		sdclogger.SDCLoggerInstance.Println("Load EDO for symbool", row.Symbol)
+		apiURL += "&symbol=" + row.Symbol
 		textJSON, err := c.reader.Read(apiURL, map[string]string{"symbols": row.Symbol})
 		if err != nil {
 			return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())

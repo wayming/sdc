@@ -87,15 +87,30 @@ func TestYFCollector_EOD(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	type queryResult struct {
-		Symbol string
-	}
-
 	yfDBMock = dbloader.NewMockDBLoader(mockCtrl)
 	yfDBMock.EXPECT().CreateSchema(YF_TEST_SCHEMA_NAME)
 	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
+
 	yfDBMock.EXPECT().RunQuery("select symbol from fy_tickers limit 20", gomock.Any()).
-		Return([]queryResult{{Symbol: "MSFT"}}, nil)
+		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
+			// Validate the struct type
+			if resultType.NumField() != 1 {
+				t.Errorf("Expecting one field for the result struct, however, got %d", resultType.NumField())
+			}
+			if resultType.Field(0).Type.Kind() != reflect.String {
+				t.Errorf("Expecting a string field for the result struct, however, got %v", resultType.Field(0).Type.Kind())
+			}
+
+			// Create a slice of the result type
+			sliceType := reflect.SliceOf(resultType)
+			result := reflect.MakeSlice(sliceType, 0, 0)
+
+			// Create a new instance of result type
+			row := reflect.New(resultType).Elem()
+			row.Field(0).SetString("MSFT")
+			result = reflect.Append(result, row)
+			return result.Interface(), nil
+		})
 	// Return([]struct{ Symbol string }{{Symbol: "MSFT"}}, nil)
 
 	yfExporterMock.AddExporter(NewYFFileExporter())

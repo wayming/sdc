@@ -26,7 +26,7 @@ type FYEOD struct {
 	High       float64 `json:"high"`
 	Low        float64 `json:"low"`
 	Close      float64 `json:"close"`
-	Volume     int64   `json:"volume"`
+	Volume     float64 `json:"volume"`
 	SplitRatio float64 `json:"split_ratio"`
 	Dividend   float64 `json:"dividend"`
 }
