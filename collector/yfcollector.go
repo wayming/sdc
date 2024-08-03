@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 
@@ -40,7 +41,7 @@ func (c *YFCollector) Tickers() error {
 		return err
 	}
 
-	if err := c.exporters.Export(FY_TICKERS, dataText); err != nil {
+	if err := c.exporters.Export(FY_TICKERS, strings.ToLower(FYDataTables[FY_TICKERS]), dataText); err != nil {
 		return err
 	}
 
@@ -61,6 +62,8 @@ func (c *YFCollector) EOD() error {
 	queryResults, ok := results.([]queryResult)
 	if !ok {
 		return errors.New("failed to assert the slice of queryResults")
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
 	}
 
 	params := map[string]string{
@@ -86,8 +89,8 @@ func (c *YFCollector) EOD() error {
 		if err != nil {
 			if serverError, ok := err.(HttpServerError); ok {
 				if serverError.status == http.StatusBadRequest {
-					sdclogger.SDCLoggerInstance.Printf("No data found for %s", row.Symbol)
-					return nil
+					sdclogger.SDCLoggerInstance.Printf("No data found for %s, continue processing.", row.Symbol)
+					continue
 				}
 			}
 			return errors.New("Failed to load data from url " + baseURL + ", Error: " + err.Error())
@@ -100,10 +103,11 @@ func (c *YFCollector) EOD() error {
 		}
 
 		if len(dataText) > 0 {
-			if err := c.exporters.Export(FY_EOD, dataText); err != nil {
+			tableName := strings.ToLower(FYDataTables[FY_EOD] + "_" + row.Symbol)
+			if err := c.exporters.Export(FY_EOD, tableName, dataText); err != nil {
 				return err
 			}
-			sdclogger.SDCLoggerInstance.Printf("Loaded EOD rows to %s", FYDataTables[FY_EOD])
+			sdclogger.SDCLoggerInstance.Printf("Loaded EOD rows to %s", tableName)
 		} else {
 			sdclogger.SDCLoggerInstance.Printf("No data found for %s", row.Symbol)
 		}
@@ -133,7 +137,7 @@ func ExtractData(textJSON string, t reflect.Type) (string, error) {
 }
 
 // Entry Function
-func YFCollect(schemaName string, csvFile string) error {
+func YFCollect(schemaName string, fileCSV string) error {
 	db := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	db.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -149,18 +153,18 @@ func YFCollect(schemaName string, csvFile string) error {
 
 	cl := NewYFCollector(reader, &exports, db)
 
-	if len(csvFile) > 0 {
-		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
+	if len(fileCSV) > 0 {
+		reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)
 		if err != nil {
-			return errors.New("Failed to open file " + csvFile)
+			return errors.New("Failed to open file " + fileCSV)
 		}
 
 		text, err := io.ReadAll(reader)
 		if err != nil {
-			return errors.New("Failed to read file " + csvFile)
+			return errors.New("Failed to read file " + fileCSV)
 		}
 
-		if err := exports.Export(FY_EOD, string(text)); err != nil {
+		if err := exports.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
 			return err
 		}
 

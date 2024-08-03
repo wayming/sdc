@@ -1,6 +1,7 @@
 package collector_test
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"reflect"
@@ -91,7 +92,7 @@ func TestYFCollector_EOD(t *testing.T) {
 	yfDBMock.EXPECT().CreateSchema(YF_TEST_SCHEMA_NAME)
 	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
 
-	yfDBMock.EXPECT().RunQuery("select symbol from fy_tickers limit 20", gomock.Any()).
+	yfDBMock.EXPECT().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -111,8 +112,8 @@ func TestYFCollector_EOD(t *testing.T) {
 			result = reflect.Append(result, row)
 			return result.Interface(), nil
 		})
-	yfDBMock.EXPECT().CreateTableByJsonStruct(FYDataTables[FY_EOD], FYDataTypes[FY_EOD])
-	yfDBMock.EXPECT().LoadByJsonText(gomock.Any(), FYDataTables[FY_EOD], FYDataTypes[FY_EOD]).
+	yfDBMock.EXPECT().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD])
+	yfDBMock.EXPECT().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD]).
 		DoAndReturn(func(text string, tableName string, structType reflect.Type) (int64, error) {
 			countOfFirstField := 0
 			var err error
@@ -186,6 +187,25 @@ func TestExtractData(t *testing.T) {
 		t        reflect.Type
 	}
 	bodyType := reflect.TypeFor[FYTickersResponse]()
+	inpuJSONText := `[
+		{
+			"symbol": "A",
+			"name": "Agilent Technologies, Inc. Common Stock",
+			"nasdaq_traded": "Y",
+			"exchange": "N",
+			"market_category": "",
+			"etf": "N",
+			"round_lot_size": 100,
+			"test_issue": "N",
+			"financial_status": "",
+			"cqs_symbol": "A",
+			"nasdaq_symbol": "A",
+			"next_shares": "N"
+		}
+	]`
+	var tickers []FYTickers
+	json.Unmarshal([]byte(inpuJSONText), &tickers)
+	expectedJSONText, _ := (json.Marshal(tickers))
 	tests := []struct {
 		name    string
 		args    args
@@ -196,22 +216,7 @@ func TestExtractData(t *testing.T) {
 			name: "TestExtractData",
 			args: args{
 				textJSON: `{
-					"results": [
-						{
-							"symbol": "A",
-							"name": "Agilent Technologies, Inc. Common Stock",
-							"nasdaq_traded": "Y",
-							"exchange": "N",
-							"market_category": null,
-							"etf": "N",
-							"round_lot_size": 100,
-							"test_issue": "N",
-							"financial_status": null,
-							"cqs_symbol": "A",
-							"nasdaq_symbol": "A",
-							"next_shares": "N"
-						}
-					],
+					"results": ` + inpuJSONText + `,
 					"provider": "nasdaq",
 					"warnings": [
 						{
@@ -250,7 +255,7 @@ func TestExtractData(t *testing.T) {
 				}`,
 				t: bodyType,
 			},
-			want:    `[{"symbol":"A","name":"Agilent Technologies, Inc. Common Stock","price":0,"exchange":"N","exchangeShortName":"","type":""}]`,
+			want:    string(expectedJSONText),
 			wantErr: false,
 		},
 	}

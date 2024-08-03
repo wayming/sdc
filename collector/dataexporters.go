@@ -9,7 +9,7 @@ import (
 )
 
 type IDataExporter interface {
-	Export(entity string, data string) error
+	Export(entity string, table string, data string) error
 }
 
 type FileExporter struct {
@@ -24,8 +24,8 @@ func NewYFFileExporter() *FileExporter {
 	return &FileExporter{path: dir}
 }
 
-func (e FileExporter) Export(entity string, data string) error {
-	fileName := e.path + "/" + entity + ".csv"
+func (e FileExporter) Export(entity string, table string, data string) error {
+	fileName := e.path + "/" + table + ".csv"
 	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to write to file %s: %v", fileName, err)
 	}
@@ -45,16 +45,16 @@ func NewYFDBExporter(db dbloader.DBLoader, schema string) *DBExporter {
 		schema: schema}
 }
 
-func (e DBExporter) Export(entity string, data string) error {
-	if err := e.db.CreateTableByJsonStruct(FYDataTables[entity], FYDataTypes[entity]); err != nil {
+func (e DBExporter) Export(entity string, table string, data string) error {
+	if err := e.db.CreateTableByJsonStruct(table, FYDataTypes[entity]); err != nil {
 		return err
 	}
 
-	numOfRows, err := e.db.LoadByJsonText(data, FYDataTables[entity], FYDataTypes[entity])
+	numOfRows, err := e.db.LoadByJsonText(data, table, FYDataTypes[entity])
 	if err != nil {
-		return fmt.Errorf("failed to load json text to table %s: %v", FYDataTables[entity], err)
+		return fmt.Errorf("failed to load json text to table %s: %v", table, err)
 	}
-	sdclogger.SDCLoggerInstance.Printf("%d rows were loaded into %s:%s", numOfRows, e.schema, FYDataTables[entity])
+	sdclogger.SDCLoggerInstance.Printf("%d rows were loaded into %s:%s", numOfRows, e.schema, table)
 	return nil
 }
 
@@ -65,9 +65,9 @@ type YFDataExporter struct {
 func (e *YFDataExporter) AddExporter(exp IDataExporter) {
 	e.exporters = append(e.exporters, exp)
 }
-func (e *YFDataExporter) Export(entity string, data string) error {
+func (e *YFDataExporter) Export(entity string, table string, data string) error {
 	for _, exporter := range e.exporters {
-		if err := exporter.Export(entity, data); err != nil {
+		if err := exporter.Export(entity, table, data); err != nil {
 			return err
 		}
 	}
