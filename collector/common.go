@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
@@ -118,4 +119,14 @@ func CacheCleanup() {
 	cm.DeleteSet(CACHE_KEY_SYMBOL_REDIRECTED)
 	cm.DeleteSet(CACHE_KEY_SYMBOL_INVALID)
 	cm.Disconnect()
+}
+
+func CountMatches(text string, pattern string) (int, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return 0, err
+	}
+	matches := re.FindAllString(text, -1)
+	fmt.Printf("%v", matches)
+	return len(re.FindAllString(text, -1)), nil
 }

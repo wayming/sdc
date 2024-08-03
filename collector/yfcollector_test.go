@@ -111,7 +111,31 @@ func TestYFCollector_EOD(t *testing.T) {
 			result = reflect.Append(result, row)
 			return result.Interface(), nil
 		})
-	// Return([]struct{ Symbol string }{{Symbol: "MSFT"}}, nil)
+	yfDBMock.EXPECT().CreateTableByJsonStruct(FYDataTables[FY_EOD], FYDataTypes[FY_EOD])
+	yfDBMock.EXPECT().LoadByJsonText(gomock.Any(), FYDataTables[FY_EOD], FYDataTypes[FY_EOD]).
+		DoAndReturn(func(text string, tableName string, structType reflect.Type) (int64, error) {
+			countOfFirstField := 0
+			var err error
+			if countOfFirstField, err = CountMatches(text, `"`+structType.Field(0).Tag.Get("json")+`"`); err != nil {
+				t.Errorf("Failed to get the count of entries for field %s. Error: %v", structType.Field(0).Name, err)
+			}
+			if countOfFirstField == 0 {
+				t.Errorf("Got 0 entries for field %s", structType.Field(0).Name)
+
+			}
+			for i := 0; i < structType.NumField(); i++ {
+				countOfCurrentField, err := CountMatches(text, `"`+structType.Field(i).Tag.Get("json")+`"`)
+				if err != nil {
+					t.Errorf("Failed to get the count of entries for field %s. Error: %v",
+						structType.Field(i).Name, err)
+				}
+				if countOfCurrentField != countOfFirstField {
+					t.Errorf("Field %s and field %s has different occurences. %d vs %d",
+						structType.Field(i).Name, structType.Field(0).Name, countOfCurrentField, countOfFirstField)
+				}
+			}
+			return int64(countOfFirstField), nil
+		})
 
 	yfExporterMock.AddExporter(NewYFFileExporter())
 	yfExporterMock.AddExporter(NewYFDBExporter(yfDBMock, YF_TEST_SCHEMA_NAME))

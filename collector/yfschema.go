@@ -31,8 +31,8 @@ type FYEOD struct {
 	Dividend   float64 `json:"dividend"`
 }
 
-type FYEODBody struct {
-	Data []FYEOD `json:"results"`
+type FYEODResponse struct {
+	Results []FYEOD `json:"results"`
 }
 
 type FYTickersResponse struct {

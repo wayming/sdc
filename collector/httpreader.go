@@ -42,7 +42,7 @@ func (reader HttpReader) RedirectedUrl(url string) (string, error) {
 func (r *HttpReader) Read(url string, params map[string]string) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create GET request for %s: %v", url, err)
+		return "", fmt.Errorf("failed to create GET request for %s: %v", url, err)
 	}
 
 	// req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
@@ -69,11 +69,10 @@ func (r *HttpReader) Read(url string, params map[string]string) (string, error) 
 	var res *http.Response
 	res, err = r.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Failed to perform request for %s: %v", url, err)
+		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		// Return on error other than too many requests or retrr exhausted
 		return "",
 			NewHttpServerError(
 				res.StatusCode, res.Header,

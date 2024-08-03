@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -51,10 +52,8 @@ func (c *YFCollector) EOD() error {
 		Symbol string
 	}
 
-	// /http://localhost:8001/api/v1/equity/price/historical?chart=false&provider=yfinance&symbol=MSFT&interval=1d&adjustment=splits_only&extended_hours=false&adjusted=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=100000&include_actions=true&prepost=false
-	apiURL := "http://openbb:8001/api/v1/equity/price/historical?chart=false&provider=yfinance&interval=1d&adjustment=splits_only&extended_hours=false&adjusted=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=100000&include_actions=true&prepost=false"
-
-	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 20"
+	baseURL := "http://openbb:8001/api/v1/equity/price/historical"
+	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 200"
 	results, err := c.db.RunQuery(sql, reflect.TypeFor[queryResult]())
 	if err != nil {
 		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
@@ -64,15 +63,38 @@ func (c *YFCollector) EOD() error {
 		return errors.New("failed to assert the slice of queryResults")
 	}
 
+	params := map[string]string{
+		"chart":           "false",
+		"provider":        "yfinance",
+		"interval":        "1d",
+		"start_date":      "2000-01-01",
+		"adjustment":      "splits_only",
+		"extended_hours":  "false",
+		"adjusted":        "false",
+		"use_cache":       "true",
+		"timezone":        "America/New_York",
+		"source":          "realtime",
+		"sort":            "asc",
+		"limit":           "49999",
+		"include_actions": "true",
+		"prepost":         "false",
+	}
 	for _, row := range queryResults {
 		sdclogger.SDCLoggerInstance.Println("Load EDO for symbool", row.Symbol)
-		apiURL += "&symbol=" + row.Symbol
-		textJSON, err := c.reader.Read(apiURL, map[string]string{"symbols": row.Symbol})
+		params["symbol"] = row.Symbol
+		textJSON, err := c.reader.Read(baseURL, params)
 		if err != nil {
-			return errors.New("Failed to load data from url " + apiURL + ", Error: " + err.Error())
+			if serverError, ok := err.(HttpServerError); ok {
+				if serverError.status == http.StatusBadRequest {
+					sdclogger.SDCLoggerInstance.Printf("No data found for %s", row.Symbol)
+					return nil
+				}
+			}
+			return errors.New("Failed to load data from url " + baseURL + ", Error: " + err.Error())
 		}
+		sdclogger.SDCLoggerInstance.Printf("EOD received:\n%s", textJSON)
 
-		dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODBody]())
+		dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODResponse]())
 		if err != nil {
 			return err
 		}
@@ -122,8 +144,8 @@ func YFCollect(schemaName string, csvFile string) error {
 	reader := NewHttpReader(NewLocalClient())
 
 	var exports YFDataExporter
-	exports.AddExporter(NewYFFileExporter())
 	exports.AddExporter(NewYFDBExporter(db, schemaName))
+	exports.AddExporter(NewYFFileExporter())
 
 	cl := NewYFCollector(reader, &exports, db)
 
