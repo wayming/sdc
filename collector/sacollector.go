@@ -793,7 +793,7 @@ func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) erro
 }
 
 // Entry function
-func CollectorInit(schemaName string, proxyFile string, isContinue bool) error {
+func Init(schemaName string, proxyFile string, isContinue bool) error {
 	var allSymbols int64
 	var err error
 
@@ -848,7 +848,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	var allSymbols int64
 	var errorSymbols int64
 
-	if err := CollectorInit(schemaName, proxyFile, isContinue); err != nil {
+	if err := Init(schemaName, proxyFile, isContinue); err != nil {
 		return 0, err
 	}
 

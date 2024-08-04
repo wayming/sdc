@@ -15,17 +15,13 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-type IParallelCollector interface {
-	Execute(parallel int) (int64, error)
-}
-
-type ICollectWorker interface {
-	collectorDo(col *SACollector, symbol string) error
-	// collectorInit(schemaName string, proxyFile string, isContinue bool) error
+type IWorker interface {
+	Init(schemaName string, proxyFile string, isContinue bool) error
+	Do(symbol string) error
 }
 
 type ParallelCollector struct {
-	Worker ICollectWorker
+	Worker IWorker
 	Schema string
 }
 
@@ -106,7 +102,7 @@ func (pw *ParallelCollector) Execute(parallel int) (int64, error) {
 					break
 				}
 
-				err = pw.Worker.collectorDo(col, nextSymbol)
+				err = pw.Worker.Do(col, nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 
@@ -187,7 +183,7 @@ type FinancialOverviewWorker struct {
 type FinancialDetailsWorker struct {
 }
 
-func (c *RedirectedWorker) collectorInit(schemaName string, proxyFile string, isContinue bool) error {
+func (c *RedirectedWorker) Init(schemaName string, proxyFile string, isContinue bool) error {
 	cacheManager := cache.NewCacheManager()
 	if err := cacheManager.Connect(); err != nil {
 		return err
@@ -233,7 +229,7 @@ func (c *RedirectedWorker) collectorInit(schemaName string, proxyFile string, is
 	}
 }
 
-func (c *RedirectedWorker) collectorDo(col *SACollector, symbol string) error {
+func (c *RedirectedWorker) Do(col *SACollector, symbol string) error {
 	if rsymbol, err := col.MapRedirectedSymbol(symbol); err != nil {
 		return err
 	} else if len(rsymbol) > 0 {
@@ -249,7 +245,7 @@ func (c *RedirectedWorker) collectorDo(col *SACollector, symbol string) error {
 	return nil
 }
 
-func (c *FinancialOverviewWorker) collectorInit(isContinue bool) error {
+func (c *FinancialOverviewWorker) Init(isContinue bool) error {
 	cacheManager := cache.NewCacheManager()
 	if err := cacheManager.Connect(); err != nil {
 		return err
@@ -269,7 +265,7 @@ func (c *FinancialOverviewWorker) collectorInit(isContinue bool) error {
 	}
 	return nil
 }
-func (c *FinancialOverviewWorker) collectorDo(col *SACollector, symbol string) error {
+func (c *FinancialOverviewWorker) Do(col *SACollector, symbol string) error {
 	if _, err := col.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
 		return err
 	} else {
@@ -277,7 +273,7 @@ func (c *FinancialOverviewWorker) collectorDo(col *SACollector, symbol string) e
 	}
 }
 
-func (c *FinancialDetailsWorker) collectorInit(isContinue bool) error {
+func (c *FinancialDetailsWorker) Init(isContinue bool) error {
 	cacheManager := cache.NewCacheManager()
 	if err := cacheManager.Connect(); err != nil {
 		return err
@@ -297,7 +293,7 @@ func (c *FinancialDetailsWorker) collectorInit(isContinue bool) error {
 	}
 	return nil
 }
-func (c *FinancialDetailsWorker) collectorDo(col *SACollector, symbol string) error {
+func (c *FinancialDetailsWorker) Do(col *SACollector, symbol string) error {
 	var retErr error
 
 	if _, err := col.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
@@ -319,20 +315,20 @@ func (c *FinancialDetailsWorker) collectorDo(col *SACollector, symbol string) er
 	return retErr
 }
 
-func NewRedirectedParallelCollector(schemaName string, proxyFile string, isContinue bool) IParallelCollector {
+func NewRedirectedParallelCollector(schemaName string, proxyFile string, isContinue bool) ParallelCollector {
 	worker := RedirectedWorker{}
-	worker.collectorInit(schemaName, proxyFile, isContinue)
+	worker.Init(schemaName, proxyFile, isContinue)
 	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }
 
-func NewFinancialOverviewParallelCollector(schemaName string, isContinue bool) IParallelCollector {
+func NewFinancialOverviewParallelCollector(schemaName string, isContinue bool) ParallelCollector {
 	worker := FinancialOverviewWorker{}
-	worker.collectorInit(isContinue)
+	worker.Init(isContinue)
 	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }
 
-func NewFinancialDetailsParallelCollector(schemaName string, isContinue bool) IParallelCollector {
+func NewFinancialDetailsParallelCollector(schemaName string, isContinue bool) ParallelCollector {
 	worker := FinancialDetailsWorker{}
-	worker.collectorInit(isContinue)
+	worker.Init(isContinue)
 	return &ParallelCollector{Worker: &worker, Schema: schemaName}
 }

@@ -48,24 +48,8 @@ func (c *YFCollector) Tickers() error {
 	return nil
 }
 
-func (c *YFCollector) EOD() error {
-	type queryResult struct {
-		Symbol string
-	}
-
+func (c *YFCollector) EODForSymbol(symbol string) error {
 	baseURL := "http://openbb:8001/api/v1/equity/price/historical"
-	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 200"
-	results, err := c.db.RunQuery(sql, reflect.TypeFor[queryResult]())
-	if err != nil {
-		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
-	}
-	queryResults, ok := results.([]queryResult)
-	if !ok {
-		return errors.New("failed to assert the slice of queryResults")
-	} else {
-		sdclogger.SDCLoggerInstance.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
-	}
-
 	params := map[string]string{
 		"chart":           "false",
 		"provider":        "yfinance",
@@ -82,36 +66,61 @@ func (c *YFCollector) EOD() error {
 		"include_actions": "true",
 		"prepost":         "false",
 	}
-	for _, row := range queryResults {
-		sdclogger.SDCLoggerInstance.Println("Load EDO for symbool", row.Symbol)
-		params["symbol"] = row.Symbol
-		textJSON, err := c.reader.Read(baseURL, params)
-		if err != nil {
-			if serverError, ok := err.(HttpServerError); ok {
-				if serverError.status == http.StatusBadRequest {
-					sdclogger.SDCLoggerInstance.Printf("No data found for %s, continue processing.", row.Symbol)
-					continue
-				}
-			}
-			return errors.New("Failed to load data from url " + baseURL + ", Error: " + err.Error())
-		}
-		sdclogger.SDCLoggerInstance.Printf("EOD received:\n%s", textJSON)
 
-		dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODResponse]())
-		if err != nil {
+	sdclogger.SDCLoggerInstance.Println("Load EDO for symbool", symbol)
+
+	params["symbol"] = symbol
+	textJSON, err := c.reader.Read(baseURL, params)
+	if err != nil {
+		if serverError, ok := err.(HttpServerError); ok {
+			if serverError.status == http.StatusBadRequest {
+				sdclogger.SDCLoggerInstance.Printf("No data found for %s, continue processing.", symbol)
+				return nil
+			}
+		}
+		return errors.New("Failed to load data from url " + baseURL + ", Error: " + err.Error())
+	}
+	sdclogger.SDCLoggerInstance.Printf("EOD received:\n%s", textJSON)
+
+	dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODResponse]())
+	if err != nil {
+		return err
+	}
+
+	if len(dataText) > 0 {
+		tableName := strings.ToLower(FYDataTables[FY_EOD] + "_" + symbol)
+		if err := c.exporters.Export(FY_EOD, tableName, dataText); err != nil {
 			return err
 		}
+		sdclogger.SDCLoggerInstance.Printf("Successfully loaded EOD rows to %s", tableName)
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("No data found for %s", symbol)
+	}
 
-		if len(dataText) > 0 {
-			tableName := strings.ToLower(FYDataTables[FY_EOD] + "_" + row.Symbol)
-			if err := c.exporters.Export(FY_EOD, tableName, dataText); err != nil {
-				return err
-			}
-			sdclogger.SDCLoggerInstance.Printf("Loaded EOD rows to %s", tableName)
-		} else {
-			sdclogger.SDCLoggerInstance.Printf("No data found for %s", row.Symbol)
+	return nil
+}
+
+func (c *YFCollector) EOD() error {
+	type queryResult struct {
+		Symbol string
+	}
+
+	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 10"
+	results, err := c.db.RunQuery(sql, reflect.TypeFor[queryResult]())
+	if err != nil {
+		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
+	}
+	queryResults, ok := results.([]queryResult)
+	if !ok {
+		return errors.New("failed to assert the slice of queryResults")
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
+	}
+
+	for _, row := range queryResults {
+		if err := c.EODForSymbol(row.Symbol); err != nil {
+			return err
 		}
-
 	}
 
 	return nil
