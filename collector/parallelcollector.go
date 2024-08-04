@@ -16,8 +16,9 @@ import (
 )
 
 type IWorker interface {
-	Init(schemaName string, proxyFile string, isContinue bool) error
+	Init(schemaName string, logFile string, isContinue bool) error
 	Do(symbol string) error
+	Done() error
 }
 
 type ParallelCollector struct {
@@ -182,6 +183,13 @@ type FinancialOverviewWorker struct {
 
 type FinancialDetailsWorker struct {
 }
+type EODWorker struct {
+	logger    *log.Logger
+	db        dbloader.DBLoader
+	reader    IHttpReader
+	collector *YFCollector
+	exporter  YFDataExporter
+}
 
 func (c *RedirectedWorker) Init(schemaName string, proxyFile string, isContinue bool) error {
 	cacheManager := cache.NewCacheManager()
@@ -313,6 +321,27 @@ func (c *FinancialDetailsWorker) Do(col *SACollector, symbol string) error {
 	}
 
 	return retErr
+}
+
+func (c *EODWorker) Init(schemaName string, logger *log.Logger, isContinue bool) error {
+	// Logger
+	c.logger = logger
+
+	// db
+	c.db = dbloader.NewPGLoader(schemaName, c.logger)
+	c.db.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+
+	// http reader
+	c.reader = NewHttpReader(NewLocalClient())
+
+	// Data exporter
+	c.exporter = YFDataExporter{}
+	c.exporter.AddExporter(NewYFDBExporter(c.db, schemaName))
+	c.collector = NewYFCollector(c.reader, &c.exporter, c.db)
 }
 
 func NewRedirectedParallelCollector(schemaName string, proxyFile string, isContinue bool) ParallelCollector {

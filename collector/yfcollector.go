@@ -156,11 +156,11 @@ func YFCollect(schemaName string, fileCSV string) error {
 
 	reader := NewHttpReader(NewLocalClient())
 
-	var exports YFDataExporter
-	exports.AddExporter(NewYFDBExporter(db, schemaName))
-	exports.AddExporter(NewYFFileExporter())
+	var exporters YFDataExporter
+	exporters.AddExporter(NewYFDBExporter(db, schemaName))
+	exporters.AddExporter(NewYFFileExporter())
 
-	cl := NewYFCollector(reader, &exports, db)
+	cl := NewYFCollector(reader, &exporters, db)
 
 	if len(fileCSV) > 0 {
 		reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)
@@ -173,7 +173,7 @@ func YFCollect(schemaName string, fileCSV string) error {
 			return errors.New("Failed to read file " + fileCSV)
 		}
 
-		if err := exports.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
+		if err := exporters.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
 			return err
 		}
 
