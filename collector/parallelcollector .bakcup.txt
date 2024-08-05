@@ -16,7 +16,7 @@ import (
 )
 
 type IWorker interface {
-	Init() error
+	Init(schemaName string, logFile string, isContinue bool) error
 	Do(symbol string) error
 	Done() error
 }
@@ -24,18 +24,6 @@ type IWorker interface {
 type ParallelCollector struct {
 	Worker IWorker
 	Schema string
-}
-
-const (
-	SUCCESS = iota
-	WORKER_INIT_FAILURE
-	SERVER_SYMBOL_NOT_VALID
-)
-
-type Response struct {
-	Symbol    string
-	ErrorID   int
-	ErrorText string
 }
 
 func (pw *ParallelCollector) Execute(parallel int) (int64, error) {
@@ -60,76 +48,49 @@ func (pw *ParallelCollector) Execute(parallel int) (int64, error) {
 	}
 
 	var wg sync.WaitGroup
-	inChan := make(chan string)
-	outChan := make(chan Response)
+	outChan := make(chan string)
+	for i := 0; i < parallel; i++ {
+		wg.Add(1)
+		go func(goID string, schemaName string, inChan chan string, outChan chan string, wg *sync.WaitGroup) {
+			defer wg.Done()
 
-	worker := func(goID string, inChan chan string, outChan chan Response, wg *sync.WaitGroup) {
+			// Logger
+			file, _ := os.OpenFile(LOG_FILE+"."+goID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+			defer file.Close()
+			logger.Println("[Go" + goID + "] started.")
 
-		defer wg.Done()
+			if err := pw.Worker.Init(); err != nil {
 
-		// Logger
-		file, _ := os.OpenFile(LOG_FILE+"."+goID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-		logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-		defer file.Close()
-
-		logMessage := func(text string) {
-			logger.Println("[Go" + goID + "] " + text)
-		}
-
-		logMessage("Begin")
-
-		if err := pw.Worker.Init(); err != nil {
-			logMessage(err.Error())
-			outChan <- Response{
-				"", WORKER_INIT_FAILURE, err.Error(),
 			}
-			return
-		}
 
-		for symbol := range inChan {
-			if err := pw.Worker.Do(symbol); err != nil {
-				logMessage(err.Error())
+			err = pw.Worker.Do(col, nextSymbol)
+			if err != nil {
+				logger.Printf("[Go%s] error: %s", goID, err.Error())
 
+				cacheKey := CACHE_KEY_SYMBOL_ERROR
 				e, ok := err.(HttpServerError)
 				if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-					outChan <- Response{
-						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
-					}
-					continue
+					cacheKey = CACHE_KEY_SYMBOL_INVALID
 				}
 
-				outChan <- Response{
-					symbol, SUCCESS, "",
+				logger.Printf("[Go%s] Add %s to cache key %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
+				if cacheError := cm.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+					logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+					outChan <- cacheError.Error()
 				}
+
+				outChan <- err.Error()
 			}
-		}
 
-		logMessage("Finish")
+			logger.Println("[Go" + goID + "] finished.")
+		}(strconv.Itoa(i), pw.Schema, outChan, &wg)
 	}
 
-	i := 0
-	for ; i < parallel; i++ {
-		wg.Add(1)
-		worker(strconv.Itoa(i), inChan, outChan, &wg)
-	}
-
-	// Cleanup
 	go func() {
 		wg.Wait()
-		close(inChan)
 		close(outChan)
 	}()
-
-	for symbol, err := cm.GetFromSet(CACHE_KEY_SYMBOL); err != nil; {
-		inChan <- symbol
-	}
-	for resp := range outChan {
-		if resp.ErrorID == WORKER_INIT_FAILURE {
-			wg.Add(1)
-			worker(strconv.Itoa(i), inChan, outChan, &wg)
-			i++
-		}
-	}
 
 	// var wg sync.WaitGroup
 	// outChan := make(chan string)
@@ -273,7 +234,6 @@ type EODWorker struct {
 	reader    IHttpReader
 	collector *YFCollector
 	exporter  YFDataExporter
-	schema    string
 }
 
 func (c *RedirectedWorker) Init(schemaName string, proxyFile string, isContinue bool) error {
@@ -408,9 +368,12 @@ func (c *FinancialDetailsWorker) Do(col *SACollector, symbol string) error {
 	return retErr
 }
 
-func (c *EODWorker) Init() error {
+func (c *EODWorker) Init(schemaName string, logger *log.Logger, isContinue bool) error {
+	// Logger
+	c.logger = logger
+
 	// db
-	c.db = dbloader.NewPGLoader(c.schema, c.logger)
+	c.db = dbloader.NewPGLoader(schemaName, c.logger)
 	c.db.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -422,11 +385,8 @@ func (c *EODWorker) Init() error {
 
 	// Data exporter
 	c.exporter = YFDataExporter{}
-	c.exporter.AddExporter(NewYFDBExporter(c.db, c.schema))
-
-	// Collector
+	c.exporter.AddExporter(NewYFDBExporter(c.db, schemaName))
 	c.collector = NewYFCollector(c.reader, &c.exporter, c.db)
-	return nil
 }
 
 func NewRedirectedParallelCollector(schemaName string, proxyFile string, isContinue bool) ParallelCollector {
