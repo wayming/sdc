@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -19,13 +20,19 @@ type YFCollector struct {
 	reader    IHttpReader
 	exporters IDataExporter
 	db        dbloader.DBLoader
+	logger    *log.Logger
 }
 
-func NewYFCollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader) *YFCollector {
+func NewYFCollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader, l *log.Logger) *YFCollector {
+	logger := l
+	if logger == nil {
+		logger = &sdclogger.SDCLoggerInstance.Logger
+	}
 	return &YFCollector{
 		reader:    httpReader,
 		exporters: exporters,
 		db:        db,
+		logger:    logger,
 	}
 }
 
@@ -67,20 +74,20 @@ func (c *YFCollector) EODForSymbol(symbol string) error {
 		"prepost":         "false",
 	}
 
-	sdclogger.SDCLoggerInstance.Println("Load EDO for symbool", symbol)
+	c.logger.Println("Load EDO for symbool", symbol)
 
 	params["symbol"] = symbol
 	textJSON, err := c.reader.Read(baseURL, params)
 	if err != nil {
 		if serverError, ok := err.(HttpServerError); ok {
 			if serverError.status == http.StatusBadRequest {
-				sdclogger.SDCLoggerInstance.Printf("No data found for %s, continue processing.", symbol)
+				c.logger.Printf("No data found for %s, continue processing.", symbol)
 				return nil
 			}
 		}
 		return errors.New("Failed to load data from url " + baseURL + ", Error: " + err.Error())
 	}
-	sdclogger.SDCLoggerInstance.Printf("EOD received:\n%s", textJSON)
+	c.logger.Printf("EOD received:\n%s", textJSON)
 
 	dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODResponse]())
 	if err != nil {
@@ -92,9 +99,9 @@ func (c *YFCollector) EODForSymbol(symbol string) error {
 		if err := c.exporters.Export(FY_EOD, tableName, dataText); err != nil {
 			return err
 		}
-		sdclogger.SDCLoggerInstance.Printf("Successfully loaded EOD rows to %s", tableName)
+		c.logger.Printf("Successfully loaded EOD rows to %s", tableName)
 	} else {
-		sdclogger.SDCLoggerInstance.Printf("No data found for %s", symbol)
+		c.logger.Printf("No data found for %s", symbol)
 	}
 
 	return nil
@@ -114,7 +121,7 @@ func (c *YFCollector) EOD() error {
 	if !ok {
 		return errors.New("failed to assert the slice of queryResults")
 	} else {
-		sdclogger.SDCLoggerInstance.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
+		c.logger.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
 	}
 
 	for _, row := range queryResults {
@@ -160,7 +167,7 @@ func YFCollect(schemaName string, fileCSV string) error {
 	exporters.AddExporter(NewYFDBExporter(db, schemaName))
 	exporters.AddExporter(NewYFFileExporter())
 
-	cl := NewYFCollector(reader, &exporters, db)
+	cl := NewYFCollector(reader, &exporters, db, &sdclogger.SDCLoggerInstance.Logger)
 
 	if len(fileCSV) > 0 {
 		reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)

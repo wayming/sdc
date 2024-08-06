@@ -9,7 +9,7 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int, error) {
+func LoadProxies(cm ICacheManager, key string, proxyFile string) (int, error) {
 	content, err := os.ReadFile(proxyFile)
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Println("Failed to get proxies from file " + proxyFile + ". Error: " + err.Error())
@@ -19,7 +19,7 @@ func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int,
 	added := 0
 
 	for _, proxy := range validProxies {
-		if err := cacheManager.AddToSet(key, proxy); err != nil {
+		if err := cm.AddToSet(key, proxy); err != nil {
 			sdclogger.SDCLoggerInstance.Println(err.Error())
 		} else {
 			added++

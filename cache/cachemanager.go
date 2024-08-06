@@ -9,6 +9,20 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
+type ICacheManager interface {
+	Disconnect() error
+	Connect() error
+	AddToSet(key string, value string) error
+	GetFromSet(key string) (string, error)
+	PopFromSet(key string) (string, error)
+	GetAllFromSet(key string) ([]string, error)
+	DeleteFromSet(key string, value string) error
+	GetLength(key string) (int64, error)
+	DeleteSet(key string) error
+	MoveSet(fromKey string, toKey string) error
+	CopySet(fromKey string, toKey string) error
+}
+
 type CacheManager struct {
 	clientHandle *redis.Client
 }
