@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
 	testcommon "github.com/wayming/sdc/utils"
 )
 
@@ -72,7 +73,7 @@ func TestYFCollector_Tickers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db)
+			c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db, &sdclogger.SDCLoggerInstance.Logger)
 			if err := c.Tickers(); (err != nil) != tt.wantErr {
 				t.Errorf("YFTickers() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -142,7 +143,7 @@ func TestYFCollector_EOD(t *testing.T) {
 	yfExporterMock.AddExporter(NewYFDBExporter(yfDBMock, YF_TEST_SCHEMA_NAME))
 
 	t.Run("TestYFCollector_EOD", func(t *testing.T) {
-		c := NewYFCollector(yfReader, &yfExporterMock, yfDBMock)
+		c := NewYFCollector(yfReader, &yfExporterMock, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
 		if err := c.EOD(); err != nil {
 			t.Errorf("YFCollector::EOD error=%v", err)
 		}
