@@ -125,13 +125,15 @@ func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
 		defer close(inChan) // Close the inChan when done
 		for {
 			symbol, err := pc.cache.GetFromSet(CACHE_KEY_SYMBOL)
+
 			if err != nil {
 				break // Exit on error
 			}
 			if len(symbol) == 0 {
-				sdclogger.SDCLoggerInstance.Println("All symbols are sent to in channel.")
+				sdclogger.SDCLoggerInstance.Println("All symbols are pushed into input channel.")
 				break
 			}
+			sdclogger.SDCLoggerInstance.Printf("Push %s into input channel.", symbol)
 			inChan <- symbol
 		}
 	}()
@@ -159,7 +161,7 @@ func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
 	var errorMessage string
 
 	// Check left symbols
-	if errorLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL); errorLen > 0 {
+	if leftLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL); leftLen > 0 {
 		lefts, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL)
 		sdclogger.SDCLoggerInstance.Printf("Left symbols: [%v]", lefts)
 		errorMessage += fmt.Sprintf("Left symbols: [%v]", lefts)

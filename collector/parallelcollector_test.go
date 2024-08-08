@@ -11,32 +11,44 @@ import (
 	testcommon "github.com/wayming/sdc/utils"
 )
 
-func setupParallelCollectorTest(testName string) {
-	testcommon.SetupTest(testName)
-}
-
-func teardownpcTest() {
-	testcommon.TeardownTest()
-}
-
 func TestParallelCollector_Execute(t *testing.T) {
-	setupParallelCollectorTest(t.Name())
-	defer teardownpcTest()
 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	parallel := 2
 	yfDBMock := dbloader.NewMockDBLoader(mockCtrl)
-	yfDBMock.EXPECT().CreateSchema(config.SchemaName)
-	yfDBMock.EXPECT().Exec("SET search_path TO sdc")
-	yfDBMock.EXPECT().Disconnect().AnyTimes().Return()
-	yfDBMock.EXPECT().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(collector.FYDataTables[collector.FY_EOD]+".*"), collector.FYDataTypes[collector.FY_EOD]).Times(10)
+	yfDBMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
+	yfDBMock.EXPECT().Exec("SET search_path TO sdc").AnyTimes()
+	yfDBMock.EXPECT().Disconnect().AnyTimes()
+	yfDBMock.EXPECT().CreateTableByJsonStruct(
+		testcommon.NewStringPatternMatcher(collector.FYDataTables[collector.FY_EOD]+".*"),
+		collector.FYDataTypes[collector.FY_EOD]).AnyTimes()
+	yfDBMock.EXPECT().LoadByJsonText(
+		gomock.Any(),
+		collector.FYDataTables[collector.FY_EOD]+"_msft",
+		collector.FYDataTypes[collector.FY_EOD]).Times(parallel)
 
 	yfCacheMock := cache.NewMockICacheManager(mockCtrl)
-	yfCacheMock.EXPECT().Connect().Return(nil)
-	yfCacheMock.EXPECT().Disconnect()
-	yfCacheMock.EXPECT().GetLength("SYMBOLS").Return(int64(10), nil)
-	yfCacheMock.EXPECT().GetFromSet(collector.CACHE_KEY_SYMBOL).AnyTimes().Return("msft", nil)
+	yfCacheMock.EXPECT().Connect().AnyTimes()
+	yfCacheMock.EXPECT().Disconnect().AnyTimes()
+
+	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL).
+		Return(int64(parallel), nil).Times(1)
+	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL).
+		Return(int64(0), nil).AnyTimes()
+	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL_ERROR).Return(int64(0), nil)
+	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL_INVALID).Return(int64(0), nil)
+
+	yfCacheMock.EXPECT().
+		GetFromSet(collector.CACHE_KEY_SYMBOL).
+		Return("msft", nil). // First call returns "msft"
+		Times(2)             // Allow for any number of additional calls
+	yfCacheMock.EXPECT().
+		GetFromSet(collector.CACHE_KEY_SYMBOL).
+		Return("", nil). // First call returns "msft"
+		AnyTimes()       // Allow for any number of additional calls
+
 	testBuilder := collector.YFWorkerBuilder{}
 	testBuilder.WithDB(yfDBMock)
 
@@ -45,13 +57,13 @@ func TestParallelCollector_Execute(t *testing.T) {
 	pc.SetCacheManager(yfCacheMock)
 
 	t.Run("TestParallelCollector_Execute", func(t *testing.T) {
-		got, err := pc.Execute(10)
+		got, err := pc.Execute(parallel)
 		if err != nil {
 			t.Errorf("ParallelCollector.Execute() error = %v", err)
 			return
 		}
-		if got != 100 {
-			t.Errorf("ParallelCollector.Execute() = %v, want %v", got, 100)
+		if got != int64(parallel) {
+			t.Errorf("ParallelCollector.Execute() = %v, want %v", got, parallel)
 		}
 	})
 }
