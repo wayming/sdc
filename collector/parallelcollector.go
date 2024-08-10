@@ -26,6 +26,17 @@ type ParallelCollector struct {
 	cache   cache.ICacheManager
 }
 
+type IWorkerBuilder interface {
+	WithLogger(l *log.Logger)
+	WithDB(db dbloader.DBLoader)
+	WithExporter(exp IDataExporter)
+	WithReader(r IHttpReader)
+	WithContinue(c bool)
+	WithCache(cm cache.ICacheManager)
+	Prepare() error
+	Build() IWorker
+}
+
 const (
 	SUCCESS = iota
 	WORKER_INIT_FAILURE
@@ -92,21 +103,27 @@ func (pc *ParallelCollector) workerRoutine(goID string, inChan chan string, outC
 	}
 	logMessage("Finish")
 }
-func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
+func (pc *ParallelCollector) Execute(parallel int) error {
 
-	var all int64
-	var errs int64
-	var invalids int64
+	var nAll int64
+	var nLeft int64
+	var summary string
 
 	if err := pc.cache.Connect(); err != nil {
-		return 0, err
+		return err
 	}
+
+	if err := pc.builder.Prepare(); err != nil {
+		return err
+	}
+
 	// Get total number of symbols to be processed
-	if all, _ = pc.cache.GetLength(CACHE_KEY_SYMBOL); all > 0 {
-		sdclogger.SDCLoggerInstance.Printf("%d symbols to be processed in parallel(%d).", all, parallel)
+	if nAll, _ = pc.cache.GetLength(CACHE_KEY_SYMBOL); nAll > 0 {
+		sdclogger.SDCLoggerInstance.Printf("%d symbols to be processed in parallel(%d).", nAll, parallel)
+		summary += fmt.Sprint("Total: %ld", nAll)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No symbol found.")
-		return 0, nil
+		return nil
 	}
 
 	var wg sync.WaitGroup
@@ -157,14 +174,11 @@ func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
 		}
 	}
 
-	// Errors from all go routines
-	var errorMessage string
-
 	// Check left symbols
-	if leftLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL); leftLen > 0 {
+	if nLeft, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL); nLeft > 0 {
 		lefts, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL)
 		sdclogger.SDCLoggerInstance.Printf("Left symbols: [%v]", lefts)
-		errorMessage += fmt.Sprintf("Left symbols: [%v]", lefts)
+		summary += fmt.Sprintf("Left: [%v]", lefts)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No left symbol.")
 	}
@@ -173,7 +187,7 @@ func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
 	if errorLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
 		errs, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		sdclogger.SDCLoggerInstance.Printf("Error Symbols: [%v]", errs)
-		errorMessage += fmt.Sprintf("Error symbols: [%v]", errs)
+		summary += fmt.Sprintf("Error: [%v]", errs)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No error symbol.")
 	}
@@ -182,15 +196,15 @@ func (pc *ParallelCollector) Execute(parallel int) (int64, error) {
 	if invalidLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
 		invalids, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
 		sdclogger.SDCLoggerInstance.Printf("Invalid Symbols: [%v]", invalids)
-		errorMessage += fmt.Sprintf("Invalid symbols: [%v]", invalids)
+		summary += fmt.Sprintf("Invalid: [%v]", invalids)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No invalid symbol.")
 	}
 
-	if len(errorMessage) > 0 {
-		return (all - errs - invalids), errors.New(errorMessage)
+	if nLeft > 0 {
+		return errors.New(summary)
 	} else {
-		return (all - errs - invalids), nil
+		return nil
 	}
 }
 func (pc *ParallelCollector) Done() {
@@ -215,15 +229,6 @@ type FinancialOverviewWorker struct {
 
 type FinancialDetailsWorker struct {
 	collector  *SACollector
-	isContinue bool
-}
-
-type YFEODWorker struct {
-	logger     *log.Logger
-	db         dbloader.DBLoader
-	reader     IHttpReader
-	exporter   IDataExporter
-	collector  *YFCollector
 	isContinue bool
 }
 
@@ -360,31 +365,6 @@ func (w *FinancialDetailsWorker) Done() error {
 	return nil
 }
 
-func (w *YFEODWorker) Init(cm cache.ICacheManager, logger *log.Logger) error {
-	// Collector
-	w.collector = NewYFCollector(w.reader, w.exporter, w.db, logger)
-	return nil
-}
-func (w *YFEODWorker) Do(symbol string, cm cache.ICacheManager) error {
-	if err := w.collector.EODForSymbol(symbol); err != nil {
-		return err
-	}
-	return nil
-}
-func (w *YFEODWorker) Done() error {
-	w.db.Disconnect()
-	return nil
-}
-
-type IWorkerBuilder interface {
-	WithLogger(l *log.Logger)
-	WithDB(db dbloader.DBLoader)
-	WithExporter(exp IDataExporter)
-	WithReader(r IHttpReader)
-	WithContinue(c bool)
-	WithCache(cm cache.ICacheManager)
-	Build() IWorker
-}
 type CommonWorkerBuilder struct {
 	logger     *log.Logger
 	db         dbloader.DBLoader
@@ -413,44 +393,6 @@ func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
 	b.cache = cm
 }
 
-type YFWorkerBuilder struct {
-	CommonWorkerBuilder
-}
-
-func (b *YFWorkerBuilder) Build() IWorker {
-	if b.logger == nil {
-		b.logger = &sdclogger.SDCLoggerInstance.Logger
-	}
-
-	if b.db == nil {
-		b.db = dbloader.NewPGLoader(config.SchemaName, b.logger)
-		b.db.Connect(os.Getenv("PGHOST"),
-			os.Getenv("PGPORT"),
-			os.Getenv("PGUSER"),
-			os.Getenv("PGPASSWORD"),
-			os.Getenv("PGDATABASE"))
-	}
-
-	if b.exporter == nil {
-		b.exporter = NewYFDBExporter(b.db, config.SchemaName)
-	}
-
-	if b.reader == nil {
-		b.reader = NewHttpReader(NewLocalClient())
-	}
-
-	if b.cache == nil {
-		b.cache = cache.NewCacheManager()
-	}
-	return &YFEODWorker{
-		logger:     b.logger,
-		db:         b.db,
-		reader:     b.reader,
-		exporter:   b.exporter,
-		isContinue: b.isContinue,
-	}
-}
-
 type RedirectedWorkerBuilder struct {
 	CommonWorkerBuilder
 }
@@ -464,9 +406,12 @@ type FinancialDetailsPWorkerBuilder struct {
 }
 
 func NewYFParallelCollector(isContinue bool) ParallelCollector {
+	c := cache.NewCacheManager()
 	b := YFWorkerBuilder{}
 	b.WithContinue(isContinue)
-	return ParallelCollector{&b, cache.NewCacheManager()}
+	b.WithCache(c)
+
+	return ParallelCollector{&b, c}
 }
 
 func NewRedirectedParallelCollector(isContinue bool) ParallelCollector {

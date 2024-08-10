@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
@@ -153,8 +154,8 @@ func ExtractData(textJSON string, t reflect.Type) (string, error) {
 }
 
 // Entry Function
-func YFCollect(schemaName string, fileCSV string) error {
-	db := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+func YFCollect(fileCSV string, loadTickers bool, loadEOD bool) error {
+	db := dbloader.NewPGLoader(config.SchemaName, &sdclogger.SDCLoggerInstance.Logger)
 	db.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -164,36 +165,38 @@ func YFCollect(schemaName string, fileCSV string) error {
 	reader := NewHttpReader(NewLocalClient())
 
 	var exporters YFDataExporter
-	exporters.AddExporter(NewYFDBExporter(db, schemaName))
+	exporters.AddExporter(NewYFDBExporter(db, config.SchemaName))
 	exporters.AddExporter(NewYFFileExporter())
 
 	cl := NewYFCollector(reader, &exporters, db, &sdclogger.SDCLoggerInstance.Logger)
 
-	if len(fileCSV) > 0 {
-		reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)
-		if err != nil {
-			return errors.New("Failed to open file " + fileCSV)
-		}
+	if loadTickers {
+		if len(fileCSV) > 0 {
+			reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)
+			if err != nil {
+				return errors.New("Failed to open file " + fileCSV)
+			}
 
-		text, err := io.ReadAll(reader)
-		if err != nil {
-			return errors.New("Failed to read file " + fileCSV)
-		}
+			text, err := io.ReadAll(reader)
+			if err != nil {
+				return errors.New("Failed to read file " + fileCSV)
+			}
 
-		if err := exporters.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
-			return err
+			if err := exporters.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
+				return err
+			}
+		} else {
+			if err := cl.Tickers(); err != nil {
+				return err
+			}
 		}
+	}
 
-		if err := cl.EOD(); err != nil {
-			return err
-		}
-	} else {
-		if err := cl.Tickers(); err != nil {
-			return err
-		}
+	if loadEOD {
 		if err := cl.EOD(); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
