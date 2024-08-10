@@ -127,8 +127,8 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	var wg sync.WaitGroup
-	inChan := make(chan string, 1000)
-	outChan := make(chan Response, 1000)
+	inChan := make(chan string, 1000*1000)
+	outChan := make(chan Response, 1000*1000)
 
 	// Start goroutine
 	i := 0
@@ -141,7 +141,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	go func() {
 		defer close(inChan) // Close the inChan when done
 		for {
-			symbol, err := pc.cache.GetFromSet(CACHE_KEY_SYMBOL)
+			symbol, err := pc.cache.PopFromSet(CACHE_KEY_SYMBOL)
 
 			if err != nil {
 				break // Exit on error
@@ -162,16 +162,21 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}()
 
 	// Handle response
+	processed := 0
+	succeeded := 0
 	for resp := range outChan {
 		// if resp.ErrorID == WORKER_INIT_FAILURE {
 		// 	wg.Add(1)
 		// 	pc.workerRoutine(strconv.Itoa(i), inChan, outChan, &wg, pc.cache)
 		// 	i++
 		// }
-
+		processed++
 		if resp.ErrorID != SUCCESS {
 			sdclogger.SDCLoggerInstance.Printf("Failed to process symbol %s. Error %s", resp.Symbol, resp.ErrorText)
+		} else {
+			succeeded++
 		}
+		fmt.Printf("Processed %d, succeeded %d\n", processed, succeeded)
 	}
 
 	// Check left symbols
@@ -405,7 +410,7 @@ type FinancialDetailsPWorkerBuilder struct {
 	CommonWorkerBuilder
 }
 
-func NewYFParallelCollector(isContinue bool) ParallelCollector {
+func NewEODParallelCollector(isContinue bool) ParallelCollector {
 	c := cache.NewCacheManager()
 	b := YFWorkerBuilder{}
 	b.WithContinue(isContinue)

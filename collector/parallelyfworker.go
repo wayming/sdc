@@ -95,6 +95,10 @@ func (b *YFWorkerBuilder) Prepare() error {
 		}
 
 		for _, row := range queryResults {
+			if row.Symbol == "" {
+				b.logger.Printf("Ignore the empty symbol.")
+				continue
+			}
 			if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
 				return err
 			}
