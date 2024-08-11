@@ -112,12 +112,6 @@ func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
 		Symbol string
 	}
 
-	c := cache.NewCacheManager()
-	if err := c.Connect(); err != nil {
-		return err
-	}
-	defer c.Disconnect()
-
 	sql := "SELECT symbol FROM " + tableName
 	results, err := b.db.RunQuery(sql, reflect.TypeFor[queryResult]())
 	if err != nil {
@@ -135,7 +129,7 @@ func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
 			b.logger.Printf("Ignore the empty symbol.")
 			continue
 		}
-		if err := c.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
+		if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
 			return err
 		}
 	}
@@ -143,8 +137,6 @@ func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
 }
 
 func (b *YFWorkerBuilder) Prepare() error {
-
-	b.Default()
 
 	if len(b.tickersJSON) > 0 {
 		if err := b.loadSymFromFile(b.tickersJSON); err != nil {
@@ -160,7 +152,6 @@ func (b *YFWorkerBuilder) Prepare() error {
 }
 
 func (b *YFWorkerBuilder) Build() IWorker {
-	b.Default()
 	return &YFEODWorker{
 		logger:     b.logger,
 		db:         b.db,
@@ -172,4 +163,10 @@ func (b *YFWorkerBuilder) Build() IWorker {
 
 func (c *YFWorkCache) Init(isContinue bool) {
 
+}
+
+func NewYFWorkerBuilder() IWorkerBuilder {
+	b := YFWorkerBuilder{}
+	b.Default()
+	return &b
 }

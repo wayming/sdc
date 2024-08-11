@@ -22,8 +22,9 @@ type IWorker interface {
 }
 
 type ParallelCollector struct {
-	builder IWorkerBuilder
-	cache   cache.ICacheManager
+	newBuilderFunc func() IWorkerBuilder
+	cache          cache.ICacheManager
+	params         map[string]interface{}
 }
 
 type IWorkerBuilder interface {
@@ -51,7 +52,12 @@ type Response struct {
 	ErrorText string
 }
 
-func (pc *ParallelCollector) workerRoutine(goID string, inChan chan string, outChan chan Response, wg *sync.WaitGroup, cm cache.ICacheManager) {
+func (pc *ParallelCollector) workerRoutine(
+	goID string,
+	inChan chan string,
+	outChan chan Response,
+	wg *sync.WaitGroup,
+	cm cache.ICacheManager) {
 
 	defer wg.Done()
 
@@ -65,8 +71,9 @@ func (pc *ParallelCollector) workerRoutine(goID string, inChan chan string, outC
 	}
 
 	logMessage("Begin")
-	pc.builder.WithLogger(logger)
-	worker := pc.builder.Build()
+	builder := pc.newBuilderFunc()
+	builder.WithLogger(logger)
+	worker := builder.Build()
 	if err := worker.Init(cm, logger); err != nil {
 		logMessage(err.Error())
 		outChan <- Response{
@@ -109,7 +116,8 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	var nLeft int64
 	var summary string
 
-	if err := pc.builder.Prepare(); err != nil {
+	builder := pc.newBuilderFunc()
+	if err := builder.Prepare(); err != nil {
 		return err
 	}
 
@@ -215,9 +223,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 func (pc *ParallelCollector) Done() {
 
 }
-func (pc *ParallelCollector) SetWorkerBuilder(b IWorkerBuilder) {
-	pc.builder = b
-}
+
 func (pc *ParallelCollector) SetCacheManager(cm cache.ICacheManager) {
 	pc.cache = cm
 }
