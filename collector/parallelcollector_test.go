@@ -1,6 +1,7 @@
 package collector_test
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
@@ -84,6 +85,15 @@ func TestParallelCollector_Execute(t *testing.T) {
 		if err != nil {
 			t.Errorf("ParallelCollector.Execute() error = %v", err)
 			return
+		}
+	})
+}
+
+func TestNewEODParallelCollector(t *testing.T) {
+	t.Run("TestNewEODParallelCollector", func(t *testing.T) {
+		c := collector.NewEODParallelCollector(false, os.Getenv("SDC_HOME")+"/data/YF/fy_tickers_100.json")
+		if err := c.Execute(10); err != nil {
+			t.Errorf("NewEODParallelCollector() = %v", err)
 		}
 	})
 }

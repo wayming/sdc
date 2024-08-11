@@ -154,7 +154,7 @@ func ExtractData(textJSON string, t reflect.Type) (string, error) {
 }
 
 // Entry Function
-func YFCollect(fileCSV string, loadTickers bool, loadEOD bool) error {
+func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 	db := dbloader.NewPGLoader(config.SchemaName, &sdclogger.SDCLoggerInstance.Logger)
 	db.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
@@ -171,18 +171,18 @@ func YFCollect(fileCSV string, loadTickers bool, loadEOD bool) error {
 	cl := NewYFCollector(reader, &exporters, db, &sdclogger.SDCLoggerInstance.Logger)
 
 	if loadTickers {
-		if len(fileCSV) > 0 {
-			reader, err := os.OpenFile(fileCSV, os.O_RDONLY, 0666)
+		if len(fileJSON) > 0 {
+			reader, err := os.OpenFile(fileJSON, os.O_RDONLY, 0666)
 			if err != nil {
-				return errors.New("Failed to open file " + fileCSV)
+				return errors.New("Failed to open file " + fileJSON)
 			}
 
 			text, err := io.ReadAll(reader)
 			if err != nil {
-				return errors.New("Failed to read file " + fileCSV)
+				return errors.New("Failed to read file " + fileJSON)
 			}
 
-			if err := exporters.Export(FY_EOD, path.Base(fileCSV), string(text)); err != nil {
+			if err := exporters.Export(FY_EOD, path.Base(fileJSON), string(text)); err != nil {
 				return err
 			}
 		} else {

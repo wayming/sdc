@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -70,38 +72,87 @@ func (b *YFWorkerBuilder) Default() error {
 		b.cache = cache.NewCacheManager()
 		b.cache.Connect()
 	}
+
+	// b.TickersJson defaults to nil. Load from database by default.
+
 	return nil
 }
 
-func (b *YFWorkerBuilder) Prepare() error {
+func (b *YFWorkerBuilder) loadSymFromFile(f string) error {
+	reader, err := os.OpenFile(f, os.O_RDONLY, 0666)
+	if err != nil {
+		return err
+	}
+
+	textJSON, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	var stocksStruct []FYTickers
+	if err := json.Unmarshal(textJSON, &stocksStruct); err != nil {
+		return err
+	}
+
+	for _, stock := range stocksStruct {
+		if len(stock.Symbol) > 0 {
+			if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, stock.Symbol); err != nil {
+				return err
+			}
+		} else {
+			b.logger.Printf("Ignore the empty symbol.")
+		}
+	}
+	return nil
+}
+
+func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
 
 	type queryResult struct {
 		Symbol string
 	}
 
+	c := cache.NewCacheManager()
+	if err := c.Connect(); err != nil {
+		return err
+	}
+	defer c.Disconnect()
+
+	sql := "SELECT symbol FROM " + tableName
+	results, err := b.db.RunQuery(sql, reflect.TypeFor[queryResult]())
+	if err != nil {
+		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
+	}
+	queryResults, ok := results.([]queryResult)
+	if !ok {
+		return errors.New("failed to assert the slice of queryResults")
+	} else {
+		b.logger.Printf("%d symbols retrieved from table %s", len(queryResults), tableName)
+	}
+
+	for _, row := range queryResults {
+		if row.Symbol == "" {
+			b.logger.Printf("Ignore the empty symbol.")
+			continue
+		}
+		if err := c.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *YFWorkerBuilder) Prepare() error {
+
 	b.Default()
 
-	if !b.isContinue {
-		sql := "SELECT symbol FROM " + FYDataTables[FY_TICKERS]
-		results, err := b.db.RunQuery(sql, reflect.TypeFor[queryResult]())
-		if err != nil {
-			return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
+	if len(b.tickersJSON) > 0 {
+		if err := b.loadSymFromFile(b.tickersJSON); err != nil {
+			return err
 		}
-		queryResults, ok := results.([]queryResult)
-		if !ok {
-			return errors.New("failed to assert the slice of queryResults")
-		} else {
-			b.logger.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
-		}
-
-		for _, row := range queryResults {
-			if row.Symbol == "" {
-				b.logger.Printf("Ignore the empty symbol.")
-				continue
-			}
-			if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
-				return err
-			}
+	} else {
+		if err := b.loadSymFromDB(FYDataTables[FY_TICKERS]); err != nil {
+			return err
 		}
 	}
 

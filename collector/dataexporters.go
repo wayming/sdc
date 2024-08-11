@@ -25,7 +25,7 @@ func NewYFFileExporter() *FileExporter {
 }
 
 func (e FileExporter) Export(entity string, table string, data string) error {
-	fileName := e.path + "/" + table + ".csv"
+	fileName := e.path + "/" + table + ".json"
 	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to write to file %s: %v", fileName, err)
 	}

@@ -32,7 +32,7 @@ func setupSATest(testName string) {
 	saTestDBLoader.DropSchema(SA_TEST_SCHEMA_NAME)
 	saTestDBLoader.CreateSchema(SA_TEST_SCHEMA_NAME)
 
-	// Load tickes from csv file for testing
+	// Load tickes from JSON file for testing
 	if testName == "TestCollectFinancialsNotFound" {
 		collector.CollectTickers(SA_TEST_SCHEMA_NAME, os.Getenv("SDC_HOME")+"/data/tickersNotFound.json")
 	} else {

@@ -109,11 +109,11 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	var nLeft int64
 	var summary string
 
-	if err := pc.cache.Connect(); err != nil {
+	if err := pc.builder.Prepare(); err != nil {
 		return err
 	}
 
-	if err := pc.builder.Prepare(); err != nil {
+	if err := pc.cache.Connect(); err != nil {
 		return err
 	}
 
@@ -371,12 +371,13 @@ func (w *FinancialDetailsWorker) Done() error {
 }
 
 type CommonWorkerBuilder struct {
-	logger     *log.Logger
-	db         dbloader.DBLoader
-	reader     IHttpReader
-	exporter   IDataExporter
-	cache      cache.ICacheManager
-	isContinue bool
+	logger      *log.Logger
+	db          dbloader.DBLoader
+	reader      IHttpReader
+	exporter    IDataExporter
+	cache       cache.ICacheManager
+	isContinue  bool
+	tickersJSON string
 }
 
 func (b *CommonWorkerBuilder) WithLogger(l *log.Logger) {
@@ -397,6 +398,9 @@ func (b *CommonWorkerBuilder) WithContinue(c bool) {
 func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
 	b.cache = cm
 }
+func (b *CommonWorkerBuilder) WithTickersJSON(tj string) {
+	b.tickersJSON = tj
+}
 
 type RedirectedWorkerBuilder struct {
 	CommonWorkerBuilder
@@ -410,12 +414,12 @@ type FinancialDetailsPWorkerBuilder struct {
 	CommonWorkerBuilder
 }
 
-func NewEODParallelCollector(isContinue bool) ParallelCollector {
+func NewEODParallelCollector(isContinue bool, tickersJSON string) ParallelCollector {
 	c := cache.NewCacheManager()
 	b := YFWorkerBuilder{}
 	b.WithContinue(isContinue)
 	b.WithCache(c)
-
+	b.WithTickersJSON(tickersJSON)
 	return ParallelCollector{&b, c}
 }
 

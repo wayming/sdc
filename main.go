@@ -63,7 +63,7 @@ func main() {
 				fmt.Println("All tickers were loaded")
 			}
 		case "EOD":
-			col := collector.NewEODParallelCollector(*continueOpt)
+			col := collector.NewEODParallelCollector(*continueOpt, *tickersJSONOpt)
 			if err := col.Execute(*parallelOpt); err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
