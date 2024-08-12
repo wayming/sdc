@@ -3,11 +3,11 @@ package collector
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
-	"net/url"
 	"strings"
 
-	"github.com/wayming/sdc/sdclogger"
+	"golang.org/x/net/proxy"
 )
 
 type IHttpReader interface {
@@ -86,13 +86,32 @@ func NewLocalClient() *http.Client {
 	return &http.Client{}
 }
 
-func NewProxyClient(proxy string) *http.Client {
-	proxyURL, err := url.Parse("http://" + proxy)
-	if err != nil {
-		sdclogger.SDCLoggerInstance.Fatalf("Failed to parse proxy url http://%s: %v", proxy, err)
+func NewProxyClient(proxyURL string) (*http.Client, error) {
+	proxyParts := strings.Split(proxyURL, ":")
+	if len(proxyParts) != 4 {
+		return nil, fmt.Errorf("Failed to parse proxy string %s.")
+	}
+	// Proxy server details
+	proxyAddr := fmt.Sprintf("%s:%s", proxyParts[0], proxyParts[1])
+	proxyUser := proxyParts[2]
+	proxyPass := proxyParts[3]
+
+	// Set up the proxy
+	auth := proxy.Auth{
+		User:     proxyUser,
+		Password: proxyPass,
 	}
 
-	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+	// Create a SOCKS5 dialer with authentication
+	dialer, err := proxy.SOCKS5("tcp", proxyAddr, &auth, proxy.Direct)
+	if err != nil {
+		log.Fatalf("Error creating SOCKS5 proxy: %v", err)
+	}
 
-	return &http.Client{Transport: transport}
+	// Create an HTTP transport that uses the proxy
+	httpTransport := &http.Transport{
+		Dial: dialer.Dial,
+	}
+
+	return &http.Client{Transport: httpTransport}, nil
 }
