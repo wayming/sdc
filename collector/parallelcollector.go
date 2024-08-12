@@ -16,15 +16,15 @@ import (
 )
 
 type IWorker interface {
-	Init(cm cache.ICacheManager, logger *log.Logger) error
-	Do(symbol string, cm cache.ICacheManager) error
+	Init() error
+	Do(symbol string) error
 	Done() error
 }
 
 type ParallelCollector struct {
-	newBuilderFunc func() IWorkerBuilder
-	cache          cache.ICacheManager
-	params         map[string]interface{}
+	NewBuilderFunc func() IWorkerBuilder
+	Cache          cache.ICacheManager
+	Params         PCParams
 }
 
 type IWorkerBuilder interface {
@@ -32,8 +32,9 @@ type IWorkerBuilder interface {
 	WithDB(db dbloader.DBLoader)
 	WithExporter(exp IDataExporter)
 	WithReader(r IHttpReader)
-	WithContinue(c bool)
+	WithParams(p *PCParams)
 	WithCache(cm cache.ICacheManager)
+	Default() error
 	Prepare() error
 	Build() IWorker
 }
@@ -46,18 +47,23 @@ const (
 	SERVER_SYMBOL_NOT_VALID
 )
 
-type Response struct {
+type PCResponse struct {
 	Symbol    string
 	ErrorID   int
 	ErrorText string
 }
 
+type PCParams struct {
+	IsContinue  bool
+	TickersJSON string
+}
+
 func (pc *ParallelCollector) workerRoutine(
 	goID string,
 	inChan chan string,
-	outChan chan Response,
+	outChan chan PCResponse,
 	wg *sync.WaitGroup,
-	cm cache.ICacheManager) {
+) {
 
 	defer wg.Done()
 
@@ -71,40 +77,44 @@ func (pc *ParallelCollector) workerRoutine(
 	}
 
 	logMessage("Begin")
-	builder := pc.newBuilderFunc()
+
+	// Build worker
+	builder := pc.NewBuilderFunc()
 	builder.WithLogger(logger)
+	builder.Default()
 	worker := builder.Build()
-	if err := worker.Init(cm, logger); err != nil {
+
+	if err := worker.Init(); err != nil {
 		logMessage(err.Error())
-		outChan <- Response{
+		outChan <- PCResponse{
 			"", WORKER_INIT_FAILURE, err.Error(),
 		}
 		return
 	}
 
 	for symbol := range inChan {
-		if err := worker.Do(symbol, cm); err != nil {
+		if err := worker.Do(symbol); err != nil {
 			logMessage(err.Error())
 
 			e, ok := err.(HttpServerError)
 			if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-				outChan <- Response{
+				outChan <- PCResponse{
 					symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
 				}
 				continue
 			}
-			outChan <- Response{
+			outChan <- PCResponse{
 				symbol, WORKER_PROCESS_FAILURE, err.Error(),
 			}
 		} else {
-			outChan <- Response{
+			outChan <- PCResponse{
 				symbol, SUCCESS, "",
 			}
 		}
 	}
 
 	if err := worker.Done(); err != nil {
-		outChan <- Response{
+		outChan <- PCResponse{
 			"", WORKER_DONE_FAILURE, err.Error(),
 		}
 	}
@@ -116,17 +126,21 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	var nLeft int64
 	var summary string
 
-	builder := pc.newBuilderFunc()
+	builder := pc.NewBuilderFunc()
+	builder.WithParams(&pc.Params)
+	builder.Default()
 	if err := builder.Prepare(); err != nil {
 		return err
 	}
 
-	if err := pc.cache.Connect(); err != nil {
+	// Attach to cache
+	if err := pc.Cache.Connect(); err != nil {
 		return err
 	}
+	defer pc.Cache.Disconnect()
 
 	// Get total number of symbols to be processed
-	if nAll, _ = pc.cache.GetLength(CACHE_KEY_SYMBOL); nAll > 0 {
+	if nAll, _ = pc.Cache.GetLength(CACHE_KEY_SYMBOL); nAll > 0 {
 		sdclogger.SDCLoggerInstance.Printf("%d symbols to be processed in parallel(%d).", nAll, parallel)
 		summary += fmt.Sprint("Total: %ld", nAll)
 	} else {
@@ -136,20 +150,20 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 
 	var wg sync.WaitGroup
 	inChan := make(chan string, 1000*1000)
-	outChan := make(chan Response, 1000*1000)
+	outChan := make(chan PCResponse, 1000*1000)
 
 	// Start goroutine
 	i := 0
 	for ; i < parallel; i++ {
 		wg.Add(1)
-		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, &wg, pc.cache)
+		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, &wg)
 	}
 
 	// Push symbols to channel
 	go func() {
 		defer close(inChan) // Close the inChan when done
 		for {
-			symbol, err := pc.cache.PopFromSet(CACHE_KEY_SYMBOL)
+			symbol, err := pc.Cache.PopFromSet(CACHE_KEY_SYMBOL)
 
 			if err != nil {
 				break // Exit on error
@@ -169,7 +183,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 		close(outChan)
 	}()
 
-	// Handle response
+	// Handle PCResponse
 	processed := 0
 	succeeded := 0
 	for resp := range outChan {
@@ -188,8 +202,8 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check left symbols
-	if nLeft, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL); nLeft > 0 {
-		lefts, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL)
+	if nLeft, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL); nLeft > 0 {
+		lefts, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL)
 		sdclogger.SDCLoggerInstance.Printf("Left symbols: [%v]", lefts)
 		summary += fmt.Sprintf("Left: [%v]", lefts)
 	} else {
@@ -197,8 +211,8 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check error symbols. Symbols are valid, but fails to process.
-	if errorLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
-		errs, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
+	if errorLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
+		errs, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		sdclogger.SDCLoggerInstance.Printf("Error Symbols: [%v]", errs)
 		summary += fmt.Sprintf("Error: [%v]", errs)
 	} else {
@@ -206,8 +220,8 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check invalid symbols.
-	if invalidLen, _ := pc.cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
-		invalids, _ := pc.cache.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
+	if invalidLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
+		invalids, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
 		sdclogger.SDCLoggerInstance.Printf("Invalid Symbols: [%v]", invalids)
 		summary += fmt.Sprintf("Invalid: [%v]", invalids)
 	} else {
@@ -222,10 +236,6 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 }
 func (pc *ParallelCollector) Done() {
 
-}
-
-func (pc *ParallelCollector) SetCacheManager(cm cache.ICacheManager) {
-	pc.cache = cm
 }
 
 type RedirectedWorker struct {
@@ -377,13 +387,12 @@ func (w *FinancialDetailsWorker) Done() error {
 }
 
 type CommonWorkerBuilder struct {
-	logger      *log.Logger
-	db          dbloader.DBLoader
-	reader      IHttpReader
-	exporter    IDataExporter
-	cache       cache.ICacheManager
-	isContinue  bool
-	tickersJSON string
+	db       dbloader.DBLoader
+	reader   IHttpReader
+	exporter IDataExporter
+	cache    cache.ICacheManager
+	logger   *log.Logger
+	Params   *PCParams
 }
 
 func (b *CommonWorkerBuilder) WithLogger(l *log.Logger) {
@@ -398,14 +407,11 @@ func (b *CommonWorkerBuilder) WithExporter(exp IDataExporter) {
 func (b *CommonWorkerBuilder) WithReader(r IHttpReader) {
 	b.reader = r
 }
-func (b *CommonWorkerBuilder) WithContinue(c bool) {
-	b.isContinue = c
+func (b *CommonWorkerBuilder) WithParams(p *PCParams) {
+	b.Params = p
 }
 func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
 	b.cache = cm
-}
-func (b *CommonWorkerBuilder) WithTickersJSON(tj string) {
-	b.tickersJSON = tj
 }
 
 type RedirectedWorkerBuilder struct {
@@ -420,23 +426,34 @@ type FinancialDetailsPWorkerBuilder struct {
 	CommonWorkerBuilder
 }
 
-func NewEODParallelCollector(isContinue bool, tickersJSON string) ParallelCollector {
-	c := cache.NewCacheManager()
-	b := YFWorkerBuilder{}
-	b.WithContinue(isContinue)
-	b.WithCache(c)
-	b.WithTickersJSON(tickersJSON)
-	return ParallelCollector{&b, c}
+func NewEODParallelCollector(p PCParams) ParallelCollector {
+	return ParallelCollector{
+		NewYFWorkerBuilder,
+		cache.NewCacheManager(),
+		p,
+	}
 }
 
-func NewRedirectedParallelCollector(isContinue bool) ParallelCollector {
-	return ParallelCollector{&YFWorkerBuilder{}, cache.NewCacheManager()}
+func NewRedirectedParallelCollector(p PCParams) ParallelCollector {
+	return ParallelCollector{
+		NewYFWorkerBuilder,
+		cache.NewCacheManager(),
+		p,
+	}
 }
 
-func NewFinancialOverviewParallelCollector(isContinue bool) ParallelCollector {
-	return ParallelCollector{&YFWorkerBuilder{}, cache.NewCacheManager()}
+func NewFinancialOverviewParallelCollector(p PCParams) ParallelCollector {
+	return ParallelCollector{
+		NewYFWorkerBuilder,
+		cache.NewCacheManager(),
+		p,
+	}
 }
 
-func NewFinancialDetailsParallelCollector(isContinue bool) ParallelCollector {
-	return ParallelCollector{&YFWorkerBuilder{}, cache.NewCacheManager()}
+func NewFinancialDetailsParallelCollector(p PCParams) ParallelCollector {
+	return ParallelCollector{
+		NewYFWorkerBuilder,
+		cache.NewCacheManager(),
+		p,
+	}
 }

@@ -15,12 +15,12 @@ import (
 )
 
 type YFEODWorker struct {
-	logger     *log.Logger
-	db         dbloader.DBLoader
-	reader     IHttpReader
-	exporter   IDataExporter
-	collector  *YFCollector
-	isContinue bool
+	db        dbloader.DBLoader
+	reader    IHttpReader
+	exporter  IDataExporter
+	cache     cache.ICacheManager
+	collector *YFCollector
+	logger    *log.Logger
 }
 
 type YFWorkCache struct {
@@ -30,13 +30,12 @@ type YFWorkerBuilder struct {
 	CommonWorkerBuilder
 }
 
-func (w *YFEODWorker) Init(cm cache.ICacheManager, logger *log.Logger) error {
+func (w *YFEODWorker) Init() error {
 	// Collector
-	w.collector = NewYFCollector(w.reader, w.exporter, w.db, logger)
-
+	w.collector = NewYFCollector(w.reader, w.exporter, w.db, w.logger)
 	return nil
 }
-func (w *YFEODWorker) Do(symbol string, cm cache.ICacheManager) error {
+func (w *YFEODWorker) Do(symbol string) error {
 	if err := w.collector.EODForSymbol(symbol); err != nil {
 		return err
 	}
@@ -138,8 +137,8 @@ func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
 
 func (b *YFWorkerBuilder) Prepare() error {
 
-	if len(b.tickersJSON) > 0 {
-		if err := b.loadSymFromFile(b.tickersJSON); err != nil {
+	if len(b.Params.TickersJSON) > 0 {
+		if err := b.loadSymFromFile(b.Params.TickersJSON); err != nil {
 			return err
 		}
 	} else {
@@ -153,11 +152,11 @@ func (b *YFWorkerBuilder) Prepare() error {
 
 func (b *YFWorkerBuilder) Build() IWorker {
 	return &YFEODWorker{
-		logger:     b.logger,
-		db:         b.db,
-		reader:     b.reader,
-		exporter:   b.exporter,
-		isContinue: b.isContinue,
+		db:       b.db,
+		reader:   b.reader,
+		exporter: b.exporter,
+		cache:    b.cache,
+		logger:   b.logger,
 	}
 }
 
@@ -167,6 +166,5 @@ func (c *YFWorkCache) Init(isContinue bool) {
 
 func NewYFWorkerBuilder() IWorkerBuilder {
 	b := YFWorkerBuilder{}
-	b.Default()
 	return &b
 }

@@ -52,6 +52,10 @@ func main() {
 		}
 	}
 
+	params := collector.PCParams{
+		IsContinue:  *continueOpt,
+		TickersJSON: *tickersJSONOpt,
+	}
 	if len(*loadOpt) > 0 {
 		switch *loadOpt {
 		case "tickers":
@@ -63,7 +67,7 @@ func main() {
 				fmt.Println("All tickers were loaded")
 			}
 		case "EOD":
-			col := collector.NewEODParallelCollector(*continueOpt, *tickersJSONOpt)
+			col := collector.NewEODParallelCollector(params)
 			if err := col.Execute(*parallelOpt); err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
@@ -74,7 +78,7 @@ func main() {
 			if len(*symbolOpt) > 0 {
 				err = collector.CollectFinancialsForSymbol(config.SchemaName, *symbolOpt)
 			} else {
-				pCollector := collector.NewFinancialOverviewParallelCollector(*continueOpt)
+				pCollector := collector.NewFinancialOverviewParallelCollector(params)
 				err = pCollector.Execute(*parallelOpt)
 			}
 			if err != nil {
@@ -87,7 +91,7 @@ func main() {
 			if len(*symbolOpt) > 0 {
 				err = collector.CollectFinancialsForSymbol(config.SchemaName, *symbolOpt)
 			} else {
-				pCollector := collector.NewFinancialDetailsParallelCollector(*continueOpt)
+				pCollector := collector.NewFinancialDetailsParallelCollector(params)
 				err = pCollector.Execute(*parallelOpt)
 			}
 			if err != nil {
