@@ -886,7 +886,12 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 				outChan <- err.Error()
 				return
 			}
-			httpReader := NewHttpReader(NewProxyClient(proxy))
+			proxyClt, err := NewProxyClient(proxy)
+			if err != nil {
+				outChan <- err.Error()
+				return
+			}
+			httpReader := NewHttpReader(proxyClt)
 
 			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
