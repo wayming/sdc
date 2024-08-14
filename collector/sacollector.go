@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
@@ -20,101 +19,152 @@ import (
 )
 
 type SACollector struct {
-	dbSchema      string
 	loader        dbloader.DBLoader
 	reader        IHttpReader
 	logger        *log.Logger
+	htmlParser    *SAHTMLParser
 	metricsFields map[string]map[string]JsonFieldMetadata
-	accessKey     string
 	thisSymbol    string
 }
 
-func NewSACollector(loader dbloader.DBLoader, httpReader IHttpReader, logger *log.Logger, schema string) *SACollector {
-	loader.CreateSchema(schema)
-	loader.Exec("SET search_path TO " + schema)
+func NewSACollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader, l *log.Logger) *SACollector {
+	logger := l
+	if logger == nil {
+		logger = &sdclogger.SDCLoggerInstance.Logger
+	}
 	collector := SACollector{
-		dbSchema:      schema,
-		loader:        loader,
+		loader:        db,
 		reader:        httpReader,
 		logger:        logger,
+		htmlParser:    NewSAHTMLParser(logger),
 		metricsFields: AllSAMetricsFields(),
-		accessKey:     "",
 		thisSymbol:    "",
 	}
 	return &collector
 }
 
 // For unit testing
-func (collector *SACollector) SetSymbol(symbol string) {
-	collector.thisSymbol = symbol
+func (c *SACollector) SetSymbol(symbol string) {
+	c.thisSymbol = symbol
 }
 
-func (collector *SACollector) DecodeDualTableHTML(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
-	var indicatorsMap map[string]interface{}
-	var err error
-	if node.Type == html.ElementNode {
-		for _, attr := range node.Attr {
-			if attr.Key == "data-test" && attr.Val == "overview-info" {
-				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
-				if err != nil {
-					return nil, errors.New("Failed to decode html table overview-info. Error: " + err.Error())
-				}
-
-			}
-			if attr.Key == "data-test" && attr.Val == "overview-quote" {
-				indicatorsMap, err = collector.DecodeSimpleTable(node, dataStructTypeName)
-				if err != nil {
-					return nil, errors.New("Failed to decode html table overview-quote. Error: " + err.Error())
-				}
-
-			}
-		}
+func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
+	symbol = strings.ToLower(symbol)
+	redirected := c.parseRedirectedSymbol(symbol)
+	if len(redirected) == 0 {
+		c.logger.Printf("no redirected found for symbol %s", symbol)
+		return "", nil
+	}
+	redirectMap := make(map[string]string)
+	redirectMap["symbol"] = symbol
+	redirectMap["redirected_symbol"] = redirected
+	mapSlice := []map[string]string{redirectMap}
+	jsonText, err := json.Marshal(mapSlice)
+	if err != nil {
+		return "", errors.New("Failed to marshal redirect map to JSON text. Error: " + err.Error())
+	} else {
+		c.logger.Println("JSON text generated - " + string(jsonText))
 	}
 
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		var moreIndicators map[string]interface{}
-		if moreIndicators, err = collector.DecodeDualTableHTML(child, dataStructTypeName); err != nil {
-			return nil, err
-		}
-		if indicatorsMap, err = concatMaps(indicatorsMap, moreIndicators); err != nil {
-			return nil, err
-		}
+	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), TABLE_SA_SYMBOL_REDIRECT, reflect.TypeFor[RedirectedSymbols]())
+	if err != nil {
+		return "", errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
 	}
 
-	return indicatorsMap, nil
+	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_SYMBOL_REDIRECT)
+	return redirected, nil
 }
 
-func (collector *SACollector) DecodeTimeSeriesTableHTML(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
-	if node.Type == html.ElementNode {
-		for _, attr := range node.Attr {
-			if attr.Key == "data-test" && attr.Val == "financials" {
-				indicatorMaps, err := collector.DecodeTimeSeriesTable(node, dataStructTypeName)
-				if err != nil {
-					return nil, errors.New("Failed to decode html table financials. Error: " + err.Error())
-				}
-				return indicatorMaps, nil
-			}
-		}
+// Extract and write financial overview to database.
+func (c *SACollector) CollectFinancialOverview(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	overallUrl := "https://stockanalysis.com/stocks/" + symbol
+	jsonText, err := c.readOverviewPage(overallUrl, nil, dataStructType.Name())
+	if err != nil {
+		return 0, err
 	}
 
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		indicatorMaps, err := collector.DecodeTimeSeriesTableHTML(child, dataStructTypeName)
-		if err != nil {
-			return nil, err
-		}
-		if len(indicatorMaps) > 0 {
-			return indicatorMaps, nil
-		}
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, TABLE_SA_OVERVIEW, reflect.TypeFor[StockOverview]())
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERVIEW + ". Error: " + err.Error())
 	}
 
-	return nil, nil
+	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERVIEW)
+	return numOfRows, nil
 }
 
-// Parse Analyst Ratin page and return JSON text
-func (collector *SACollector) ReadAnalystRatingsPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
-	collector.logger.Println("Read " + url)
+// Extract and write financial details to database. Only return the last error
+func (c *SACollector) CollectFinancialDetails(symbol string) error {
+	var retErr error
+	if _, err := c.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+		retErr = err
+	}
+	if _, err := c.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+		retErr = err
+	}
+	if _, err := c.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+		retErr = err
+	}
+	if _, err := c.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+		retErr = err
+	}
+	if _, err := c.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
+		retErr = err
+	}
+	return retErr
+}
 
-	htmlContent, err := collector.reader.Read(url, params)
+func (c *SACollector) CollectFinancialsIncome(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
+	return c.collectFinancialDetailsCommon(financialsIncome, dataStructType, TABLE_SA_FINANCIALS_INCOME)
+}
+
+func (c *SACollector) CollectFinancialsBalanceSheet(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
+	return c.collectFinancialDetailsCommon(financialsBalanceSheet, dataStructType, TABLE_SA_FINANCIALS_BALANCE_SHEET)
+}
+
+func (c *SACollector) CollectFinancialsCashFlow(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
+	return c.collectFinancialDetailsCommon(financialsICashFlow, dataStructType, TABLE_SA_FINANCIALS_CASH_FLOW)
+}
+
+func (c *SACollector) CollectFinancialsRatios(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
+	return c.collectFinancialDetailsCommon(financialsRatios, dataStructType, TABLE_SA_FINANCIALS_RATIOS)
+}
+
+func (c *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
+	c.thisSymbol = symbol
+	analystRatings := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
+	return c.collectAnalystRatings(analystRatings, dataStructType, TABLE_SA_ANALYST_RATINGS)
+}
+
+func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
+
+	jsonText, err := c.readFinanaceDetailsPage(url, nil, dataStructType.Name())
+	if err != nil {
+		return 0, err
+	}
+
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
+	}
+
+	c.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
+	return numOfRows, nil
+}
+
+// Read page from SA and extract the information
+func (c *SACollector) readAnalystRatingsPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+	c.logger.Println("Read " + url)
+
+	htmlContent, err := c.reader.Read(url, params)
 	if err != nil {
 		return "", err
 	}
@@ -124,8 +174,8 @@ func (collector *SACollector) ReadAnalystRatingsPage(url string, params map[stri
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
-	indicatorsMap, err := collector.DecodeAnalystRatingsGrid(htmlDoc, dataStructTypeName)
+	c.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
+	indicatorsMap, err := c.htmlParser.DecodeAnalystRatingsGrid(htmlDoc, dataStructTypeName)
 
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
@@ -133,408 +183,26 @@ func (collector *SACollector) ReadAnalystRatingsPage(url string, params map[stri
 	if len(indicatorsMap) == 0 {
 		return "", errors.New("No indicator found from analyst ratings page " + url)
 	}
-	indicatorsMap["symbol"] = collector.thisSymbol
+
+	// Add symbol to the struct if needed
+	c.packSymbolField(indicatorsMap, dataStructTypeName)
+
 	mapSlice := []map[string]interface{}{indicatorsMap}
 	jsonData, err := json.Marshal(mapSlice)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {
-		collector.logger.Println("JSON text generated - " + string(jsonData))
+		c.logger.Println("JSON text generated - " + string(jsonData))
 
 	}
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) DecodeAnalystRatingsGrid(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
-	analystRatinMetrics := make(map[string]interface{})
-
-	htmlFieldTexts := []string{
-		"Total Analysts",
-		"Consensus Rating",
-		"Price Target",
-		"Upside",
-	}
-	for _, fieldText := range htmlFieldTexts {
-		if value := TextOfAdjacentDiv(node, fieldText); len(value) > 0 {
-			normKey := normaliseJSONKey(fieldText)
-			fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
-			if fieldType == nil {
-				return nil, errors.New("Failed to get field type for tag " + normKey)
-			}
-			collector.logger.Println("Normalise " + value + " to " + fieldType.Name() + " value")
-			normVal, err := normaliseJSONValue(value, fieldType)
-			if err != nil {
-				return analystRatinMetrics, err
-			}
-
-			analystRatinMetrics[normKey] = normVal
-		}
-	}
-	return analystRatinMetrics, nil
-}
-
-func TextOfAdjacentDiv(node *html.Node, firstData string) string {
-	if node.Type == html.ElementNode && node.Data == "div" {
-		textNode := FirstTextNode(node)
-		if textNode != nil && strings.TrimSpace(textNode.Data) == firstData {
-			if textNode.Parent != nil && textNode.Parent.NextSibling != nil && textNode.Parent.NextSibling.NextSibling != nil {
-				if adjacentTextNode := FirstTextNode(textNode.Parent.NextSibling.NextSibling); adjacentTextNode != nil {
-					return strings.TrimSpace(adjacentTextNode.Data)
-				}
-			}
-		}
-	}
-
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-
-		if data := TextOfAdjacentDiv(child, firstData); len(data) > 0 {
-			return data
-		}
-	}
-
-	return ""
-}
-
-func SearchText(node *html.Node, text string) *html.Node {
-
-	if node.Type == html.TextNode {
-		regex, _ := regexp.Compile(".*" + text + ".*")
-		if regex.Match([]byte(node.Data)) {
-			return node
-		}
-	}
-
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if textNode := SearchText(child, text); textNode != nil {
-			return textNode
-		}
-	}
-
-	return nil
-}
-
-func FirstTextNode(node *html.Node) *html.Node {
-
-	if node.Type == html.TextNode && len(strings.TrimSpace(node.Data)) > 0 {
-		// collector.logger.Println(node.Data)
-		return node
-	}
-
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		textNode := FirstTextNode(child)
-		if textNode != nil {
-			return textNode
-		}
-	}
-
-	return nil
-}
-
-func normaliseJSONKey(key string) string {
-	// lower case name
-	key = strings.ToLower(key)
-
-	// trim spaces
-	key = strings.TrimSpace(key)
-
-	// replace space with underscore
-	key = strings.ReplaceAll(key, " ", "_")
-
-	// replace ampersand with underscore
-	key = strings.ReplaceAll(key, "&", "_")
-
-	// replace slash with underscore
-	key = strings.ReplaceAll(key, "/", "_")
-
-	// replace dash with underscore
-	key = strings.ReplaceAll(key, "-", "_")
-
-	// Replace commas with underscore
-	key = strings.ReplaceAll(key, ",", "_")
-
-	// remove apostrophe
-	key = strings.ReplaceAll(key, "'", "")
-
-	// remove parenthesis
-	key = strings.ReplaceAll(key, "(", "")
-	key = strings.ReplaceAll(key, ")", "")
-
-	// remove consecutive underscore
-	pattern := `_+`
-	re := regexp.MustCompile(pattern)
-	key = re.ReplaceAllString(key, "_")
-
-	return key
-}
-func stringToFloat64(value string) (any, error) {
-	baseNumber, sign, multi := normaliseValueForNumeric(value)
-	valFloat, err := strconv.ParseFloat(baseNumber, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	return float64(sign) * valFloat * float64(multi), nil
-}
-
-func stringToInt64(value string) (any, error) {
-	baseNumber, sign, multi := normaliseValueForNumeric(value)
-	valInt, err := strconv.ParseInt(baseNumber, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	return int64(float64(sign) * float64(valInt) * multi), nil
-}
-
-// Normalised input string value for numeric conversion
-// Return normalised string, operator, multiplier
-func normaliseValueForNumeric(value string) (string, int, float64) {
-
-	// Remove spaces
-	value = strings.ReplaceAll(value, " ", "")
-
-	// Handle n/a. Return 0.
-	if strings.ToLower(value) == "n/a" {
-		return "0", 0, 0
-	}
-
-	// Remove double quotes
-	value = strings.ReplaceAll(value, "\"", "")
-
-	// Remove commas
-	value = strings.ReplaceAll(value, ",", "")
-
-	// Remove dollors
-	value = strings.ReplaceAll(value, "$", "")
-
-	// Remove (.*)
-	re := regexp.MustCompile(`\(.*\)`)
-	value = re.ReplaceAllString(value, "")
-
-	// Sign operator
-	sign := 1
-	if value[0] == '-' {
-		if len(value) == 1 {
-			return "0", 0, 0
-		}
-		sign = -1
-		value = value[1:]
-	}
-	if value[0] == '+' {
-		value = value[1:]
-	}
-
-	valLen := len(value)
-	re = regexp.MustCompile(`^[.\d]+[BMT%]?$`)
-	multiplier := float64(1)
-	baseNumber := value
-	if re.Match([]byte(value)) {
-
-		switch value[valLen-1] {
-		case 'M':
-			multiplier = multiplier * 1000 * 1000
-			baseNumber = value[:valLen-1]
-		case 'B':
-			multiplier = multiplier * 1000 * 1000 * 1000
-			baseNumber = value[:valLen-1]
-		case 'T':
-			multiplier = multiplier * 1000 * 1000 * 1000 * 1000
-			baseNumber = value[:valLen-1]
-		case '%':
-			multiplier = multiplier / 100
-			baseNumber = value[:valLen-1]
-		}
-	}
-
-	return baseNumber, sign, multiplier
-}
-
-func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
-	var convertedValue any
-	var err error
-
-	switch vType.Kind() {
-	case reflect.Float64:
-		if convertedValue, err = stringToFloat64(value); err != nil {
-			return nil, err
-		}
-	case reflect.Int64:
-		if convertedValue, err = stringToInt64(value); err != nil {
-			return nil, err
-		}
-	case reflect.String:
-		convertedValue = value
-	}
-
-	if vType == reflect.TypeFor[time.Time]() {
-		if convertedValue, err = time.Parse("2006-01-02", value); err != nil {
-			return convertedValue, err
-		}
-	}
-
-	return convertedValue, nil
-}
-
-func (collector *SACollector) DecodeSimpleTable(node *html.Node, dataStructTypeName string) (map[string]interface{}, error) {
-	simpleTableMetrics := make(map[string]interface{})
-	// tbody
-	tbody := node.FirstChild
-
-	// For each tr
-	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
-		td := tr.FirstChild
-		if td != nil {
-			text1 := FirstTextNode(td)
-			if text1 != nil {
-				collector.logger.Println(text1.Data)
-			} else {
-				// No text node for this sibling, try next one
-				continue
-			}
-
-			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
-				text2 := FirstTextNode(td2)
-				if text2 != nil {
-					normKey := normaliseJSONKey(text1.Data)
-					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
-					if fieldType == nil {
-						return simpleTableMetrics, errors.New("Failed to get field type for tag " + normKey)
-					}
-
-					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
-					// TODO - remove n/a value from map
-					normVal, err := normaliseJSONValue(text2.Data, fieldType)
-					if err != nil {
-						return simpleTableMetrics, err
-					}
-
-					simpleTableMetrics[normKey] = normVal
-					continue
-				}
-			}
-		}
-	}
-
-	collector.PackSymbolField(simpleTableMetrics, dataStructTypeName)
-	return simpleTableMetrics, nil
-
-}
-
-func (collector *SACollector) PackSymbolField(metrics map[string]interface{}, dataStructTypeName string) {
-	_, ok := collector.metricsFields[dataStructTypeName]["Symbol"]
-	if ok {
-		if _, ok := metrics["Symbol"]; !ok {
-			metrics["Symbol"] = collector.thisSymbol
-		}
-	}
-}
-
-func (collector *SACollector) DecodeTimeSeriesTable(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
-	completeSeries := make([]map[string]interface{}, 0)
-	// thead
-	thead := node.FirstChild
-
-	pattern := `[a-zA-Z]+`
-	re := regexp.MustCompile(pattern)
-
-	// For each tr
-	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
-		td := tr.FirstChild
-		if td != nil {
-			text1 := FirstTextNode(td)
-			if text1 != nil {
-				collector.logger.Println(text1.Data)
-			}
-
-			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
-				text2 := FirstTextNode(td2)
-				if text2 != nil {
-					dataPoint := make(map[string]interface{})
-					collector.logger.Println(text2.Data)
-					if matches := re.FindAllString(text2.Data, -1); len(matches) > 0 {
-						collector.logger.Println("ignore ", text2.Data)
-						continue
-					}
-
-					normKey := normaliseJSONKey(text1.Data)
-					fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
-					if fieldType == nil {
-						return completeSeries, errors.New("Failed to get field type for tag " + normKey)
-					}
-
-					collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
-					normVal, err := normaliseJSONValue(text2.Data, fieldType)
-					if err != nil {
-						return completeSeries, err
-					}
-
-					dataPoint[normKey] = normVal
-					completeSeries = append(completeSeries, dataPoint)
-					continue
-				}
-			}
-		}
-	}
-
-	// tbody
-	if thead.NextSibling == nil || thead.NextSibling.NextSibling == nil {
-		return nil, errors.New("unexpected structure. Can not find the tbody element")
-	}
-	tbody := thead.NextSibling.NextSibling
-	// For each tr
-	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
-		td := tr.FirstChild
-		if td != nil {
-			text1 := FirstTextNode(td)
-			if text1 != nil {
-				collector.logger.Println(text1.Data)
-			} else {
-				continue
-			}
-
-			idx := 0
-			// Assumes the same amount of tds as the the thead
-			for td2 := td.NextSibling; td2 != nil && idx < len(completeSeries); td2 = td2.NextSibling {
-				if td2.Type == html.ElementNode && td2.Data == "td" {
-					text2 := FirstTextNode(td2)
-					if text2 != nil {
-						collector.logger.Println(text2.Data)
-
-						normKey := normaliseJSONKey(text1.Data)
-						fieldType := GetFieldTypeByTag(collector.metricsFields[dataStructTypeName], normKey)
-						if fieldType == nil {
-							return completeSeries, errors.New("Failed to get field type for tag " + normKey)
-						}
-
-						collector.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
-						normVal, err := normaliseJSONValue(text2.Data, fieldType)
-						if err != nil {
-							return completeSeries, err
-						}
-
-						completeSeries[idx][normKey] = normVal
-						idx++
-					}
-				}
-			}
-
-		}
-	}
-
-	// Fill symbol name
-	for _, dataPoint := range completeSeries {
-		collector.PackSymbolField(dataPoint, dataStructTypeName)
-	}
-
-	return completeSeries, nil
-
-}
-
-// Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadOverallPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
-	collector.logger.Println("Read " + url)
-
-	htmlContent, err := collector.reader.Read(url, params)
+// Read page from SA and extract the information
+func (c *SACollector) readOverviewPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+	c.logger.Println("Read " + url)
+
+	htmlContent, err := c.reader.Read(url, params)
 	if err != nil {
 		return "", err
 	}
@@ -544,8 +212,8 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
-	indicatorsMap, err := collector.DecodeDualTableHTML(htmlDoc, dataStructTypeName)
+	c.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
+	indicatorsMap, err := c.htmlParser.DecodeOverviewPages(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
@@ -553,39 +221,25 @@ func (collector *SACollector) ReadOverallPage(url string, params map[string]stri
 		return "", errors.New("No indicator found from overall page " + url)
 	}
 
+	// Add symbol to the struct if needed
+	c.packSymbolField(indicatorsMap, dataStructTypeName)
+
 	mapSlice := []map[string]interface{}{indicatorsMap}
 
 	jsonData, err := json.Marshal(mapSlice)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {
-		collector.logger.Println("JSON text generated - " + string(jsonData))
+		c.logger.Println("JSON text generated - " + string(jsonData))
 
 	}
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) CollectOverallMetrics(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	overallUrl := "https://stockanalysis.com/stocks/" + symbol
-	jsonText, err := collector.ReadOverallPage(overallUrl, nil, dataStructType.Name())
-	if err != nil {
-		return 0, err
-	}
-
-	numOfRows, err := collector.loader.LoadByJsonText(jsonText, TABLE_SA_OVERVIEW, reflect.TypeFor[StockOverview]())
-	if err != nil {
-		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERVIEW + ". Error: " + err.Error())
-	}
-
-	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERVIEW)
-	return numOfRows, nil
-}
-
-// Parse Stock Analysis page and return JSON text
-func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
-	collector.logger.Println("Load data from " + url)
-	htmlContent, err := collector.reader.Read(url, params)
+// Read page from SA and extract the information
+func (c *SACollector) readFinanaceDetailsPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+	c.logger.Println("Load data from " + url)
+	htmlContent, err := c.reader.Read(url, params)
 	if err != nil {
 		return "", err
 	}
@@ -595,11 +249,11 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	if SearchText(htmlDoc, "No quarterly.*available for this stock") != nil {
-		return "", errors.New("Ignore the symbol " + collector.thisSymbol + ". No quarterly data available")
+	if searchText(htmlDoc, "No quarterly.*available for this stock") != nil {
+		return "", errors.New("Ignore the symbol " + c.thisSymbol + ". No quarterly data available")
 	}
 
-	indicatorsMap, err := collector.DecodeTimeSeriesTableHTML(htmlDoc, dataStructTypeName)
+	indicatorsMap, err := c.htmlParser.DecodeFinancialsPage(htmlDoc, dataStructTypeName)
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
@@ -607,78 +261,47 @@ func (collector *SACollector) ReadTimeSeriesPage(url string, params map[string]s
 		return "", errors.New("No indicator found from financials " + url)
 	}
 
+	// Add symbol to the struct if needed
+	for _, datapoint := range indicatorsMap {
+		c.packSymbolField(datapoint, dataStructTypeName)
+	}
+
 	jsonData, err := json.Marshal(indicatorsMap)
 	if err != nil {
 		return "", errors.New("Failed to marshal stock data to JSON text. Error: " + err.Error())
 	} else {
-		collector.logger.Println("JSON text generated - " + string(jsonData))
+		c.logger.Println("JSON text generated - " + string(jsonData))
 
 	}
 	return string(jsonData), nil
 }
 
-func (collector *SACollector) CollectFinancialsIncome(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsIncome, dataStructType, TABLE_SA_FINANCIALS_INCOME)
-}
+func (c *SACollector) collectAnalystRatings(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
 
-func (collector *SACollector) CollectFinancialsBalanceSheet(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsBalanceSheet, dataStructType, TABLE_SA_FINANCIALS_BALANCE_SHEET)
-}
-
-func (collector *SACollector) CollectFinancialsCashFlow(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsICashFlow, dataStructType, TABLE_SA_FINANCIALS_CASH_FLOW)
-}
-
-func (collector *SACollector) CollectFinancialsRatios(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
-	return collector.LoadTimeSeriesPage(financialsRatios, dataStructType, TABLE_SA_FINANCIALS_RATIOS)
-}
-
-func (collector *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
-	collector.thisSymbol = symbol
-	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
-	return collector.LoadAnalystRatingsPage(financialsRatios, dataStructType, TABLE_SA_ANALYST_RATINGS)
-}
-func (collector *SACollector) LoadTimeSeriesPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
-
-	jsonText, err := collector.ReadTimeSeriesPage(url, nil, dataStructType.Name())
+	jsonText, err := c.readAnalystRatingsPage(url, nil, dataStructType.Name())
 	if err != nil {
 		return 0, err
 	}
 
-	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
 	if err != nil {
 		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
 	}
 
-	collector.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
+	c.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
 	return numOfRows, nil
 }
 
-func (collector *SACollector) LoadAnalystRatingsPage(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
-
-	jsonText, err := collector.ReadAnalystRatingsPage(url, nil, dataStructType.Name())
-	if err != nil {
-		return 0, err
+func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStructTypeName string) {
+	_, ok := c.metricsFields[dataStructTypeName]["Symbol"]
+	if ok {
+		if _, ok := metrics["Symbol"]; !ok {
+			metrics["Symbol"] = c.thisSymbol
+		}
 	}
-
-	numOfRows, err := collector.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
-	if err != nil {
-		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
-	}
-
-	collector.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
-	return numOfRows, nil
 }
 
-func (collector *SACollector) CreateTables() error {
+func (c *SACollector) CreateTables() error {
 	allTables := map[string]reflect.Type{
 		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
 		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
@@ -690,55 +313,28 @@ func (collector *SACollector) CreateTables() error {
 	}
 
 	for k, v := range allTables {
-		if err := collector.loader.CreateTableByJsonStruct(k, v); err != nil {
+		if err := c.loader.CreateTableByJsonStruct(k, v); err != nil {
 			return err
 		}
 	}
 
-	collector.logger.Println("All tables created")
+	c.logger.Println("All tables created")
 	return nil
 }
 
-// Collect data from various pages. Only return the last error
-func (collector *SACollector) CollectFinancialsForSymbol(symbol string) error {
-	var retErr error
-
-	if _, err := collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-		retErr = err
-		collector.logger.Printf("Skip scraping other pages if failed to scrap overall page. Error: %s", retErr.Error())
-		return retErr
-	}
-	if _, err := collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
-		retErr = err
-	}
-	if _, err := collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
-		retErr = err
-	}
-	if _, err := collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
-		retErr = err
-	}
-	if _, err := collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
-		retErr = err
-	}
-	if _, err := collector.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
-		retErr = err
-	}
-	return retErr
-}
-
-func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
+func (c *SACollector) parseRedirectedSymbol(symbol string) string {
 	symbol = strings.ToLower(symbol)
 	url := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
-	redirectedURL, _ := collector.reader.RedirectedUrl(url)
+	redirectedURL, _ := c.reader.RedirectedUrl(url)
 	if len(redirectedURL) == 0 {
-		collector.logger.Printf("no redirected symbol found for %s", symbol)
+		c.logger.Printf("no redirected symbol found for %s", symbol)
 		return ""
 	}
 
 	pattern := "stocks/([A-Za-z]+)/"
 	regexp, err := regexp.Compile(pattern)
 	if err != nil {
-		collector.logger.Printf("failed to compile pattern %s", pattern)
+		c.logger.Printf("failed to compile pattern %s", pattern)
 	}
 
 	match := regexp.FindStringSubmatch(redirectedURL)
@@ -746,50 +342,6 @@ func (collector *SACollector) GetRedirectedSymbol(symbol string) string {
 		return match[1]
 	}
 	return ""
-}
-
-func (collector *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
-	symbol = strings.ToLower(symbol)
-	redirected := collector.GetRedirectedSymbol(symbol)
-	if len(redirected) == 0 {
-		collector.logger.Printf("no redirected found for symbol %s", symbol)
-		return "", nil
-	}
-	redirectMap := make(map[string]string)
-	redirectMap["symbol"] = symbol
-	redirectMap["redirected_symbol"] = redirected
-	mapSlice := []map[string]string{redirectMap}
-	jsonText, err := json.Marshal(mapSlice)
-	if err != nil {
-		return "", errors.New("Failed to marshal redirect map to JSON text. Error: " + err.Error())
-	} else {
-		collector.logger.Println("JSON text generated - " + string(jsonText))
-	}
-
-	numOfRows, err := collector.loader.LoadByJsonText(string(jsonText), TABLE_SA_SYMBOL_REDIRECT, reflect.TypeFor[RedirectedSymbols]())
-	if err != nil {
-		return "", errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
-	}
-
-	collector.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_SYMBOL_REDIRECT)
-	return redirected, nil
-}
-func (collector *SACollector) CollectFinancialsForSymbols(symbols []string) error {
-	collector.logger.Println("Begin collecting financials for [" + strings.Join(symbols, ",") + "].")
-	collected := 0
-	ignored := make([]string, 0)
-	for _, symbol := range symbols {
-		err := collector.CollectFinancialsForSymbol(symbol)
-		if err != nil {
-			collector.logger.Println("Failed to collect financials for symbol " + symbol + ", Error: " + err.Error())
-			ignored = append(ignored, symbol)
-		} else {
-			collected++
-		}
-	}
-	collector.logger.Println("Collected financials for " + strconv.Itoa(collected) + " symbols.")
-	collector.logger.Println("Ignored symbols are: [" + strings.Join(ignored, ",") + "]")
-	return nil
 }
 
 // Entry function
@@ -833,7 +385,7 @@ func Init(schemaName string, proxyFile string, isContinue bool) error {
 		os.Getenv("PGDATABASE"))
 	defer dbLoader.Disconnect()
 	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
-	if err := collector.CreateTables(); err != nil {
+	if err := c.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 		return err
 	} else {
@@ -921,7 +473,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 				}
 
 				// If redirected
-				redirected, err := collector.MapRedirectedSymbol(nextSymbol)
+				redirected, err := c.MapRedirectedSymbol(nextSymbol)
 				if err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
@@ -942,7 +494,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 					nextSymbol = redirected
 				}
 
-				if err := collector.CollectFinancialsForSymbol(nextSymbol); err != nil {
+				if err := c.CollectFinancialDetails(nextSymbol); err != nil {
 					logger.Printf("[Go%s] error: %s", goID, err.Error())
 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
 
@@ -1001,7 +553,7 @@ func CollectFinancials(schemaName string, proxyFile string, parallel int, isCont
 	return (allSymbols - errorSymbols), nil
 }
 
-func CollectFinancialsForSymbol(schemaName string, symbol string) error {
+func CollectFinancialDetails(schemaName string, symbol string) error {
 	// dbloader
 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
@@ -1016,7 +568,7 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 
 	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 
-	if err := collector.CreateTables(); err != nil {
+	if err := c.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 		return err
 	} else {
@@ -1024,7 +576,7 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 	}
 
 	// If redirected
-	redirected, err := collector.MapRedirectedSymbol(symbol)
+	redirected, err := c.MapRedirectedSymbol(symbol)
 	if err != nil {
 		e, ok := err.(HttpServerError)
 		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
@@ -1038,10 +590,28 @@ func CollectFinancialsForSymbol(schemaName string, symbol string) error {
 		symbol = redirected
 	}
 
-	if err := collector.CollectFinancialsForSymbol(symbol); err != nil {
+	if err := c.CollectFinancialDetails(symbol); err != nil {
 		return err
 	}
 	fmt.Println("Collect financials for symbol " + symbol)
+
+	return nil
+}
+
+func searchText(node *html.Node, text string) *html.Node {
+
+	if node.Type == html.TextNode {
+		regex, _ := regexp.Compile(".*" + text + ".*")
+		if regex.Match([]byte(node.Data)) {
+			return node
+		}
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if textNode := searchText(child, text); textNode != nil {
+			return textNode
+		}
+	}
 
 	return nil
 }

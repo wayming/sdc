@@ -195,7 +195,7 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 	teardownSATest()
 }
 
-func TestSACollector_CollectOverallMetrics(t *testing.T) {
+func TestSACollector_CollectFinancialOverall(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		reader     collector.IHttpReader
@@ -219,7 +219,7 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 	}{
 		{
 
-			name: "CollectOverallMetrics",
+			name: "CollectFinancialOverall",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
 				reader:     collector.NewHttpReader(collector.NewLocalClient()),
@@ -242,13 +242,13 @@ func TestSACollector_CollectOverallMetrics(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := col.CollectOverallMetrics(tt.args.symbol, tt.args.dataStructType)
+			got, err := col.CollectFinancialOverall(tt.args.symbol, tt.args.dataStructType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SACollector.CollectOverallMetrics() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SACollector.CollectFinancialOverall() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got == 0 {
-				t.Errorf("SACollector.CollectOverallMetrics() = %v, want %v", got, tt.want)
+				t.Errorf("SACollector.CollectFinancialOverall() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -471,7 +471,7 @@ func TestCollectFinancialsNotFound(t *testing.T) {
 	}
 }
 
-func TestCollectFinancialsForSymbol(t *testing.T) {
+func TestCollectFinancialDetails(t *testing.T) {
 	type args struct {
 		schemaName string
 		symbol     string
@@ -482,7 +482,7 @@ func TestCollectFinancialsForSymbol(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "TestCollectFinancialsForSymbol",
+			name: "TestCollectFinancialDetails",
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				symbol:     "aapl",
@@ -496,14 +496,14 @@ func TestCollectFinancialsForSymbol(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
-				t.Errorf("CollectFinancialsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
+			if err := collector.CollectFinancialDetails(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancialDetails() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestCollectFinancialsForSymbolRedirected(t *testing.T) {
+func TestCollectFinancialDetailsRedirected(t *testing.T) {
 	type args struct {
 		schemaName string
 		symbol     string
@@ -514,7 +514,7 @@ func TestCollectFinancialsForSymbolRedirected(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "TestCollectFinancialsForSymbolRedirected",
+			name: "TestCollectFinancialDetailsRedirected",
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				symbol:     "fb",
@@ -528,14 +528,14 @@ func TestCollectFinancialsForSymbolRedirected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
-				t.Errorf("CollectFinancialsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
+			if err := collector.CollectFinancialDetails(tt.args.schemaName, tt.args.symbol); (err != nil) != tt.wantErr {
+				t.Errorf("CollectFinancialDetails() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
+func TestCollectFinancialDetailsNotFound(t *testing.T) {
 	type args struct {
 		schemaName string
 		symbol     string
@@ -545,7 +545,7 @@ func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
 		args args
 	}{
 		{
-			name: "TestCollectFinancialsForSymbolNotFound",
+			name: "TestCollectFinancialDetailsNotFound",
 			args: args{
 				schemaName: SA_TEST_SCHEMA_NAME,
 				symbol:     "NotFound",
@@ -558,9 +558,9 @@ func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := collector.CollectFinancialsForSymbol(tt.args.schemaName, tt.args.symbol)
+			err := collector.CollectFinancialDetails(tt.args.schemaName, tt.args.symbol)
 			if err == nil {
-				t.Errorf("CollectFinancialsForSymbol() want error but succeeded")
+				t.Errorf("CollectFinancialDetails() want error but succeeded")
 			}
 
 			if httpErr, ok := err.(collector.HttpServerError); ok {
@@ -575,7 +575,7 @@ func TestCollectFinancialsForSymbolNotFound(t *testing.T) {
 	}
 }
 
-func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
+func TestSACollector_readAnalystRatingsPage(t *testing.T) {
 	type fields struct {
 		dbLoader   dbloader.DBLoader
 		reader     collector.IHttpReader
@@ -600,7 +600,7 @@ func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "ReadAnalystRatingsPage",
+			name: "readAnalystRatingsPage",
 			fields: fields{
 				dbLoader:   saTestDBLoader,
 				reader:     collector.NewHttpReader(collector.NewLocalClient()),
@@ -626,19 +626,19 @@ func TestSACollector_ReadAnalystRatingsPage(t *testing.T) {
 				tt.fields.logger,
 				tt.fields.dbSchema,
 			)
-			got, err := collector.ReadAnalystRatingsPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
+			got, err := collector.readAnalystRatingsPage(tt.args.url, tt.args.params, tt.args.dataStructTypeName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SACollector.ReadAnalystRatingsPage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SACollector.readAnalystRatingsPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SACollector.ReadAnalystRatingsPage() = %v, want %v", got, tt.want)
+				t.Errorf("SACollector.readAnalystRatingsPage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestTextOfAdjacentDiv(t *testing.T) {
+func TesttextOfAdjacentDiv(t *testing.T) {
 	type args struct {
 		html      string
 		firstData string
@@ -649,7 +649,7 @@ func TestTextOfAdjacentDiv(t *testing.T) {
 		want string
 	}{
 		{
-			name: "TestTextOfAdjacentDiv",
+			name: "TesttextOfAdjacentDiv",
 			args: args{
 				html: `
 				<div class="mb-4 grid grid-cols-2 grid-rows-2 divide-contrast rounded-lg border border-contrast bg-contrast shadow md:grid-cols-4 md:grid-rows-1 md:divide-x">
@@ -711,14 +711,14 @@ func TestTextOfAdjacentDiv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			htmlDoc, _ := html.Parse(strings.NewReader(tt.args.html))
-			if got := collector.TextOfAdjacentDiv(htmlDoc, tt.args.firstData); got != tt.want {
-				t.Errorf("TextOfAdjacentDiv() = %v, want %v", got, tt.want)
+			if got := collector.textOfAdjacentDiv(htmlDoc, tt.args.firstData); got != tt.want {
+				t.Errorf("textOfAdjacentDiv() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSACollector_getRedirectedSymbol(t *testing.T) {
+func TestSACollector_parseRedirectedSymbol(t *testing.T) {
 	type fields struct {
 		dbSchema string
 		dbLoader dbloader.DBLoader
@@ -739,7 +739,7 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "getRedirectedSymbol",
+			name: "parseRedirectedSymbol",
 			fields: fields{
 				dbSchema: SA_TEST_SCHEMA_NAME,
 				dbLoader: saTestDBLoader,
@@ -756,8 +756,8 @@ func TestSACollector_getRedirectedSymbol(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			col := collector.NewSACollector(tt.fields.dbLoader, tt.fields.reader, tt.fields.logger, tt.fields.dbSchema)
-			if got := col.GetRedirectedSymbol(tt.args.symbol); got != tt.want {
-				t.Errorf("SACollector.GetRedirectedSymbol() = %v, want %v", got, tt.want)
+			if got := col.parseRedirectedSymbol(tt.args.symbol); got != tt.want {
+				t.Errorf("SACollector.parseRedirectedSymbol() = %v, want %v", got, tt.want)
 			}
 		})
 	}

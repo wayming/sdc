@@ -238,7 +238,7 @@ func (pc *ParallelCollector) Done() {
 
 }
 
-type RedirectedWorker struct {
+type RedirectSymbolWorker struct {
 	collector  *SACollector
 	isContinue bool
 }
@@ -253,7 +253,7 @@ type FinancialDetailsWorker struct {
 	isContinue bool
 }
 
-func (w *RedirectedWorker) Init(cm cache.ICacheManager, logger *log.Logger) error {
+func (w *RedirectSymbolWorker) Init(cm cache.ICacheManager, logger *log.Logger) error {
 	if w.isContinue {
 		if err := cm.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
 			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
@@ -292,7 +292,7 @@ func (w *RedirectedWorker) Init(cm cache.ICacheManager, logger *log.Logger) erro
 		return nil
 	}
 }
-func (w *RedirectedWorker) Do(symbol string, cm cache.ICacheManager) error {
+func (w *RedirectSymbolWorker) Do(symbol string, cm cache.ICacheManager) error {
 	if rsymbol, err := w.collector.MapRedirectedSymbol(symbol); err != nil {
 		return err
 	} else if len(rsymbol) > 0 {
@@ -302,7 +302,7 @@ func (w *RedirectedWorker) Do(symbol string, cm cache.ICacheManager) error {
 	cm.AddToSet(CACHE_KEY_SYMBOL_REDIRECTED, symbol)
 	return nil
 }
-func (w *RedirectedWorker) Done() error {
+func (w *RedirectSymbolWorker) Done() error {
 	return nil
 }
 
@@ -337,7 +337,7 @@ func (w *FinancialOverviewWorker) Init(cm cache.ICacheManager, logger *log.Logge
 	}
 }
 func (w *FinancialOverviewWorker) Do(symbol string, cm cache.ICacheManager) error {
-	if _, err := w.collector.CollectOverallMetrics(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+	if _, err := w.collector.CollectFinancialOverall(symbol, reflect.TypeFor[StockOverview]()); err != nil {
 		return err
 	} else {
 		return nil
@@ -414,7 +414,7 @@ func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
 	b.cache = cm
 }
 
-type RedirectedWorkerBuilder struct {
+type RedirectSymbolWorkerBuilder struct {
 	CommonWorkerBuilder
 }
 

@@ -123,7 +123,7 @@ services:
     ports:
       - "8001:8001"
     deploy:
-      replicas: 15
+      replicas: 5
     networks:
       - overlay_network
 
