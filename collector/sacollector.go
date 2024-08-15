@@ -3,16 +3,11 @@ package collector
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
-	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 	"golang.org/x/net/html"
@@ -46,6 +41,27 @@ func NewSACollector(httpReader IHttpReader, exporters IDataExporter, db dbloader
 // For unit testing
 func (c *SACollector) SetSymbol(symbol string) {
 	c.thisSymbol = symbol
+}
+
+func (c *SACollector) CreateTables() error {
+	allTables := map[string]reflect.Type{
+		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
+		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
+		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
+		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
+		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),
+		TABLE_SA_FINANCIALS_RATIOS:        reflect.TypeFor[FinancialRatios](),
+		TABLE_SA_ANALYST_RATINGS:          reflect.TypeFor[AnalystsRating](),
+	}
+
+	for k, v := range allTables {
+		if err := c.loader.CreateTableByJsonStruct(k, v); err != nil {
+			return err
+		}
+	}
+
+	c.logger.Println("All tables created")
+	return nil
 }
 
 func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
@@ -140,8 +156,20 @@ func (c *SACollector) CollectFinancialsRatios(symbol string, dataStructType refl
 
 func (c *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
 	c.thisSymbol = symbol
-	analystRatings := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
-	return c.collectAnalystRatings(analystRatings, dataStructType, TABLE_SA_ANALYST_RATINGS)
+	url := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
+
+	jsonText, err := c.readAnalystRatingsPage(url, nil, dataStructType.Name())
+	if err != nil {
+		return 0, err
+	}
+
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, TABLE_SA_ANALYST_RATINGS, dataStructType)
+	if err != nil {
+		return 0, errors.New("Failed to load data into table " + TABLE_SA_ANALYST_RATINGS + ". Error: " + err.Error())
+	}
+
+	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_ANALYST_RATINGS)
+	return numOfRows, nil
 }
 
 func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
@@ -276,22 +304,6 @@ func (c *SACollector) readFinanaceDetailsPage(url string, params map[string]stri
 	return string(jsonData), nil
 }
 
-func (c *SACollector) collectAnalystRatings(url string, dataStructType reflect.Type, dbTableName string) (int64, error) {
-
-	jsonText, err := c.readAnalystRatingsPage(url, nil, dataStructType.Name())
-	if err != nil {
-		return 0, err
-	}
-
-	numOfRows, err := c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
-	if err != nil {
-		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
-	}
-
-	c.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
-	return numOfRows, nil
-}
-
 func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStructTypeName string) {
 	_, ok := c.metricsFields[dataStructTypeName]["Symbol"]
 	if ok {
@@ -299,27 +311,6 @@ func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStruct
 			metrics["Symbol"] = c.thisSymbol
 		}
 	}
-}
-
-func (c *SACollector) CreateTables() error {
-	allTables := map[string]reflect.Type{
-		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
-		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
-		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
-		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
-		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),
-		TABLE_SA_FINANCIALS_RATIOS:        reflect.TypeFor[FinancialRatios](),
-		TABLE_SA_ANALYST_RATINGS:          reflect.TypeFor[AnalystsRating](),
-	}
-
-	for k, v := range allTables {
-		if err := c.loader.CreateTableByJsonStruct(k, v); err != nil {
-			return err
-		}
-	}
-
-	c.logger.Println("All tables created")
-	return nil
 }
 
 func (c *SACollector) parseRedirectedSymbol(symbol string) string {
@@ -344,259 +335,259 @@ func (c *SACollector) parseRedirectedSymbol(symbol string) string {
 	return ""
 }
 
-// Entry function
-func Init(schemaName string, proxyFile string, isContinue bool) error {
-	var allSymbols int64
-	var err error
+// // Entry function
+// func Init(schemaName string, proxyFile string, isContinue bool) error {
+// 	var allSymbols int64
+// 	var err error
 
-	cacheManager := cache.NewCacheManager()
-	if err := cacheManager.Connect(); err != nil {
-		return err
-	}
-	defer cacheManager.Disconnect()
+// 	cacheManager := cache.NewCacheManager()
+// 	if err := cacheManager.Connect(); err != nil {
+// 		return err
+// 	}
+// 	defer cacheManager.Disconnect()
 
-	if !isContinue {
-		if err := ClearCache(); err != nil {
-			return err
-		}
-		allSymbols, err = cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
-		if err != nil {
-			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
-		}
-		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
+// 	if !isContinue {
+// 		if err := ClearCache(); err != nil {
+// 			return err
+// 		}
+// 		allSymbols, err = cache.LoadSymbols(cacheManager, CACHE_KEY_SYMBOL, schemaName)
+// 		if err != nil {
+// 			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
+// 		}
+// 		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
 
-		allProxies, err := cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
-		if err != nil {
-			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
-		}
-		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
-	} else {
-		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
-			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
-		}
-	}
+// 		allProxies, err := cache.LoadProxies(cacheManager, CACHE_KEY_PROXY, proxyFile)
+// 		if err != nil {
+// 			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
+// 		}
+// 		sdclogger.SDCLoggerInstance.Printf("Loaded %d proxies to cache", allProxies)
+// 	} else {
+// 		if err := cacheManager.MoveSet(CACHE_KEY_SYMBOL_ERROR, CACHE_KEY_SYMBOL); err != nil {
+// 			return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+// 		}
+// 	}
 
-	// Create tables
-	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	defer dbLoader.Disconnect()
-	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
-	if err := c.CreateTables(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return err
-	} else {
-		sdclogger.SDCLoggerInstance.Printf("All tables created")
-		return nil
-	}
+// 	// Create tables
+// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+// 	dbLoader.Connect(os.Getenv("PGHOST"),
+// 		os.Getenv("PGPORT"),
+// 		os.Getenv("PGUSER"),
+// 		os.Getenv("PGPASSWORD"),
+// 		os.Getenv("PGDATABASE"))
+// 	defer dbLoader.Disconnect()
+// 	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+// 	if err := c.CreateTables(); err != nil {
+// 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+// 		return err
+// 	} else {
+// 		sdclogger.SDCLoggerInstance.Printf("All tables created")
+// 		return nil
+// 	}
 
-}
+// }
 
-// Entry function
-func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) (int64, error) {
-	var allSymbols int64
-	var errorSymbols int64
+// // Entry function
+// func CollectFinancials(schemaName string, proxyFile string, parallel int, isContinue bool) (int64, error) {
+// 	var allSymbols int64
+// 	var errorSymbols int64
 
-	if err := Init(schemaName, proxyFile, isContinue); err != nil {
-		return 0, err
-	}
+// 	if err := Init(schemaName, proxyFile, isContinue); err != nil {
+// 		return 0, err
+// 	}
 
-	cacheManager := cache.NewCacheManager()
-	if err := cacheManager.Connect(); err != nil {
-		return 0, err
-	}
-	defer cacheManager.Disconnect()
+// 	cacheManager := cache.NewCacheManager()
+// 	if err := cacheManager.Connect(); err != nil {
+// 		return 0, err
+// 	}
+// 	defer cacheManager.Disconnect()
 
-	var wg sync.WaitGroup
-	outChan := make(chan string)
-	for i := 0; i < parallel; i++ {
-		wg.Add(1)
-		go func(goID string, schemaName string, outChan chan string, wg *sync.WaitGroup) {
-			defer wg.Done()
+// 	var wg sync.WaitGroup
+// 	outChan := make(chan string)
+// 	for i := 0; i < parallel; i++ {
+// 		wg.Add(1)
+// 		go func(goID string, schemaName string, outChan chan string, wg *sync.WaitGroup) {
+// 			defer wg.Done()
 
-			// Logger
-			file, _ := os.OpenFile(LOG_FILE+"."+goID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-			defer file.Close()
-			logger.Println("[Go" + goID + "] started.")
+// 			// Logger
+// 			file, _ := os.OpenFile(LOG_FILE+"."+goID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+// 			logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
+// 			defer file.Close()
+// 			logger.Println("[Go" + goID + "] started.")
 
-			// dbloader
-			dbLoader := dbloader.NewPGLoader(schemaName, logger)
-			dbLoader.Connect(os.Getenv("PGHOST"),
-				os.Getenv("PGPORT"),
-				os.Getenv("PGUSER"),
-				os.Getenv("PGPASSWORD"),
-				os.Getenv("PGDATABASE"))
-			defer dbLoader.Disconnect()
+// 			// dbloader
+// 			dbLoader := dbloader.NewPGLoader(schemaName, logger)
+// 			dbLoader.Connect(os.Getenv("PGHOST"),
+// 				os.Getenv("PGPORT"),
+// 				os.Getenv("PGUSER"),
+// 				os.Getenv("PGPASSWORD"),
+// 				os.Getenv("PGDATABASE"))
+// 			defer dbLoader.Disconnect()
 
-			// http reader
-			proxy, err := cacheManager.GetFromSet(CACHE_KEY_PROXY)
-			if err != nil {
-				outChan <- err.Error()
-				return
-			}
-			proxyClt, err := NewProxyClient(proxy)
-			if err != nil {
-				outChan <- err.Error()
-				return
-			}
-			httpReader := NewHttpReader(proxyClt)
+// 			// http reader
+// 			proxy, err := cacheManager.GetFromSet(CACHE_KEY_PROXY)
+// 			if err != nil {
+// 				outChan <- err.Error()
+// 				return
+// 			}
+// 			proxyClt, err := NewProxyClient(proxy)
+// 			if err != nil {
+// 				outChan <- err.Error()
+// 				return
+// 			}
+// 			httpReader := NewHttpReader(proxyClt)
 
-			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
+// 			collector := NewSACollector(dbLoader, httpReader, logger, schemaName)
 
-			for remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols > 0; {
+// 			for remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols > 0; {
 
-				if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
-					errorStr := fmt.Sprintf("[Go%s]No proxy server available", goID)
-					logger.Println(errorStr)
-					outChan <- errors.New(errorStr).Error()
-					break
-				}
+// 				if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
+// 					errorStr := fmt.Sprintf("[Go%s]No proxy server available", goID)
+// 					logger.Println(errorStr)
+// 					outChan <- errors.New(errorStr).Error()
+// 					break
+// 				}
 
-				if remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols == 0 {
-					logger.Printf("[Go%s]No symbol left", goID)
-					break
-				}
+// 				if remainingSymbols, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL); remainingSymbols == 0 {
+// 					logger.Printf("[Go%s]No symbol left", goID)
+// 					break
+// 				}
 
-				nextSymbol, err := cacheManager.PopFromSet(CACHE_KEY_SYMBOL)
-				if err != nil {
-					logger.Printf("[Go%s] Failed to get symbol from cache. Error:%s", goID, err.Error())
-					outChan <- err.Error()
-					continue
-				}
-				if nextSymbol == "" {
-					logger.Printf("[Go%s]No symbol left", goID)
-					break
-				}
+// 				nextSymbol, err := cacheManager.PopFromSet(CACHE_KEY_SYMBOL)
+// 				if err != nil {
+// 					logger.Printf("[Go%s] Failed to get symbol from cache. Error:%s", goID, err.Error())
+// 					outChan <- err.Error()
+// 					continue
+// 				}
+// 				if nextSymbol == "" {
+// 					logger.Printf("[Go%s]No symbol left", goID)
+// 					break
+// 				}
 
-				// If redirected
-				redirected, err := c.MapRedirectedSymbol(nextSymbol)
-				if err != nil {
-					logger.Printf("[Go%s] error: %s", goID, err.Error())
-					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
+// 				// If redirected
+// 				redirected, err := c.MapRedirectedSymbol(nextSymbol)
+// 				if err != nil {
+// 					logger.Printf("[Go%s] error: %s", goID, err.Error())
+// 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
 
-					cacheKey := CACHE_KEY_SYMBOL_ERROR
-					e, ok := err.(HttpServerError)
-					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-						cacheKey := CACHE_KEY_SYMBOL_INVALID
-						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
-					}
+// 					cacheKey := CACHE_KEY_SYMBOL_ERROR
+// 					e, ok := err.(HttpServerError)
+// 					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+// 						cacheKey := CACHE_KEY_SYMBOL_INVALID
+// 						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
+// 					}
 
-					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
-						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
-						outChan <- cacheError.Error()
-					}
-				}
-				if len(redirected) > 0 {
-					nextSymbol = redirected
-				}
+// 					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+// 						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+// 						outChan <- cacheError.Error()
+// 					}
+// 				}
+// 				if len(redirected) > 0 {
+// 					nextSymbol = redirected
+// 				}
 
-				if err := c.CollectFinancialDetails(nextSymbol); err != nil {
-					logger.Printf("[Go%s] error: %s", goID, err.Error())
-					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
+// 				if err := c.CollectFinancialDetails(nextSymbol); err != nil {
+// 					logger.Printf("[Go%s] error: %s", goID, err.Error())
+// 					logger.Printf("[Go%s] Add %s to cache set %s", goID, nextSymbol, CACHE_KEY_SYMBOL_ERROR)
 
-					cacheKey := CACHE_KEY_SYMBOL_ERROR
-					e, ok := err.(HttpServerError)
-					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-						cacheKey := CACHE_KEY_SYMBOL_INVALID
-						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
-					}
+// 					cacheKey := CACHE_KEY_SYMBOL_ERROR
+// 					e, ok := err.(HttpServerError)
+// 					if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+// 						cacheKey := CACHE_KEY_SYMBOL_INVALID
+// 						logger.Printf("Add symbol %s to cache key %s", nextSymbol, cacheKey)
+// 					}
 
-					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
-						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
-						outChan <- cacheError.Error()
-					}
+// 					if cacheError := cacheManager.AddToSet(cacheKey, nextSymbol); cacheError != nil {
+// 						logger.Printf("[Go%s] error: %s", goID, cacheError.Error())
+// 						outChan <- cacheError.Error()
+// 					}
 
-				}
-			}
+// 				}
+// 			}
 
-			logger.Println("[Go" + goID + "] finished.")
-		}(strconv.Itoa(i), schemaName, outChan, &wg)
-	}
+// 			logger.Println("[Go" + goID + "] finished.")
+// 		}(strconv.Itoa(i), schemaName, outChan, &wg)
+// 	}
 
-	go func() {
-		wg.Wait()
-		close(outChan)
-	}()
+// 	go func() {
+// 		wg.Wait()
+// 		close(outChan)
+// 	}()
 
-	var errorMessage string
-	for out := range outChan {
-		sdclogger.SDCLoggerInstance.Printf(out)
-		errorMessage += fmt.Sprintf("%s\n", out)
-	}
+// 	var errorMessage string
+// 	for out := range outChan {
+// 		sdclogger.SDCLoggerInstance.Printf(out)
+// 		errorMessage += fmt.Sprintf("%s\n", out)
+// 	}
 
-	if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
-		errorMessage += "Running out of proxy servers.\n"
-	}
+// 	if remainingProxies, _ := cacheManager.GetLength(CACHE_KEY_PROXY); remainingProxies == 0 {
+// 		errorMessage += "Running out of proxy servers.\n"
+// 	}
 
-	if errorLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
-		errorSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
-		errorMessage += fmt.Sprintf("Error symbols [%s]\n", strings.Join(errorSymbols, ","))
-	} else {
-		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
-	}
+// 	if errorLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
+// 		errorSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
+// 		errorMessage += fmt.Sprintf("Error symbols [%s]\n", strings.Join(errorSymbols, ","))
+// 	} else {
+// 		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
+// 	}
 
-	if notFoundLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_INVALID); notFoundLen > 0 {
-		notFoundSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
-		errorMessage += fmt.Sprintf("Not found symbols [%s]\n", strings.Join(notFoundSymbols, ","))
-	} else {
-		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
-	}
+// 	if notFoundLen, _ := cacheManager.GetLength(CACHE_KEY_SYMBOL_INVALID); notFoundLen > 0 {
+// 		notFoundSymbols, _ := cacheManager.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
+// 		errorMessage += fmt.Sprintf("Not found symbols [%s]\n", strings.Join(notFoundSymbols, ","))
+// 	} else {
+// 		sdclogger.SDCLoggerInstance.Println("All symbols processed.")
+// 	}
 
-	if len(errorMessage) > 0 {
-		return (allSymbols - errorSymbols), errors.New(errorMessage)
-	}
+// 	if len(errorMessage) > 0 {
+// 		return (allSymbols - errorSymbols), errors.New(errorMessage)
+// 	}
 
-	return (allSymbols - errorSymbols), nil
-}
+// 	return (allSymbols - errorSymbols), nil
+// }
 
-func CollectFinancialDetails(schemaName string, symbol string) error {
-	// dbloader
-	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	defer dbLoader.Disconnect()
+// func CollectFinancialDetails(schemaName string, symbol string) error {
+// 	// dbloader
+// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+// 	dbLoader.Connect(os.Getenv("PGHOST"),
+// 		os.Getenv("PGPORT"),
+// 		os.Getenv("PGUSER"),
+// 		os.Getenv("PGPASSWORD"),
+// 		os.Getenv("PGDATABASE"))
+// 	defer dbLoader.Disconnect()
 
-	// http reader
-	httpReader := NewHttpReader(NewLocalClient())
+// 	// http reader
+// 	httpReader := NewHttpReader(NewLocalClient())
 
-	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+// 	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
 
-	if err := c.CreateTables(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return err
-	} else {
-		sdclogger.SDCLoggerInstance.Printf("All tables created")
-	}
+// 	if err := c.CreateTables(); err != nil {
+// 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+// 		return err
+// 	} else {
+// 		sdclogger.SDCLoggerInstance.Printf("All tables created")
+// 	}
 
-	// If redirected
-	redirected, err := c.MapRedirectedSymbol(symbol)
-	if err != nil {
-		e, ok := err.(HttpServerError)
-		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
-		}
-		return err
-	}
-	if len(redirected) > 0 {
-		sdclogger.SDCLoggerInstance.Printf("Symbol %s is redirected to %s", symbol, redirected)
+// 	// If redirected
+// 	redirected, err := c.MapRedirectedSymbol(symbol)
+// 	if err != nil {
+// 		e, ok := err.(HttpServerError)
+// 		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+// 			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
+// 		}
+// 		return err
+// 	}
+// 	if len(redirected) > 0 {
+// 		sdclogger.SDCLoggerInstance.Printf("Symbol %s is redirected to %s", symbol, redirected)
 
-		symbol = redirected
-	}
+// 		symbol = redirected
+// 	}
 
-	if err := c.CollectFinancialDetails(symbol); err != nil {
-		return err
-	}
-	fmt.Println("Collect financials for symbol " + symbol)
+// 	if err := c.CollectFinancialDetails(symbol); err != nil {
+// 		return err
+// 	}
+// 	fmt.Println("Collect financials for symbol " + symbol)
 
-	return nil
-}
+// 	return nil
+// }
 
 func searchText(node *html.Node, text string) *html.Node {
 

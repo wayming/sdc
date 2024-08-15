@@ -3,74 +3,45 @@ package collector_test
 import (
 	"encoding/json"
 	"log"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/wayming/sdc/collector"
+	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 	testcommon "github.com/wayming/sdc/utils"
 )
 
-const YF_TEST_SCHEMA_NAME = "yf_test"
-
-var yfDB *dbloader.PGLoader
+var yfMockCtl *gomock.Controller
 var yfDBMock *dbloader.MockDBLoader
 var yfTestLogger *log.Logger
 var yfReader IHttpReader
 var yfExporter YFDataExporter
-var yfExporterMock YFDataExporter
 
 func setupYFTest(testName string) {
-	testcommon.SetupTest(testName)
 	yfTestLogger = testcommon.TestLogger(testName)
-	yfDB = dbloader.NewPGLoader(YF_TEST_SCHEMA_NAME, yfTestLogger)
-	yfDB.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
+	yfMockCtl := gomock.NewController(t)
 
-	yfDB.DropSchema(YF_TEST_SCHEMA_NAME)
-	yfDB.CreateSchema(YF_TEST_SCHEMA_NAME)
+	yfDBMock = dbloader.NewMockDBLoader(yfMockCtl)
+	yfDBMock.EXPECT().CreateSchema(config.SchemaName)
+	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
 
 	yfReader = NewHttpReader(NewLocalClient())
 	yfExporter.AddExporter(NewYFFileExporter())
-	yfExporter.AddExporter(NewYFDBExporter(yfDB, YF_TEST_SCHEMA_NAME))
+	yfExporter.AddExporter(NewYFDBExporter(yfDBMock, config.SchemaName))
 
 }
 
 func teardownYFTest() {
-	defer yfDB.Disconnect()
-	yfDB.DropSchema(YF_TEST_SCHEMA_NAME)
-	testcommon.TeardownTest()
+	yfMockCtl.Finish()
 }
 
 func TestYFCollector_Tickers(t *testing.T) {
-	type fields struct {
-		reader    IHttpReader
-		exporters IDataExporter
-		db        dbloader.DBLoader
-	}
-
 	setupYFTest(t.Name())
+	defer teardownYFTest()
 
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "TestYFCollector_Tickers",
-			fields: fields{
-				reader:    yfReader,
-				exporters: &yfExporter,
-				db:        yfDB,
-			},
-		},
-	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db, &sdclogger.SDCLoggerInstance.Logger)
@@ -79,6 +50,13 @@ func TestYFCollector_Tickers(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("TestYFCollector_EOD", func(t *testing.T) {
+		c := NewYFCollector(yfReader, &yfExporter, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
+		if err := c.EOD(); err != nil {
+			t.Errorf("YFCollector::EOD error=%v", err)
+		}
+	})
 
 	// teardownYFTest()
 }
@@ -90,7 +68,7 @@ func TestYFCollector_EOD(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	yfDBMock = dbloader.NewMockDBLoader(mockCtrl)
-	yfDBMock.EXPECT().CreateSchema(YF_TEST_SCHEMA_NAME)
+	yfDBMock.EXPECT().CreateSchema(config.SchemaName)
 	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
 
 	yfDBMock.EXPECT().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
@@ -139,11 +117,11 @@ func TestYFCollector_EOD(t *testing.T) {
 			return int64(countOfFirstField), nil
 		})
 
-	yfExporterMock.AddExporter(NewYFFileExporter())
-	yfExporterMock.AddExporter(NewYFDBExporter(yfDBMock, YF_TEST_SCHEMA_NAME))
+	yfExporter.AddExporter(NewYFFileExporter())
+	yfExporter.AddExporter(NewYFDBExporter(yfDBMock, config.SchemaName))
 
 	t.Run("TestYFCollector_EOD", func(t *testing.T) {
-		c := NewYFCollector(yfReader, &yfExporterMock, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
+		c := NewYFCollector(yfReader, &yfExporter, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
 		if err := c.EOD(); err != nil {
 			t.Errorf("YFCollector::EOD error=%v", err)
 		}
@@ -164,7 +142,7 @@ func TestYFCollect(t *testing.T) {
 		{
 			name: "TestYFCollect",
 			args: args{
-				schemaName: YF_TEST_SCHEMA_NAME,
+				schemaName: config.SchemaName,
 			},
 		},
 	}

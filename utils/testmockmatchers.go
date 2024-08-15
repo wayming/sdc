@@ -1,4 +1,4 @@
-package testcommon
+package utils
 
 import "regexp"
 
