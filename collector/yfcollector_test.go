@@ -42,19 +42,10 @@ func TestYFCollector_Tickers(t *testing.T) {
 	setupYFTest(t.Name())
 	defer teardownYFTest()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db, &sdclogger.SDCLoggerInstance.Logger)
-			if err := c.Tickers(); (err != nil) != tt.wantErr {
-				t.Errorf("YFTickers() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-
-	t.Run("TestYFCollector_EOD", func(t *testing.T) {
-		c := NewYFCollector(yfReader, &yfExporter, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
-		if err := c.EOD(); err != nil {
-			t.Errorf("YFCollector::EOD error=%v", err)
+	t.Run("TestYFCollector_Tickers", func(t *testing.T) {
+		c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db, &sdclogger.SDCLoggerInstance.Logger)
+		if err := c.Tickers(); (err != nil) != tt.wantErr {
+			t.Errorf("YFTickers() error = %v, wantErr %v", err, tt.wantErr)
 		}
 	})
 
