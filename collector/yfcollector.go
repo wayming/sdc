@@ -164,8 +164,8 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 
 	reader := NewHttpReader(NewLocalClient())
 
-	var exporters YFDataExporter
-	exporters.AddExporter(NewYFDBExporter(db, config.SchemaName))
+	var exporters YFDataExporters
+	exporters.AddExporter(NewDBExporter(db, config.SchemaName))
 	exporters.AddExporter(NewYFFileExporter())
 
 	cl := NewYFCollector(reader, &exporters, db, &sdclogger.SDCLoggerInstance.Logger)

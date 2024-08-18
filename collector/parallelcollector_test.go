@@ -1,38 +1,80 @@
 package collector_test
 
 import (
+	"log"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/wayming/sdc/cache"
-	"github.com/wayming/sdc/collector"
+	. "github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
-	testcommon "github.com/wayming/sdc/utils"
+	testcommon "github.com/wayming/sdc/testcommon"
 )
 
+type PCController struct {
+	mockCtl   *gomock.Controller
+	dbMock    *dbloader.MockDBLoader
+	cacheMock *cache.MockICacheManager
+	logger    *log.Logger
+}
+
+var pcSuite *testcommon.TestSuite
+var pcController PCController
+
+func init() {
+	pcSuite = testcommon.NewTestSuite(&pcController)
+}
+
+// GlobalSetup executed once for each test file
+func (c *PCController) GlobalSetup() {
+	c.logger = testcommon.TestLogger("yfcollector_test")
+	c.logger.Println("GlobalSetup for PCController")
+}
+
+// GlobalTeardown executed once for each test file
+func (c *PCController) GlobalTeardown() {
+	c.logger.Println("GlobalTeardown for PCController")
+
+}
+
+// Setup executed once for each individual test
+func (c *PCController) Setup(t *testing.T) {
+	c.logger.Println("Custom setup for PCController")
+	c.mockCtl = gomock.NewController(t)
+
+	c.dbMock = dbloader.NewMockDBLoader(c.mockCtl)
+	c.dbMock.EXPECT().CreateSchema(config.SchemaName)
+	c.dbMock.EXPECT().Exec("SET search_path TO yf_test")
+	c.dbMock.EXPECT().Disconnect().AnyTimes()
+
+	c.cacheMock = cache.NewMockICacheManager(c.mockCtl)
+	c.cacheMock.EXPECT().Connect().AnyTimes()
+	c.cacheMock.EXPECT().Disconnect().AnyTimes()
+
+}
+
+// Teardown executed once for each individual test
+func (c *PCController) Teardown(t *testing.T) {
+	c.logger.Println("Custom teardown for PCController")
+	c.mockCtl.Finish()
+}
+
 func TestParallelCollector_Execute(t *testing.T) {
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
 	parallel := 2
 	numSymbols := 4
-	yfDBMock := dbloader.NewMockDBLoader(mockCtrl)
-	yfDBMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
-	yfDBMock.EXPECT().Exec("SET search_path TO sdc").AnyTimes()
-	yfDBMock.EXPECT().Disconnect().AnyTimes()
-	yfDBMock.EXPECT().CreateTableByJsonStruct(
-		testcommon.NewStringPatternMatcher(collector.FYDataTables[collector.FY_EOD]+".*"),
-		collector.FYDataTypes[collector.FY_EOD]).Times(numSymbols)
-	yfDBMock.EXPECT().LoadByJsonText(
+
+	pcController.dbMock.EXPECT().CreateTableByJsonStruct(
+		testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"),
+		FYDataTypes[FY_EOD]).Times(numSymbols)
+	pcController.dbMock.EXPECT().LoadByJsonText(
 		gomock.Any(),
-		collector.FYDataTables[collector.FY_EOD]+"_msft",
-		collector.FYDataTypes[collector.FY_EOD]).Times(numSymbols)
-	yfDBMock.EXPECT().RunQuery(testcommon.NewStringPatternMatcher("SELECT symbol FROM fy_tickers.*"), gomock.Any()).
+		FYDataTables[FY_EOD]+"_msft",
+		FYDataTypes[FY_EOD]).Times(numSymbols)
+	pcController.dbMock.EXPECT().RunQuery(testcommon.NewStringPatternMatcher("SELECT symbol FROM fy_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -55,46 +97,42 @@ func TestParallelCollector_Execute(t *testing.T) {
 			return result.Interface(), nil
 		})
 
-	yfCacheMock := cache.NewMockICacheManager(mockCtrl)
-	yfCacheMock.EXPECT().Connect().AnyTimes()
-	yfCacheMock.EXPECT().Disconnect().AnyTimes()
-
 	// Parallel Collector Begin
-	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL).
+	pcController.cacheMock.EXPECT().GetLength(CACHE_KEY_SYMBOL).
 		Return(int64(numSymbols), nil).Times(1)
 
 	// Parallel Collect Process
-	yfCacheMock.EXPECT().AddToSet(collector.CACHE_KEY_SYMBOL, "MSFT").Times(numSymbols)
-	yfCacheMock.EXPECT().
-		PopFromSet(collector.CACHE_KEY_SYMBOL).
+	pcController.cacheMock.EXPECT().AddToSet(CACHE_KEY_SYMBOL, "MSFT").Times(numSymbols)
+	pcController.cacheMock.EXPECT().
+		PopFromSet(CACHE_KEY_SYMBOL).
 		Return("MSFT", nil).
 		Times(numSymbols) // Return the same symbol
-	yfCacheMock.EXPECT().
-		PopFromSet(collector.CACHE_KEY_SYMBOL).
+	pcController.cacheMock.EXPECT().
+		PopFromSet(CACHE_KEY_SYMBOL).
 		Return("", nil).
 		AnyTimes() // No symbol left
 
 	// Parallel Collector End
-	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL).
+	pcController.cacheMock.EXPECT().GetLength(CACHE_KEY_SYMBOL).
 		Return(int64(0), nil).AnyTimes()
-	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL_ERROR).Return(int64(0), nil)
-	yfCacheMock.EXPECT().GetLength(collector.CACHE_KEY_SYMBOL_INVALID).Return(int64(0), nil)
+	pcController.cacheMock.EXPECT().GetLength(CACHE_KEY_SYMBOL_ERROR).Return(int64(0), nil)
+	pcController.cacheMock.EXPECT().GetLength(CACHE_KEY_SYMBOL_INVALID).Return(int64(0), nil)
 
-	testBuilder := collector.YFWorkerBuilder{}
-	testBuilder.WithDB(yfDBMock)
+	testBuilder := YFWorkerBuilder{}
+	testBuilder.WithDB(pcController.dbMock)
 
-	pc := collector.ParallelCollector{
-		func() collector.IWorkerBuilder {
-			b := collector.YFWorkerBuilder{}
-			b.WithDB(yfDBMock)
-			b.WithReader(collector.NewHttpReader(collector.NewLocalClient()))
-			b.WithExporter(collector.NewYFDBExporter(yfDBMock, config.SchemaName))
-			b.WithCache(yfCacheMock)
+	pc := ParallelCollector{
+		func() IWorkerBuilder {
+			b := YFWorkerBuilder{}
+			b.WithDB(pcController.dbMock)
+			b.WithReader(NewHttpReader(NewLocalClient()))
+			b.WithExporter(NewDBExporter(pcController.dbMock, config.SchemaName))
+			b.WithCache(pcController.cacheMock)
 			b.WithLogger(&sdclogger.SDCLoggerInstance.Logger)
 			return &b
 		},
-		yfCacheMock,
-		collector.PCParams{},
+		pcController.cacheMock,
+		PCParams{},
 	}
 
 	t.Run("TestParallelCollector_Execute", func(t *testing.T) {
@@ -108,7 +146,7 @@ func TestParallelCollector_Execute(t *testing.T) {
 
 func TestNewEODParallelCollector(t *testing.T) {
 	t.Run("TestNewEODParallelCollector", func(t *testing.T) {
-		c := collector.NewEODParallelCollector(collector.PCParams{
+		c := NewEODParallelCollector(PCParams{
 			IsContinue:  false,
 			TickersJSON: os.Getenv("SDC_HOME") + "/data/YF/fy_tickers_100.json",
 		})

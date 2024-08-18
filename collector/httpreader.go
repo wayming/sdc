@@ -89,7 +89,7 @@ func NewLocalClient() *http.Client {
 func NewProxyClient(proxyURL string) (*http.Client, error) {
 	proxyParts := strings.Split(proxyURL, ":")
 	if len(proxyParts) != 4 {
-		return nil, fmt.Errorf("Failed to parse proxy string %s.")
+		return nil, fmt.Errorf("failed to parse proxy string %s.", proxyURL)
 	}
 	// Proxy server details
 	proxyAddr := fmt.Sprintf("%s:%s", proxyParts[0], proxyParts[1])

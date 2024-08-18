@@ -15,8 +15,7 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run() // Run tests
 
 	// ct.GlobalTeardown() // Global teardown
-	for _, fn := range testcommon.GetTeardown() {
-		fn()
-	}
+	testcommon.GetTeardown()()
+
 	os.Exit(exitCode)
 }

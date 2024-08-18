@@ -4,12 +4,12 @@ import (
 	"testing"
 )
 
-var teardownFuncs []func()
+var teardownFuncs func()
 
 func RegisterTeardown(fn func()) {
-	teardownFuncs = append(teardownFuncs, fn)
+	teardownFuncs = fn
 }
-func GetTeardown() []func() {
+func GetTeardown() func() {
 	return teardownFuncs
 }
 
@@ -26,7 +26,12 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) Init() {
+	if GetTeardown() != nil {
+		GetTeardown()()
+	}
+
 	suite.Controller.GlobalSetup()
+
 	RegisterTeardown(suite.Controller.GlobalTeardown)
 }
 

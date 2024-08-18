@@ -1,6 +1,9 @@
 package testcommon
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // StringPatternMatcher is a custom matcher for matching strings against a regex pattern.
 type StringPatternMatcher struct {
@@ -9,7 +12,7 @@ type StringPatternMatcher struct {
 
 func (spm *StringPatternMatcher) Matches(x interface{}) bool {
 	str, ok := x.(string)
-	return ok && spm.pattern.MatchString(str)
+	return ok && spm.pattern.MatchString(strings.ToLower(str))
 }
 
 func (spm *StringPatternMatcher) String() string {

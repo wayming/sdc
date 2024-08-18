@@ -283,14 +283,15 @@ func (w *RedirectSymbolWorker) Init(cm cache.ICacheManager, logger *log.Logger) 
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 	// TODO
-	w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
-	if err := w.collector.CreateTables(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return err
-	} else {
-		sdclogger.SDCLoggerInstance.Printf("All tables created")
-		return nil
-	}
+	// w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
+	// if err := w.collector.CreateTables(); err != nil {
+	// 	sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+	// 	return err
+	// } else {
+	// 	sdclogger.SDCLoggerInstance.Printf("All tables created")
+	// 	return nil
+	// }
+	return nil
 }
 func (w *RedirectSymbolWorker) Do(symbol string, cm cache.ICacheManager) error {
 	if rsymbol, err := w.collector.MapRedirectedSymbol(symbol); err != nil {
@@ -327,21 +328,23 @@ func (w *FinancialOverviewWorker) Init(cm cache.ICacheManager, logger *log.Logge
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 	// TODO
-	w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
-	if err := w.collector.CreateTables(); err != nil {
-		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-		return err
-	} else {
-		sdclogger.SDCLoggerInstance.Printf("All tables created")
-		return nil
-	}
+	// w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
+	// if err := w.collector.CreateTables(); err != nil {
+	// 	sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+	// 	return err
+	// } else {
+	// 	sdclogger.SDCLoggerInstance.Printf("All tables created")
+	// 	return nil
+	// }
+	return nil
 }
 func (w *FinancialOverviewWorker) Do(symbol string, cm cache.ICacheManager) error {
-	if _, err := w.collector.CollectFinancialOverall(symbol, reflect.TypeFor[StockOverview]()); err != nil {
-		return err
-	} else {
-		return nil
-	}
+	// if _, err := w.collector.CollectFinancialOverall(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+	// 	return err
+	// } else {
+	// 	return nil
+	// }
+	return nil
 }
 func (w *FinancialOverviewWorker) Done() error {
 	return nil

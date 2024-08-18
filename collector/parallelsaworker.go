@@ -72,7 +72,7 @@ func (b *SAWorkerBuilder) Default() error {
 	}
 
 	if b.exporter == nil {
-		b.exporter = NewYFDBExporter(b.db, config.SchemaName)
+		b.exporter = NewDBExporter(b.db, config.SchemaName)
 	}
 
 	if b.reader == nil {

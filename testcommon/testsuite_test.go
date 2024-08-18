@@ -13,39 +13,43 @@ type MyController struct {
 	Resource string
 }
 
-var myCtl MyController
+var suite1 *testcommon.TestSuite
+var ctl1 MyController
+
+func init() {
+	suite1 = testcommon.NewTestSuite(&ctl1)
+}
 
 // GlobalSetup overrides the base setup
 func (c *MyController) GlobalSetup() {
-	fmt.Println("GlobalSetup for MyTestSuite") // Custom logic
+	fmt.Println("GlobalSetup for MyController") // Custom logic
 	c.Resource += "GlobalSetup"
 }
 
 // GlobalTeardown overrides the base setup
 func (c *MyController) GlobalTeardown() {
-	fmt.Println("GlobalTeardown for MyTestSuite") // Custom logic
+	fmt.Println("GlobalTeardown for MyController") // Custom logic
 	c.Resource += "GlobalTeardown"
 
 }
 
 // Setup overrides the base setup
 func (c *MyController) Setup(t *testing.T) {
-	fmt.Println("Custom setup for MyTestSuite") // Custom logic
+	fmt.Println("Custom setup for MyController") // Custom logic
 	c.Resource += "setup"
 
 }
 
 // Teardown overrides the base teardown
 func (c *MyController) Teardown(t *testing.T) {
-	fmt.Println("Custom teardown for MyTestSuite") // Custom logic
+	fmt.Println("Custom teardown for MyController") // Custom logic
 	c.Resource += "teardown"
 
 }
 
 // Example test function
 func TestMyExample(t *testing.T) {
-	suite := &testcommon.TestSuite{Controller: &myCtl}
-	suite.RunTest("TestExample", t, func(t *testing.T) {
-		t.Logf("TestExample executed with global Resource:%s", myCtl.Resource)
+	suite1.RunTest("TestExample", t, func(t *testing.T) {
+		t.Logf("TestExample executed with global Resource:%s", ctl1.Resource)
 	})
 }

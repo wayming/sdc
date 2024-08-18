@@ -5,9 +5,74 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
+	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/wayming/sdc/cache"
+	"github.com/wayming/sdc/collector"
+	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
+
+type MockTestFixture struct {
+	mockCtl   *gomock.Controller
+	dbMock    *dbloader.MockDBLoader
+	cacheMock *cache.MockICacheManager
+	logger    *log.Logger
+	reader    collector.IHttpReader
+	exporter  collector.IDataExporter
+}
+
+func NewMockTestFixture(t *testing.T) *MockTestFixture {
+	var f MockTestFixture
+	f.Setup(t)
+	return &f
+}
+
+func (f *MockTestFixture) Setup(t *testing.T) {
+	f.logger = TestLogger(t.Name())
+	f.logger.Printf("setup test %s", t.Name())
+	f.mockCtl = gomock.NewController(t)
+	f.dbMock = dbloader.NewMockDBLoader(f.mockCtl)
+
+	f.dbMock.EXPECT().CreateSchema(config.SchemaName)
+	f.dbMock.EXPECT().Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName)))
+
+	f.cacheMock = cache.NewMockICacheManager(f.mockCtl)
+	f.cacheMock.EXPECT().Connect().AnyTimes()
+	f.cacheMock.EXPECT().Disconnect().AnyTimes()
+
+	f.reader = collector.NewHttpReader(collector.NewLocalClient())
+
+	f.exporter = collector.NewDBExporter(f.dbMock, config.SchemaName)
+}
+func (f *MockTestFixture) Teardown(t *testing.T) {
+	f.logger.Printf("teardown test %s", t.Name())
+	f.mockCtl.Finish()
+}
+func (f *MockTestFixture) DBExpect() *dbloader.MockDBLoaderMockRecorder {
+	return f.dbMock.EXPECT()
+}
+func (f *MockTestFixture) CacheExpect() *cache.MockICacheManagerMockRecorder {
+	return f.cacheMock.EXPECT()
+}
+func (m *MockTestFixture) DbMock() *dbloader.MockDBLoader {
+	return m.dbMock
+}
+func (m *MockTestFixture) CacheMock() *cache.MockICacheManager {
+	return m.cacheMock
+}
+func (m *MockTestFixture) Logger() *log.Logger {
+	return m.logger
+}
+func (m *MockTestFixture) Reader() collector.IHttpReader {
+	return m.reader
+}
+func (m *MockTestFixture) Exporter() collector.IDataExporter {
+	return m.exporter
+}
 
 func SetupTest(testName string) {
 }

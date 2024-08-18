@@ -2,67 +2,33 @@ package collector_test
 
 import (
 	"encoding/json"
-	"log"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/wayming/sdc/collector"
-	"github.com/wayming/sdc/config"
-	"github.com/wayming/sdc/dbloader"
-	"github.com/wayming/sdc/sdclogger"
-	testcommon "github.com/wayming/sdc/utils"
+	"github.com/wayming/sdc/testcommon"
 )
 
-var yfMockCtl *gomock.Controller
-var yfDBMock *dbloader.MockDBLoader
-var yfTestLogger *log.Logger
-var yfReader IHttpReader
-var yfExporter YFDataExporter
-
-func setupYFTest(testName string) {
-	yfTestLogger = testcommon.TestLogger(testName)
-	yfMockCtl := gomock.NewController(t)
-
-	yfDBMock = dbloader.NewMockDBLoader(yfMockCtl)
-	yfDBMock.EXPECT().CreateSchema(config.SchemaName)
-	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
-
-	yfReader = NewHttpReader(NewLocalClient())
-	yfExporter.AddExporter(NewYFFileExporter())
-	yfExporter.AddExporter(NewYFDBExporter(yfDBMock, config.SchemaName))
-
-}
-
-func teardownYFTest() {
-	yfMockCtl.Finish()
-}
-
 func TestYFCollector_Tickers(t *testing.T) {
-	setupYFTest(t.Name())
-	defer teardownYFTest()
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
 
+	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
+	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
 	t.Run("TestYFCollector_Tickers", func(t *testing.T) {
-		c := NewYFCollector(tt.fields.reader, tt.fields.exporters, tt.fields.db, &sdclogger.SDCLoggerInstance.Logger)
-		if err := c.Tickers(); (err != nil) != tt.wantErr {
-			t.Errorf("YFTickers() error = %v, wantErr %v", err, tt.wantErr)
+		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DbMock(), fixture.Logger())
+		if err := c.Tickers(); err != nil {
+			t.Errorf("YFTickers() error = %v", err)
 		}
 	})
-
-	// teardownYFTest()
 }
 
 func TestYFCollector_EOD(t *testing.T) {
-	setupYFTest(t.Name())
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
 
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	yfDBMock = dbloader.NewMockDBLoader(mockCtrl)
-	yfDBMock.EXPECT().CreateSchema(config.SchemaName)
-	yfDBMock.EXPECT().Exec("SET search_path TO yf_test")
-
-	yfDBMock.EXPECT().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
+	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -82,8 +48,8 @@ func TestYFCollector_EOD(t *testing.T) {
 			result = reflect.Append(result, row)
 			return result.Interface(), nil
 		})
-	yfDBMock.EXPECT().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD])
-	yfDBMock.EXPECT().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD]).
+	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD])
+	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD]).
 		DoAndReturn(func(text string, tableName string, structType reflect.Type) (int64, error) {
 			countOfFirstField := 0
 			var err error
@@ -108,11 +74,8 @@ func TestYFCollector_EOD(t *testing.T) {
 			return int64(countOfFirstField), nil
 		})
 
-	yfExporter.AddExporter(NewYFFileExporter())
-	yfExporter.AddExporter(NewYFDBExporter(yfDBMock, config.SchemaName))
-
 	t.Run("TestYFCollector_EOD", func(t *testing.T) {
-		c := NewYFCollector(yfReader, &yfExporter, yfDBMock, &sdclogger.SDCLoggerInstance.Logger)
+		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DbMock(), fixture.Logger())
 		if err := c.EOD(); err != nil {
 			t.Errorf("YFCollector::EOD error=%v", err)
 		}
@@ -121,46 +84,11 @@ func TestYFCollector_EOD(t *testing.T) {
 	// teardownYFTest()
 }
 
-func TestYFCollect(t *testing.T) {
-	type args struct {
-		schemaName string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "TestYFCollect",
-			args: args{
-				schemaName: config.SchemaName,
-			},
-		},
-	}
-
-	setupYFTest(t.Name())
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := YFCollect("", true, true); (err != nil) != tt.wantErr {
-				t.Errorf("YFCollect() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-
-	// teardownYFTest()
-}
-
 func TestExtractData(t *testing.T) {
-	type args struct {
-		textJSON string
-		t        reflect.Type
-	}
-	bodyType := reflect.TypeFor[FYTickersResponse]()
 	inpuJSONText := `[
 		{
 			"symbol": "A",
-			"name": "Agilent Technologies, Inc. Common Stock",
+			"name": "Agilent Technologies, In Common Stock",
 			"nasdaq_traded": "Y",
 			"exchange": "N",
 			"market_category": "",
@@ -173,72 +101,57 @@ func TestExtractData(t *testing.T) {
 			"next_shares": "N"
 		}
 	]`
+	textJSON :=
+		`{
+		"results": ` + inpuJSONText + `,
+		"provider": "nasdaq",
+		"warnings": [
+			{
+				"category": "OpenBBWarning",
+				"message": "Parameter 'limit' is not supported by nasdaq. Available for: intrinio."
+			},
+			{
+				"category": "FutureWarning",
+				"message": "Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set "
+			}
+		],
+		"chart": null,
+		"extra": {
+			"metadata": {
+				"arguments": {
+					"provider_choices": {
+						"provider": "nasdaq"
+					},
+					"standard_params": {
+						"query": "",
+						"is_symbol": false,
+						"use_cache": true
+					},
+					"extra_params": {
+						"active": true,
+						"limit": 100000,
+						"is_etf": null,
+						"is_fund": false
+					}
+				},
+				"duration": 4196819148,
+				"route": "/equity/search",
+				"timestamp": "2024-07-30T12:56:09.154604"
+			}
+		}
+	}`
+
 	var tickers []FYTickers
 	json.Unmarshal([]byte(inpuJSONText), &tickers)
 	expectedJSONText, _ := (json.Marshal(tickers))
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "TestExtractData",
-			args: args{
-				textJSON: `{
-					"results": ` + inpuJSONText + `,
-					"provider": "nasdaq",
-					"warnings": [
-						{
-							"category": "OpenBBWarning",
-							"message": "Parameter 'limit' is not supported by nasdaq. Available for: intrinio."
-						},
-						{
-							"category": "FutureWarning",
-							"message": "Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set "
-						}
-					],
-					"chart": null,
-					"extra": {
-						"metadata": {
-							"arguments": {
-								"provider_choices": {
-									"provider": "nasdaq"
-								},
-								"standard_params": {
-									"query": "",
-									"is_symbol": false,
-									"use_cache": true
-								},
-								"extra_params": {
-									"active": true,
-									"limit": 100000,
-									"is_etf": null,
-									"is_fund": false
-								}
-							},
-							"duration": 4196819148,
-							"route": "/equity/search",
-							"timestamp": "2024-07-30T12:56:09.154604"
-						}
-					}
-				}`,
-				t: bodyType,
-			},
-			want:    string(expectedJSONText),
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ExtractData(tt.args.textJSON, tt.args.t)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ExtractData() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("ExtractData() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
+	t.Run("TestExtractData", func(t *testing.T) {
+		got, err := ExtractData(textJSON, reflect.TypeFor[FYTickersResponse]())
+		if err != nil {
+			t.Errorf("ExtractData() error = %v", err)
+		}
+		if got != string(expectedJSONText) {
+			t.Errorf("ExtractData() = %v, want %v", got, expectedJSONText)
+		}
+	})
 }

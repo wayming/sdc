@@ -8,16 +8,15 @@ import (
 	"github.com/wayming/sdc/testcommon"
 )
 
-// MyTestSuite embeds BaseTestSuite to create a specific test suite
 type MyController2 struct {
 	Resource string
 }
 
-var suite *testcommon.TestSuite
-var ctl MyController2
+var suite2 *testcommon.TestSuite
+var ctl2 MyController2
 
 func init() {
-	suite = testcommon.NewTestSuite(&ctl)
+	suite2 = testcommon.NewTestSuite(&ctl2)
 }
 
 // GlobalSetup overrides the base setup
@@ -49,7 +48,7 @@ func (c *MyController2) Teardown(t *testing.T) {
 
 // Example test function
 func TestMyExample2(t *testing.T) {
-	suite.RunTest("TestExample2", t, func(t *testing.T) {
-		t.Logf("TestExample executed with global Resource:%s", ctl.Resource)
+	suite2.RunTest("TestExample2", t, func(t *testing.T) {
+		t.Logf("TestExample executed with global Resource:%s", ctl2.Resource)
 	})
 }

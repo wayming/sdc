@@ -24,6 +24,14 @@ func NewYFFileExporter() *FileExporter {
 	return &FileExporter{path: dir}
 }
 
+func NewMSFileExporter() *FileExporter {
+	dir := os.Getenv("SDC_HOME") + "/data/MS"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", dir, err)
+	}
+	return &FileExporter{path: dir}
+}
+
 func (e FileExporter) Export(entity string, table string, data string) error {
 	fileName := e.path + "/" + table + ".json"
 	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
@@ -37,7 +45,7 @@ type DBExporter struct {
 	schema string
 }
 
-func NewYFDBExporter(db dbloader.DBLoader, schema string) *DBExporter {
+func NewDBExporter(db dbloader.DBLoader, schema string) *DBExporter {
 	db.CreateSchema(schema)
 	db.Exec("SET search_path TO " + schema)
 	return &DBExporter{
@@ -58,18 +66,26 @@ func (e DBExporter) Export(entity string, table string, data string) error {
 	return nil
 }
 
-type YFDataExporter struct {
+type CommonDataExporters struct {
 	exporters []IDataExporter
 }
 
-func (e *YFDataExporter) AddExporter(exp IDataExporter) {
+func (e *CommonDataExporters) AddExporter(exp IDataExporter) {
 	e.exporters = append(e.exporters, exp)
 }
-func (e *YFDataExporter) Export(entity string, table string, data string) error {
+func (e *CommonDataExporters) Export(entity string, table string, data string) error {
 	for _, exporter := range e.exporters {
 		if err := exporter.Export(entity, table, data); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+type YFDataExporters struct {
+	CommonDataExporters
+}
+
+type MSDataExporters struct {
+	CommonDataExporters
 }
