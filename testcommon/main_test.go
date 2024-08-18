@@ -4,13 +4,9 @@ package testcommon_test
 import (
 	"os"
 	"testing"
+
+	"github.com/wayming/sdc/testcommon"
 )
-
-var teardownFuncs []func()
-
-func RegisterTeardown(fn func()) {
-	teardownFuncs = append(teardownFuncs, fn)
-}
 
 // TestMain function to handle global setup and teardown
 func TestMain(m *testing.M) {
@@ -19,7 +15,7 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run() // Run tests
 
 	// ct.GlobalTeardown() // Global teardown
-	for _, fn := range teardownFuncs {
+	for _, fn := range testcommon.GetTeardown() {
 		fn()
 	}
 	os.Exit(exitCode)
