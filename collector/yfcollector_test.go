@@ -17,7 +17,7 @@ func TestYFCollector_Tickers(t *testing.T) {
 	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
 	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
 	t.Run("TestYFCollector_Tickers", func(t *testing.T) {
-		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DbMock(), fixture.Logger())
+		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 		if err := c.Tickers(); err != nil {
 			t.Errorf("YFTickers() error = %v", err)
 		}
@@ -75,7 +75,7 @@ func TestYFCollector_EOD(t *testing.T) {
 		})
 
 	t.Run("TestYFCollector_EOD", func(t *testing.T) {
-		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DbMock(), fixture.Logger())
+		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 		if err := c.EOD(); err != nil {
 			t.Errorf("YFCollector::EOD error=%v", err)
 		}

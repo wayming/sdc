@@ -21,6 +21,6 @@ func (spm *StringPatternMatcher) String() string {
 
 // NewStringPatternMatcher creates a new StringPatternMatcher for the given pattern.
 func NewStringPatternMatcher(pattern string) *StringPatternMatcher {
-	re := regexp.MustCompile(pattern)
+	re := regexp.MustCompile(strings.ToLower(pattern))
 	return &StringPatternMatcher{pattern: re}
 }

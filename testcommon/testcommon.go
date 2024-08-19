@@ -37,8 +37,11 @@ func (f *MockTestFixture) Setup(t *testing.T) {
 	f.mockCtl = gomock.NewController(t)
 	f.dbMock = dbloader.NewMockDBLoader(f.mockCtl)
 
-	f.dbMock.EXPECT().CreateSchema(config.SchemaName)
-	f.dbMock.EXPECT().Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName)))
+	f.dbMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
+	f.dbMock.EXPECT().
+		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName))).
+		AnyTimes()
+	f.dbMock.EXPECT().Disconnect().AnyTimes()
 
 	f.cacheMock = cache.NewMockICacheManager(f.mockCtl)
 	f.cacheMock.EXPECT().Connect().AnyTimes()
@@ -58,7 +61,7 @@ func (f *MockTestFixture) DBExpect() *dbloader.MockDBLoaderMockRecorder {
 func (f *MockTestFixture) CacheExpect() *cache.MockICacheManagerMockRecorder {
 	return f.cacheMock.EXPECT()
 }
-func (m *MockTestFixture) DbMock() *dbloader.MockDBLoader {
+func (m *MockTestFixture) DBMock() *dbloader.MockDBLoader {
 	return m.dbMock
 }
 func (m *MockTestFixture) CacheMock() *cache.MockICacheManager {
