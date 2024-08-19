@@ -370,7 +370,7 @@ func (w *FinancialDetailsWorker) Do(symbol string, cm cache.ICacheManager) error
 	if _, err := w.collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
 		retErr = err
 	}
-	if _, err := w.collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+	if _, err := w.collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceSheet]()); err != nil {
 		retErr = err
 	}
 	if _, err := w.collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {

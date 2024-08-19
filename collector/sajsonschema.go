@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+const SA_REDIRECTED_SYMBOLS = "SARedirectedSymbols"
+const SA_STOCKOVERVIEW = "SAStockOverview"
+const SA_FINANCIALSINCOME = "SAFinancialsIncome"
+const SA_FINANCIALSBALANCESHEET = "SAFinancialsBalanceSheet"
+const SA_FINANCIALSCASHFLOW = "SAFinancialsCashFlow"
+const SA_FINANCIALRATIOS = "SAFinancialRatios"
+const SA_ANALYSTSRATING = "SAAnalystsRating"
+
 type RedirectedSymbols struct {
 	Symbol           string `json:"symbol" db:"PrimaryKey"`
 	RedirectedSymbol string `json:"redirected_symbol"`
@@ -76,7 +84,7 @@ type FinancialsIncome struct {
 	Symbol                   string    `json:"symbol" db:"PrimaryKey"`
 }
 
-type FinancialsBalanceShet struct {
+type FinancialsBalanceSheet struct {
 	AccountsPayable           float64   `json:"accounts_payable"`
 	BookValuePerShare         float64   `json:"book_value_per_share"`
 	CashCashEquivalents       float64   `json:"cash_cash_equivalents"`
@@ -216,7 +224,7 @@ func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
 	saStructTypes := []reflect.Type{
 		reflect.TypeFor[StockOverview](),
 		reflect.TypeFor[FinancialsIncome](),
-		reflect.TypeFor[FinancialsBalanceShet](),
+		reflect.TypeFor[FinancialsBalanceSheet](),
 		reflect.TypeFor[FinancialsCashFlow](),
 		reflect.TypeFor[FinancialRatios](),
 		reflect.TypeFor[AnalystsRating](),
@@ -228,4 +236,24 @@ func AllSAMetricsFields() map[string]map[string]JsonFieldMetadata {
 	}
 
 	return allMetricsFields
+}
+
+var SADataTables = map[string]string{
+	SA_REDIRECTED_SYMBOLS:     "sa_redirected_symbols",
+	SA_STOCKOVERVIEW:          "sa_stockoverview",
+	SA_FINANCIALSINCOME:       "sa_financialsincome",
+	SA_FINANCIALSBALANCESHEET: "sa_financialsbalancesheet",
+	SA_FINANCIALSCASHFLOW:     "sa_financialscashflow",
+	SA_FINANCIALRATIOS:        "sa_financialratios",
+	SA_ANALYSTSRATING:         "sa_analystsrating",
+}
+
+var SADataTypes = map[string]reflect.Type{
+	SA_REDIRECTED_SYMBOLS:     reflect.TypeFor[RedirectedSymbols](),
+	SA_STOCKOVERVIEW:          reflect.TypeFor[StockOverview](),
+	SA_FINANCIALSINCOME:       reflect.TypeFor[FinancialsIncome](),
+	SA_FINANCIALSBALANCESHEET: reflect.TypeFor[FinancialsBalanceSheet](),
+	SA_FINANCIALSCASHFLOW:     reflect.TypeFor[FinancialsCashFlow](),
+	SA_FINANCIALRATIOS:        reflect.TypeFor[FinancialRatios](),
+	SA_ANALYSTSRATING:         reflect.TypeFor[AnalystsRating](),
 }

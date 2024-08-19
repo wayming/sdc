@@ -45,10 +45,10 @@ func (c *SACollector) SetSymbol(symbol string) {
 
 func (c *SACollector) CreateTables() error {
 	allTables := map[string]reflect.Type{
-		TABLE_SA_SYMBOL_REDIRECT:          reflect.TypeFor[RedirectedSymbols](),
+		TABLE_sa_redirected_symbols:       reflect.TypeFor[RedirectedSymbols](),
 		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
 		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
-		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceShet](),
+		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceSheet](),
 		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),
 		TABLE_SA_FINANCIALS_RATIOS:        reflect.TypeFor[FinancialRatios](),
 		TABLE_SA_ANALYST_RATINGS:          reflect.TypeFor[AnalystsRating](),
@@ -82,12 +82,12 @@ func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
 		c.logger.Println("JSON text generated - " + string(jsonText))
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), TABLE_SA_SYMBOL_REDIRECT, reflect.TypeFor[RedirectedSymbols]())
+	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), TABLE_sa_redirected_symbols, reflect.TypeFor[RedirectedSymbols]())
 	if err != nil {
-		return "", errors.New("Failed to load data into table " + TABLE_SA_SYMBOL_REDIRECT + ". Error: " + err.Error())
+		return "", errors.New("Failed to load data into table " + TABLE_sa_redirected_symbols + ". Error: " + err.Error())
 	}
 
-	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_SYMBOL_REDIRECT)
+	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_sa_redirected_symbols)
 	return redirected, nil
 }
 
@@ -115,7 +115,7 @@ func (c *SACollector) CollectFinancialDetails(symbol string) error {
 	if _, err := c.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
 		retErr = err
 	}
-	if _, err := c.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceShet]()); err != nil {
+	if _, err := c.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceSheet]()); err != nil {
 		retErr = err
 	}
 	if _, err := c.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {

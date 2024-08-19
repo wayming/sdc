@@ -312,16 +312,16 @@ CREATE TABLE sdc.sa_overview (
 ALTER TABLE sdc.sa_overview OWNER TO appuser;
 
 --
--- Name: sa_symbol_redirect; Type: TABLE; Schema: sdc; Owner: appuser
+-- Name: sa_redirected_symbols; Type: TABLE; Schema: sdc; Owner: appuser
 --
 
-CREATE TABLE sdc.sa_symbol_redirect (
+CREATE TABLE sdc.sa_redirected_symbols (
     redirectedsymbol character varying(1024),
     symbol character varying(1024) NOT NULL
 );
 
 
-ALTER TABLE sdc.sa_symbol_redirect OWNER TO appuser;
+ALTER TABLE sdc.sa_redirected_symbols OWNER TO appuser;
 
 --
 -- Data for Name: ms_tickers; Type: TABLE DATA; Schema: sdc; Owner: appuser
@@ -17054,10 +17054,10 @@ Strong Buy	4.05	1.063 - 1.080	n/a	-0.03	May 7, 2024	n/a	0.960 - 1.410	14.01	3282
 
 
 --
--- Data for Name: sa_symbol_redirect; Type: TABLE DATA; Schema: sdc; Owner: appuser
+-- Data for Name: sa_redirected_symbols; Type: TABLE DATA; Schema: sdc; Owner: appuser
 --
 
-COPY sdc.sa_symbol_redirect (redirectedsymbol, symbol) FROM stdin;
+COPY sdc.sa_redirected_symbols (redirectedsymbol, symbol) FROM stdin;
 ceqp	omp
 banc	pacw
 gmed	nuva
@@ -17950,11 +17950,11 @@ ALTER TABLE ONLY sdc.sa_overview
 
 
 --
--- Name: sa_symbol_redirect sa_symbol_redirect_pkey; Type: CONSTRAINT; Schema: sdc; Owner: appuser
+-- Name: sa_redirected_symbols sa_redirected_symbols_pkey; Type: CONSTRAINT; Schema: sdc; Owner: appuser
 --
 
-ALTER TABLE ONLY sdc.sa_symbol_redirect
-    ADD CONSTRAINT sa_symbol_redirect_pkey PRIMARY KEY (symbol);
+ALTER TABLE ONLY sdc.sa_redirected_symbols
+    ADD CONSTRAINT sa_redirected_symbols_pkey PRIMARY KEY (symbol);
 
 
 --

@@ -2,7 +2,6 @@ package testcommon
 
 import (
 	"regexp"
-	"strings"
 )
 
 // StringPatternMatcher is a custom matcher for matching strings against a regex pattern.
@@ -12,7 +11,7 @@ type StringPatternMatcher struct {
 
 func (spm *StringPatternMatcher) Matches(x interface{}) bool {
 	str, ok := x.(string)
-	return ok && spm.pattern.MatchString(strings.ToLower(str))
+	return ok && spm.pattern.MatchString(str)
 }
 
 func (spm *StringPatternMatcher) String() string {
@@ -21,6 +20,7 @@ func (spm *StringPatternMatcher) String() string {
 
 // NewStringPatternMatcher creates a new StringPatternMatcher for the given pattern.
 func NewStringPatternMatcher(pattern string) *StringPatternMatcher {
-	re := regexp.MustCompile(strings.ToLower(pattern))
+	pattern = "(?i)" + pattern // case insensitive
+	re := regexp.MustCompile(pattern)
 	return &StringPatternMatcher{pattern: re}
 }

@@ -1,20 +1,28 @@
 package collector_test
 
 import (
-	"log"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	"github.com/wayming/sdc/dbloader"
+	. "github.com/wayming/sdc/collector"
+	testcommon "github.com/wayming/sdc/testcommon"
 )
 
-var saTestLogger *log.Logger
-var saMockCtl *gomock.Controller
-var saDBMock *dbloader.MockDBLoader
-
 func TestSACollector_MapRedirectedSymbol(t *testing.T) {
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
 
+	fixture.DBExpect().LoadByJsonText(
+		testcommon.NewStringPatternMatcher(".*meta.*fb.*"),
+		SADataTables[SA_REDIRECTED_SYMBOLS],
+		SADataTypes[SA_REDIRECTED_SYMBOLS]).Times(1)
+
+	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
+	got, err := c.MapRedirectedSymbol("fb")
+	if err != nil {
+		t.Fatalf("Failed to call MapRedirectedSymbol(), error %v", err)
+	}
+
+	if got != "meta" {
+		t.Fatalf("Expecting fb reditrected to meta, however got %s", got)
+	}
 }
-
-// func TestMain(m *testing.M) {
-// }

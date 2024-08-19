@@ -155,9 +155,9 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 	financialsIncome := commonTestConfig
 	financialsIncome.args.url = "https://stockanalysis.com/stocks/msft/financials/?p=quarterly"
 	financialsIncome.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsIncome]().Name()
-	financialsBalanceShet := commonTestConfig
-	financialsBalanceShet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
-	financialsBalanceShet.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsBalanceShet]().Name()
+	FinancialsBalanceSheet := commonTestConfig
+	FinancialsBalanceSheet.args.url = "https://stockanalysis.com/stocks/msft/financials/balance-sheet/?p=quarterly"
+	FinancialsBalanceSheet.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsBalanceSheet]().Name()
 	financialsCashFlow := commonTestConfig
 	financialsCashFlow.args.url = "https://stockanalysis.com/stocks/msft/financials/cash-flow-statement/?p=quarterly"
 	financialsCashFlow.args.dataStructTypeName = reflect.TypeFor[collector.FinancialsCashFlow]().Name()
@@ -170,7 +170,7 @@ func TestSACollector_ReadPageTimeSeries(t *testing.T) {
 		fields  fields
 		args    args
 		wantErr bool
-	}{financialsIncome, financialsBalanceShet, financialsCashFlow, financialsRatios}
+	}{financialsIncome, FinancialsBalanceSheet, financialsCashFlow, financialsRatios}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
