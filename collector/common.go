@@ -20,13 +20,6 @@ const CACHE_KEY_SYMBOL_ERROR = "SYMBOLS_ERROR"
 const CACHE_KEY_SYMBOL_INVALID = "SYMBOLS_INVALID"
 const CACHE_KEY_SYMBOL_REDIRECTED = "SYMBOLS_REDIRECTED"
 
-const TABLE_SA_OVERVIEW = "sa_overview"
-const TABLE_SA_FINANCIALS_INCOME = "sa_financials_income"
-const TABLE_SA_FINANCIALS_BALANCE_SHEET = "sa_financials_balance_sheet"
-const TABLE_SA_FINANCIALS_CASH_FLOW = "sa_financials_cash_flow"
-const TABLE_SA_FINANCIALS_RATIOS = "sa_financials_ratios"
-const TABLE_SA_ANALYST_RATINGS = "sa_analyst_ratings"
-const TABLE_sa_redirected_symbols = "sa_redirected_symbols"
 const TABLE_MS_TICKERS = "ms_tickers"
 
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {

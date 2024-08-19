@@ -45,7 +45,7 @@ func (w *SAWorker) Do(symbol string) error {
 		symbol = redirectedSymbol
 	}
 
-	if _, err := w.collector.CollectFinancialOverview(symbol, reflect.TypeFor[StockOverview]()); err != nil {
+	if _, err := w.collector.CollectFinancialOverview(symbol); err != nil {
 		return err
 	}
 

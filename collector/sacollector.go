@@ -45,13 +45,13 @@ func (c *SACollector) SetSymbol(symbol string) {
 
 func (c *SACollector) CreateTables() error {
 	allTables := map[string]reflect.Type{
-		TABLE_sa_redirected_symbols:       reflect.TypeFor[RedirectedSymbols](),
-		TABLE_SA_OVERVIEW:                 reflect.TypeFor[StockOverview](),
-		TABLE_SA_FINANCIALS_INCOME:        reflect.TypeFor[FinancialsIncome](),
-		TABLE_SA_FINANCIALS_BALANCE_SHEET: reflect.TypeFor[FinancialsBalanceSheet](),
-		TABLE_SA_FINANCIALS_CASH_FLOW:     reflect.TypeFor[FinancialsCashFlow](),
-		TABLE_SA_FINANCIALS_RATIOS:        reflect.TypeFor[FinancialRatios](),
-		TABLE_SA_ANALYST_RATINGS:          reflect.TypeFor[AnalystsRating](),
+		SADataTables[SA_REDIRECTED_SYMBOLS]:     SADataTypes[SA_REDIRECTED_SYMBOLS],
+		SADataTables[SA_STOCKOVERVIEW]:          SADataTypes[SA_STOCKOVERVIEW],
+		SADataTables[SA_FINANCIALSINCOME]:       SADataTypes[SA_FINANCIALSINCOME],
+		SADataTables[SA_FINANCIALSBALANCESHEET]: SADataTypes[SA_FINANCIALSBALANCESHEET],
+		SADataTables[SA_FINANCIALSCASHFLOW]:     SADataTypes[SA_FINANCIALSCASHFLOW],
+		SADataTables[SA_FINANCIALRATIOS]:        SADataTypes[SA_FINANCIALRATIOS],
+		SADataTables[SA_ANALYSTSRATING]:         SADataTypes[SA_ANALYSTSRATING],
 	}
 
 	for k, v := range allTables {
@@ -82,93 +82,93 @@ func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
 		c.logger.Println("JSON text generated - " + string(jsonText))
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), TABLE_sa_redirected_symbols, reflect.TypeFor[RedirectedSymbols]())
+	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), SADataTables[SA_REDIRECTED_SYMBOLS], reflect.TypeFor[RedirectedSymbols]())
 	if err != nil {
-		return "", errors.New("Failed to load data into table " + TABLE_sa_redirected_symbols + ". Error: " + err.Error())
+		return "", errors.New("Failed to load data into table " + SADataTables[SA_REDIRECTED_SYMBOLS] + ". Error: " + err.Error())
 	}
 
-	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_sa_redirected_symbols)
+	c.logger.Println(numOfRows, "rows have been loaded into", SADataTables[SA_REDIRECTED_SYMBOLS])
 	return redirected, nil
 }
 
 // Extract and write financial overview to database.
-func (c *SACollector) CollectFinancialOverview(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
-	jsonText, err := c.readOverviewPage(overallUrl, nil, dataStructType.Name())
+	jsonText, err := c.readOverviewPage(overallUrl, nil)
 	if err != nil {
 		return 0, err
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(jsonText, TABLE_SA_OVERVIEW, reflect.TypeFor[StockOverview]())
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, SADataTables[SA_STOCKOVERVIEW], reflect.TypeFor[StockOverview]())
 	if err != nil {
-		return 0, errors.New("Failed to load data into table " + TABLE_SA_OVERVIEW + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load data into table " + SADataTables[SA_STOCKOVERVIEW] + ". Error: " + err.Error())
 	}
 
-	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_OVERVIEW)
+	c.logger.Println(numOfRows, "rows have been loaded into", SADataTables[SA_STOCKOVERVIEW])
 	return numOfRows, nil
 }
 
 // Extract and write financial details to database. Only return the last error
 func (c *SACollector) CollectFinancialDetails(symbol string) error {
 	var retErr error
-	if _, err := c.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+	if _, err := c.CollectFinancialsIncome(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := c.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceSheet]()); err != nil {
+	if _, err := c.CollectFinancialsBalanceSheet(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := c.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+	if _, err := c.CollectFinancialsCashFlow(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := c.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+	if _, err := c.CollectFinancialsRatios(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := c.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
+	if _, err := c.CollectAnalystRatings(symbol); err != nil {
 		retErr = err
 	}
 	return retErr
 }
 
-func (c *SACollector) CollectFinancialsIncome(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectFinancialsIncome(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
-	return c.collectFinancialDetailsCommon(financialsIncome, dataStructType, TABLE_SA_FINANCIALS_INCOME)
+	return c.collectFinancialDetailsCommon(financialsIncome, SADataTypes[SA_FINANCIALSINCOME], SADataTables[SA_FINANCIALSINCOME])
 }
 
-func (c *SACollector) CollectFinancialsBalanceSheet(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectFinancialsBalanceSheet(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
-	return c.collectFinancialDetailsCommon(financialsBalanceSheet, dataStructType, TABLE_SA_FINANCIALS_BALANCE_SHEET)
+	return c.collectFinancialDetailsCommon(financialsBalanceSheet, SADataTypes[SA_FINANCIALSBALANCESHEET], SADataTables[SA_FINANCIALSBALANCESHEET])
 }
 
-func (c *SACollector) CollectFinancialsCashFlow(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectFinancialsCashFlow(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
-	return c.collectFinancialDetailsCommon(financialsICashFlow, dataStructType, TABLE_SA_FINANCIALS_CASH_FLOW)
+	return c.collectFinancialDetailsCommon(financialsICashFlow, SADataTypes[SA_FINANCIALSCASHFLOW], SADataTables[SA_FINANCIALSCASHFLOW])
 }
 
-func (c *SACollector) CollectFinancialsRatios(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectFinancialsRatios(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
-	return c.collectFinancialDetailsCommon(financialsRatios, dataStructType, TABLE_SA_FINANCIALS_RATIOS)
+	return c.collectFinancialDetailsCommon(financialsRatios, SADataTypes[SA_FINANCIALRATIOS], SADataTables[SA_FINANCIALRATIOS])
 }
 
-func (c *SACollector) CollectAnalystRatings(symbol string, dataStructType reflect.Type) (int64, error) {
+func (c *SACollector) CollectAnalystRatings(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	url := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
 
-	jsonText, err := c.readAnalystRatingsPage(url, nil, dataStructType.Name())
+	jsonText, err := c.readAnalystRatingsPage(url, nil)
 	if err != nil {
 		return 0, err
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(jsonText, TABLE_SA_ANALYST_RATINGS, dataStructType)
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, SADataTables[SA_ANALYSTSRATING], SADataTypes[SA_ANALYSTSRATING])
 	if err != nil {
-		return 0, errors.New("Failed to load data into table " + TABLE_SA_ANALYST_RATINGS + ". Error: " + err.Error())
+		return 0, errors.New("Failed to load data into table " + SADataTables[SA_ANALYSTSRATING] + ". Error: " + err.Error())
 	}
 
-	c.logger.Println(numOfRows, "rows have been loaded into", TABLE_SA_ANALYST_RATINGS)
+	c.logger.Println(numOfRows, "rows have been loaded into", SADataTables[SA_ANALYSTSRATING])
 	return numOfRows, nil
 }
 
@@ -189,7 +189,7 @@ func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType r
 }
 
 // Read page from SA and extract the information
-func (c *SACollector) readAnalystRatingsPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+func (c *SACollector) readAnalystRatingsPage(url string, params map[string]string) (string, error) {
 	c.logger.Println("Read " + url)
 
 	htmlContent, err := c.reader.Read(url, params)
@@ -202,8 +202,8 @@ func (c *SACollector) readAnalystRatingsPage(url string, params map[string]strin
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	c.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
-	indicatorsMap, err := c.htmlParser.DecodeAnalystRatingsGrid(htmlDoc, dataStructTypeName)
+	c.logger.Printf("Decode html doc with JSON struct %s", SADataTypes[SA_ANALYSTSRATING].Name())
+	indicatorsMap, err := c.htmlParser.DecodeAnalystRatingsGrid(htmlDoc, SADataTypes[SA_ANALYSTSRATING].Name())
 
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
@@ -213,7 +213,7 @@ func (c *SACollector) readAnalystRatingsPage(url string, params map[string]strin
 	}
 
 	// Add symbol to the struct if needed
-	c.packSymbolField(indicatorsMap, dataStructTypeName)
+	c.packSymbolField(indicatorsMap, SADataTypes[SA_ANALYSTSRATING].Name())
 
 	mapSlice := []map[string]interface{}{indicatorsMap}
 	jsonData, err := json.Marshal(mapSlice)
@@ -227,7 +227,7 @@ func (c *SACollector) readAnalystRatingsPage(url string, params map[string]strin
 }
 
 // Read page from SA and extract the information
-func (c *SACollector) readOverviewPage(url string, params map[string]string, dataStructTypeName string) (string, error) {
+func (c *SACollector) readOverviewPage(url string, params map[string]string) (string, error) {
 	c.logger.Println("Read " + url)
 
 	htmlContent, err := c.reader.Read(url, params)
@@ -240,8 +240,8 @@ func (c *SACollector) readOverviewPage(url string, params map[string]string, dat
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
-	c.logger.Println("Decode html doc with JSON struct " + dataStructTypeName)
-	indicatorsMap, err := c.htmlParser.DecodeOverviewPages(htmlDoc, dataStructTypeName)
+	c.logger.Println("Decode html doc with JSON struct " + SADataTypes[SA_STOCKOVERVIEW].Name())
+	indicatorsMap, err := c.htmlParser.DecodeOverviewPages(htmlDoc, SADataTypes[SA_STOCKOVERVIEW].Name())
 	if err != nil {
 		return "", errors.New("Failed to parse " + url + ". Error: " + err.Error())
 	}
@@ -250,7 +250,7 @@ func (c *SACollector) readOverviewPage(url string, params map[string]string, dat
 	}
 
 	// Add symbol to the struct if needed
-	c.packSymbolField(indicatorsMap, dataStructTypeName)
+	c.packSymbolField(indicatorsMap, SADataTypes[SA_STOCKOVERVIEW].Name())
 
 	mapSlice := []map[string]interface{}{indicatorsMap}
 

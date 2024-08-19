@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"strconv"
 	"sync"
 
@@ -367,19 +366,19 @@ func (w *FinancialDetailsWorker) Init(cm cache.ICacheManager, logger *log.Logger
 func (w *FinancialDetailsWorker) Do(symbol string, cm cache.ICacheManager) error {
 	var retErr error
 
-	if _, err := w.collector.CollectFinancialsIncome(symbol, reflect.TypeFor[FinancialsIncome]()); err != nil {
+	if _, err := w.collector.CollectFinancialsIncome(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := w.collector.CollectFinancialsBalanceSheet(symbol, reflect.TypeFor[FinancialsBalanceSheet]()); err != nil {
+	if _, err := w.collector.CollectFinancialsBalanceSheet(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := w.collector.CollectFinancialsCashFlow(symbol, reflect.TypeFor[FinancialsCashFlow]()); err != nil {
+	if _, err := w.collector.CollectFinancialsCashFlow(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := w.collector.CollectFinancialsRatios(symbol, reflect.TypeFor[FinancialRatios]()); err != nil {
+	if _, err := w.collector.CollectFinancialsRatios(symbol); err != nil {
 		retErr = err
 	}
-	if _, err := w.collector.CollectAnalystRatings(symbol, reflect.TypeFor[AnalystsRating]()); err != nil {
+	if _, err := w.collector.CollectAnalystRatings(symbol); err != nil {
 		retErr = err
 	}
 
