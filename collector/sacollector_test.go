@@ -68,3 +68,66 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
 	}
 }
+
+func TestSACollector_CollectBalanceSheet(t *testing.T) {
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
+
+	expectNumOfRows := int64(10)
+	fixture.DBExpect().LoadByJsonText(
+		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"meta\"*"),
+		SADataTables[SA_FINANCIALSBALANCESHEET],
+		SADataTypes[SA_FINANCIALSBALANCESHEET]).Times(1).Return(expectNumOfRows, nil)
+
+	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
+	num, err := c.CollectFinancialsBalanceSheet("meta")
+	if err != nil {
+		t.Fatalf("Failed to call CollectBalanceSheet(), error %v", err)
+	}
+
+	if num != expectNumOfRows {
+		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
+	}
+}
+
+func TestSACollector_CollectCashFlow(t *testing.T) {
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
+
+	expectNumOfRows := int64(10)
+	fixture.DBExpect().LoadByJsonText(
+		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"meta\"*"),
+		SADataTables[SA_FINANCIALSCASHFLOW],
+		SADataTypes[SA_FINANCIALSCASHFLOW]).Times(1).Return(expectNumOfRows, nil)
+
+	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
+	num, err := c.CollectFinancialsCashFlow("meta")
+	if err != nil {
+		t.Fatalf("Failed to call CollectCashFlow(), error %v", err)
+	}
+
+	if num != expectNumOfRows {
+		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
+	}
+}
+
+func TestSACollector_CollectRatios(t *testing.T) {
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
+
+	expectNumOfRows := int64(10)
+	fixture.DBExpect().LoadByJsonText(
+		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"meta\"*"),
+		SADataTables[SA_FINANCIALRATIOS],
+		SADataTypes[SA_FINANCIALRATIOS]).Times(1).Return(expectNumOfRows, nil)
+
+	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
+	num, err := c.CollectFinancialsRatios("meta")
+	if err != nil {
+		t.Fatalf("Failed to call CollectRatios(), error %v", err)
+	}
+
+	if num != expectNumOfRows {
+		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
+	}
+}
