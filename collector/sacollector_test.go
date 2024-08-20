@@ -31,10 +31,11 @@ func TestSACollector_CollectFinancialOverview(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
+	expectNumOfRows := int64(10)
 	fixture.DBExpect().LoadByJsonText(
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"fb\"*"),
 		SADataTables[SA_STOCKOVERVIEW],
-		SADataTypes[SA_STOCKOVERVIEW]).Times(1)
+		SADataTypes[SA_STOCKOVERVIEW]).Times(1).Return(expectNumOfRows, nil)
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialOverview("fb")
@@ -42,7 +43,28 @@ func TestSACollector_CollectFinancialOverview(t *testing.T) {
 		t.Fatalf("Failed to call CollectFinancialOverview(), error %v", err)
 	}
 
-	if num > 0 {
-		t.Fatalf("Expecting a few rows were inserted into database table. However %d rows inserted.", num)
+	if num != expectNumOfRows {
+		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
+	}
+}
+
+func TestSACollector_CollectFinancialsIncome(t *testing.T) {
+	fixture := testcommon.NewMockTestFixture(t)
+	defer fixture.Teardown(t)
+
+	expectNumOfRows := int64(10)
+	fixture.DBExpect().LoadByJsonText(
+		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"meta\"*"),
+		SADataTables[SA_FINANCIALSINCOME],
+		SADataTypes[SA_FINANCIALSINCOME]).Times(1).Return(expectNumOfRows, nil)
+
+	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
+	num, err := c.CollectFinancialsIncome("meta")
+	if err != nil {
+		t.Fatalf("Failed to call CollectFinancialsIncome(), error %v", err)
+	}
+
+	if num != expectNumOfRows {
+		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
 	}
 }

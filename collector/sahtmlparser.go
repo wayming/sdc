@@ -163,9 +163,6 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	// thead
 	thead := node.FirstChild
 
-	pattern := `[a-zA-Z]+`
-	re := regexp.MustCompile(pattern)
-
 	// For each tr
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
@@ -180,7 +177,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				if text2 != nil {
 					dataPoint := make(map[string]interface{})
 					p.logger.Println(text2.Data)
-					if matches := re.FindAllString(text2.Data, -1); len(matches) > 0 {
+					if !isValidValue(text2.Data) {
 						p.logger.Println("ignore ", text2.Data)
 						continue
 					}
@@ -228,6 +225,10 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 					text2 := firstTextNode(td2)
 					if text2 != nil {
 						p.logger.Println(text2.Data)
+						if !isValidValue(text2.Data) {
+							p.logger.Println("ignore ", text2.Data)
+							continue
+						}
 
 						normKey := normaliseJSONKey(text1.Data)
 						fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
@@ -333,6 +334,45 @@ func stringToInt64(value string) (any, error) {
 	return int64(float64(sign) * float64(valInt) * multi), nil
 }
 
+func stringToDate(value string) (any, error) {
+	convertedValue, err := time.Parse("2006-01-02", value)
+
+	if err == nil {
+		return convertedValue, err
+	}
+
+	convertedValue, err = time.Parse("Jan 2, 2006", value)
+
+	return convertedValue, err
+}
+
+func isValidDate(value string) bool {
+	_, err := stringToDate(value)
+
+	// If there is no error, the string is a valid date
+	return err == nil
+}
+
+func isValidValue(value string) bool {
+	value = strings.TrimSpace(value)
+	// Null Value
+
+	if value == "-" {
+		return false
+	}
+
+	pattern := `[a-zA-Z]+`
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindAllString(value, -1)
+	// The value shold not contain characters except date
+	if len(matches) > 0 && !isValidDate(value) {
+		return false
+	}
+
+	return true
+}
+
 // Normalised input string value for numeric conversion
 // Return normalised string, operator, multiplier
 func normaliseValueForNumeric(value string) (string, int, float64) {
@@ -414,7 +454,7 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 	}
 
 	if vType == reflect.TypeFor[time.Time]() {
-		if convertedValue, err = time.Parse("2006-01-02", value); err != nil {
+		if convertedValue, err = stringToDate(value); err != nil {
 			return convertedValue, err
 		}
 	}
