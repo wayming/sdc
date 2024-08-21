@@ -1,12 +1,8 @@
 package collector
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
 	"log"
 	"os"
-	"reflect"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/config"
@@ -21,9 +17,6 @@ type YFEODWorker struct {
 	cache     cache.ICacheManager
 	collector *YFCollector
 	logger    *log.Logger
-}
-
-type YFWorkCache struct {
 }
 
 type YFWorkerBuilder struct {
@@ -77,79 +70,6 @@ func (b *YFWorkerBuilder) Default() error {
 	return nil
 }
 
-func (b *YFWorkerBuilder) loadSymFromFile(f string) error {
-	reader, err := os.OpenFile(f, os.O_RDONLY, 0666)
-	if err != nil {
-		return err
-	}
-
-	textJSON, err := io.ReadAll(reader)
-	if err != nil {
-		return err
-	}
-
-	var stocksStruct []FYTickers
-	if err := json.Unmarshal(textJSON, &stocksStruct); err != nil {
-		return err
-	}
-
-	for _, stock := range stocksStruct {
-		if len(stock.Symbol) > 0 {
-			if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, stock.Symbol); err != nil {
-				return err
-			}
-		} else {
-			b.logger.Printf("Ignore the empty symbol.")
-		}
-	}
-	return nil
-}
-
-func (b *YFWorkerBuilder) loadSymFromDB(tableName string) error {
-
-	type queryResult struct {
-		Symbol string
-	}
-
-	sql := "SELECT symbol FROM " + tableName
-	results, err := b.db.RunQuery(sql, reflect.TypeFor[queryResult]())
-	if err != nil {
-		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
-	}
-	queryResults, ok := results.([]queryResult)
-	if !ok {
-		return errors.New("failed to assert the slice of queryResults")
-	} else {
-		b.logger.Printf("%d symbols retrieved from table %s", len(queryResults), tableName)
-	}
-
-	for _, row := range queryResults {
-		if row.Symbol == "" {
-			b.logger.Printf("Ignore the empty symbol.")
-			continue
-		}
-		if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *YFWorkerBuilder) Prepare() error {
-
-	if len(b.Params.TickersJSON) > 0 {
-		if err := b.loadSymFromFile(b.Params.TickersJSON); err != nil {
-			return err
-		}
-	} else {
-		if err := b.loadSymFromDB(FYDataTables[FY_TICKERS]); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (b *YFWorkerBuilder) Build() IWorker {
 	return &YFEODWorker{
 		db:       b.db,
@@ -158,10 +78,6 @@ func (b *YFWorkerBuilder) Build() IWorker {
 		cache:    b.cache,
 		logger:   b.logger,
 	}
-}
-
-func (c *YFWorkCache) Init(isContinue bool) {
-
 }
 
 func NewYFWorkerBuilder() IWorkerBuilder {

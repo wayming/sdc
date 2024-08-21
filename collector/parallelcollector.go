@@ -14,28 +14,10 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-type IWorker interface {
-	Init() error
-	Do(symbol string) error
-	Done() error
-}
-
 type ParallelCollector struct {
 	NewBuilderFunc func() IWorkerBuilder
 	Cache          cache.ICacheManager
 	Params         PCParams
-}
-
-type IWorkerBuilder interface {
-	WithLogger(l *log.Logger)
-	WithDB(db dbloader.DBLoader)
-	WithExporter(exp IDataExporter)
-	WithReader(r IHttpReader)
-	WithParams(p *PCParams)
-	WithCache(cm cache.ICacheManager)
-	Default() error
-	Prepare() error
-	Build() IWorker
 }
 
 const (
@@ -386,46 +368,6 @@ func (w *FinancialDetailsWorker) Do(symbol string, cm cache.ICacheManager) error
 }
 func (w *FinancialDetailsWorker) Done() error {
 	return nil
-}
-
-type CommonWorkerBuilder struct {
-	db       dbloader.DBLoader
-	reader   IHttpReader
-	exporter IDataExporter
-	cache    cache.ICacheManager
-	logger   *log.Logger
-	Params   *PCParams
-}
-
-func (b *CommonWorkerBuilder) WithLogger(l *log.Logger) {
-	b.logger = l
-}
-func (b *CommonWorkerBuilder) WithDB(db dbloader.DBLoader) {
-	b.db = db
-}
-func (b *CommonWorkerBuilder) WithExporter(exp IDataExporter) {
-	b.exporter = exp
-}
-func (b *CommonWorkerBuilder) WithReader(r IHttpReader) {
-	b.reader = r
-}
-func (b *CommonWorkerBuilder) WithParams(p *PCParams) {
-	b.Params = p
-}
-func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
-	b.cache = cm
-}
-
-type RedirectSymbolWorkerBuilder struct {
-	CommonWorkerBuilder
-}
-
-type FinancialOverviewWorkerBuilder struct {
-	CommonWorkerBuilder
-}
-
-type FinancialDetailsPWorkerBuilder struct {
-	CommonWorkerBuilder
 }
 
 func NewEODParallelCollector(p PCParams) ParallelCollector {
