@@ -3,11 +3,11 @@ package collector
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"golang.org/x/net/proxy"
+	"github.com/wayming/sdc/sdclogger"
 )
 
 type IHttpReader interface {
@@ -40,20 +40,21 @@ func (reader HttpReader) RedirectedUrl(url string) (string, error) {
 }
 
 func (r *HttpReader) Read(url string, params map[string]string) (string, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create GET request for %s: %v", url, err)
-	}
+	// req, err := http.NewRequest("GET", url, nil)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to create GET request for %s: %v", url, err)
+	// }
 
-	q := req.URL.Query()
-	for key, val := range params {
-		q.Add(key, val)
-	}
+	// q := req.URL.Query()
+	// for key, val := range params {
+	// 	q.Add(key, val)
+	// }
 
-	req.URL.RawQuery = q.Encode()
+	// req.URL.RawQuery = q.Encode()
 
-	var res *http.Response
-	res, err = r.client.Do(req)
+	// var res *http.Response
+	// res, err = r.client.Do(req)
+	res, err := r.client.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)
 	}
@@ -86,32 +87,20 @@ func NewLocalClient() *http.Client {
 	return &http.Client{}
 }
 
-func NewProxyClient(proxyURL string) (*http.Client, error) {
-	proxyParts := strings.Split(proxyURL, ":")
-	if len(proxyParts) != 4 {
-		return nil, fmt.Errorf("failed to parse proxy string %s.", proxyURL)
-	}
-	// Proxy server details
-	proxyAddr := fmt.Sprintf("%s:%s", proxyParts[0], proxyParts[1])
-	proxyUser := proxyParts[2]
-	proxyPass := proxyParts[3]
+func NewProxyClient(proxyRecord string) (*http.Client, error) {
+	proxyParts := strings.Split(proxyRecord, ":")
 
-	// Set up the proxy
-	auth := proxy.Auth{
-		User:     proxyUser,
-		Password: proxyPass,
-	}
-
-	// Create a SOCKS5 dialer with authentication
-	dialer, err := proxy.SOCKS5("tcp", proxyAddr, &auth, proxy.Direct)
+	// Define the proxy URL
+	proxyURL, err := url.Parse("http://" + proxyParts[2] + ":" + proxyParts[3] + "@" + proxyParts[0] + ":" + proxyParts[1])
 	if err != nil {
-		log.Fatalf("Error creating SOCKS5 proxy: %v", err)
+		sdclogger.SDCLoggerInstance.Printf("Failed to parse proxy URL: %v", err)
+		return nil, err
 	}
 
-	// Create an HTTP transport that uses the proxy
-	httpTransport := &http.Transport{
-		Dial: dialer.Dial,
+	// Create a new HTTP transport with the proxy settings
+	proxyTransport := &http.Transport{
+		Proxy: http.ProxyURL(proxyURL),
 	}
 
-	return &http.Client{Transport: httpTransport}, nil
+	return &http.Client{Transport: proxyTransport}, nil
 }

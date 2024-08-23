@@ -171,6 +171,10 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 			if err != nil {
 				return err
 			}
+			if proxy == "" {
+				sdclogger.SDCLoggerInstance.Println("All proxies are pushed into input channel.")
+				break
+			}
 			sdclogger.SDCLoggerInstance.Printf("Push %s into input channel.", proxy)
 			proxyChan <- proxy
 		}
