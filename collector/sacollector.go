@@ -3,11 +3,14 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
 
+	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 	"golang.org/x/net/html"
@@ -544,51 +547,6 @@ func (c *SACollector) parseRedirectedSymbol(symbol string) string {
 // 	return (allSymbols - errorSymbols), nil
 // }
 
-// func CollectFinancialDetails(schemaName string, symbol string) error {
-// 	// dbloader
-// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
-// 	dbLoader.Connect(os.Getenv("PGHOST"),
-// 		os.Getenv("PGPORT"),
-// 		os.Getenv("PGUSER"),
-// 		os.Getenv("PGPASSWORD"),
-// 		os.Getenv("PGDATABASE"))
-// 	defer dbLoader.Disconnect()
-
-// 	// http reader
-// 	httpReader := NewHttpReader(NewLocalClient())
-
-// 	collector := NewSACollector(dbLoader, httpReader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
-
-// 	if err := c.CreateTables(); err != nil {
-// 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
-// 		return err
-// 	} else {
-// 		sdclogger.SDCLoggerInstance.Printf("All tables created")
-// 	}
-
-// 	// If redirected
-// 	redirected, err := c.MapRedirectedSymbol(symbol)
-// 	if err != nil {
-// 		e, ok := err.(HttpServerError)
-// 		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-// 			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
-// 		}
-// 		return err
-// 	}
-// 	if len(redirected) > 0 {
-// 		sdclogger.SDCLoggerInstance.Printf("Symbol %s is redirected to %s", symbol, redirected)
-
-// 		symbol = redirected
-// 	}
-
-// 	if err := c.CollectFinancialDetails(symbol); err != nil {
-// 		return err
-// 	}
-// 	fmt.Println("Collect financials for symbol " + symbol)
-
-// 	return nil
-// }
-
 func searchText(node *html.Node, text string) *html.Node {
 
 	if node.Type == html.TextNode {
@@ -603,6 +561,57 @@ func searchText(node *html.Node, text string) *html.Node {
 			return textNode
 		}
 	}
+
+	return nil
+}
+
+// Entry function
+func CollectFinancialsForSymbol(symbol string) error {
+	// dbloader
+	dbLoader := dbloader.NewPGLoader(config.SchemaName, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+
+	// http reader
+	httpReader := NewHttpReader(NewLocalClient())
+
+	// Exporters
+	var exporter MSDataExporters
+	exporter.AddExporter(NewDBExporter(dbLoader, config.SchemaName))
+	exporter.AddExporter(NewMSFileExporter())
+
+	c := NewSACollector(httpReader, &exporter, dbLoader, &sdclogger.SDCLoggerInstance.Logger)
+
+	if err := c.CreateTables(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
+		return err
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("All tables created")
+	}
+
+	// If redirected
+	redirected, err := c.MapRedirectedSymbol(symbol)
+	if err != nil {
+		e, ok := err.(HttpServerError)
+		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
+		}
+		return err
+	}
+	if len(redirected) > 0 {
+		sdclogger.SDCLoggerInstance.Printf("Symbol %s is redirected to %s", symbol, redirected)
+
+		symbol = redirected
+	}
+
+	if err := c.CollectFinancialDetails(symbol); err != nil {
+		return err
+	}
+	fmt.Println("Collect financials for symbol " + symbol)
 
 	return nil
 }

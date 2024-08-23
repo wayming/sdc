@@ -116,6 +116,16 @@ func (b *CommonWorkerBuilder) loadSymFromDB(tableName string) error {
 	return nil
 }
 
+func (b *CommonWorkerBuilder) loadProxyFromFile(fname string) error {
+	num, err := cache.LoadProxies(b.cache, CACHE_KEY_PROXY, fname)
+
+	if err != nil {
+		return err
+	} else {
+		b.logger.Printf("%d proxies loaded to cache", num)
+		return nil
+	}
+}
 func (b *CommonWorkerBuilder) Prepare() error {
 
 	if len(b.Params.TickersJSON) > 0 {
@@ -128,5 +138,10 @@ func (b *CommonWorkerBuilder) Prepare() error {
 		}
 	}
 
+	if len(b.Params.ProxyFile) > 0 {
+		if err := b.loadProxyFromFile(b.Params.TickersJSON); err != nil {
+			return err
+		}
+	}
 	return nil
 }

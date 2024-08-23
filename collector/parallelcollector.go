@@ -37,12 +37,14 @@ type PCResponse struct {
 type PCParams struct {
 	IsContinue  bool
 	TickersJSON string
+	ProxyFile   string
 }
 
 func (pc *ParallelCollector) workerRoutine(
 	goID string,
 	inChan chan string,
 	outChan chan PCResponse,
+	proxyChan chan string,
 	wg *sync.WaitGroup,
 ) {
 
@@ -59,46 +61,66 @@ func (pc *ParallelCollector) workerRoutine(
 
 	logMessage("Begin")
 
-	// Build worker
 	builder := pc.NewBuilderFunc()
-	builder.WithLogger(logger)
-	builder.Default()
-	worker := builder.Build()
-
-	if err := worker.Init(); err != nil {
-		logMessage(err.Error())
-		outChan <- PCResponse{
-			"", WORKER_INIT_FAILURE, err.Error(),
-		}
-		return
-	}
-
-	for symbol := range inChan {
-		if err := worker.Do(symbol); err != nil {
-			logMessage(err.Error())
-
-			e, ok := err.(HttpServerError)
-			if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
-				outChan <- PCResponse{
-					symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
-				}
-				continue
+	loop := 1
+	for loop > 0 {
+		// Get proxy if there is on the channel
+		proxy, ok := <-proxyChan
+		if ok {
+			client, err := NewProxyClient(proxy)
+			if err != nil {
+				logMessage(err.Error())
+				continue // Retry another proxy
 			}
-			outChan <- PCResponse{
-				symbol, WORKER_PROCESS_FAILURE, err.Error(),
-			}
+			builder.WithReader(NewHttpReader(client))
+			logMessage("Established proxy reader with proxy url " + proxy)
 		} else {
+			builder.WithReader(NewHttpReader(NewLocalClient()))
+			logMessage("Established native reader")
+			loop = 0
+		}
+
+		// Build worker
+		builder.WithLogger(logger)
+		builder.Default()
+		worker := builder.Build()
+
+		if err := worker.Init(); err != nil {
+			logMessage(err.Error())
 			outChan <- PCResponse{
-				symbol, SUCCESS, "",
+				"", WORKER_INIT_FAILURE, err.Error(),
+			}
+			return
+		}
+
+		for symbol := range inChan {
+			if err := worker.Do(symbol); err != nil {
+				logMessage(err.Error())
+
+				e, ok := err.(HttpServerError)
+				if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+					outChan <- PCResponse{
+						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
+					}
+					continue
+				}
+				outChan <- PCResponse{
+					symbol, WORKER_PROCESS_FAILURE, err.Error(),
+				}
+			} else {
+				outChan <- PCResponse{
+					symbol, SUCCESS, "",
+				}
+			}
+		}
+
+		if err := worker.Done(); err != nil {
+			outChan <- PCResponse{
+				"", WORKER_DONE_FAILURE, err.Error(),
 			}
 		}
 	}
 
-	if err := worker.Done(); err != nil {
-		outChan <- PCResponse{
-			"", WORKER_DONE_FAILURE, err.Error(),
-		}
-	}
 	logMessage("Finish")
 }
 func (pc *ParallelCollector) Execute(parallel int) error {
@@ -132,13 +154,28 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	var wg sync.WaitGroup
 	inChan := make(chan string, 1000*1000)
 	outChan := make(chan PCResponse, 1000*1000)
+	proxyChan := make(chan string, 1000)
 
 	// Start goroutine
 	i := 0
 	for ; i < parallel; i++ {
 		wg.Add(1)
-		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, &wg)
+		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, proxyChan, &wg)
 	}
+
+	// Push proxies to channel
+	numProxies, _ := pc.Cache.GetLength(CACHE_KEY_PROXY)
+	if numProxies > 0 {
+		for {
+			proxy, err := pc.Cache.PopFromSet(CACHE_KEY_PROXY)
+			if err != nil {
+				return err
+			}
+			sdclogger.SDCLoggerInstance.Printf("Push %s into input channel.", proxy)
+			proxyChan <- proxy
+		}
+	}
+	close(proxyChan)
 
 	// Push symbols to channel
 	go func() {
@@ -378,25 +415,9 @@ func NewEODParallelCollector(p PCParams) ParallelCollector {
 	}
 }
 
-func NewRedirectedParallelCollector(p PCParams) ParallelCollector {
+func NewFinancialParallelCollector(p PCParams) ParallelCollector {
 	return ParallelCollector{
-		NewYFWorkerBuilder,
-		cache.NewCacheManager(),
-		p,
-	}
-}
-
-func NewFinancialOverviewParallelCollector(p PCParams) ParallelCollector {
-	return ParallelCollector{
-		NewYFWorkerBuilder,
-		cache.NewCacheManager(),
-		p,
-	}
-}
-
-func NewFinancialDetailsParallelCollector(p PCParams) ParallelCollector {
-	return ParallelCollector{
-		NewYFWorkerBuilder,
+		NewSAWorkerBuilder,
 		cache.NewCacheManager(),
 		p,
 	}

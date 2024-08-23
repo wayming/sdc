@@ -41,7 +41,7 @@ func TestParallelCollector_Execute_YFWorker(t *testing.T) {
 
 			// Create a new instance of result type
 			row := reflect.New(resultType).Elem()
-			row.Field(0).SetString("MSFT")
+			row.Field(0).SetString("msft")
 			for i := 0; i < numSymbols; i++ {
 				result = reflect.Append(result, row)
 			}
@@ -51,17 +51,22 @@ func TestParallelCollector_Execute_YFWorker(t *testing.T) {
 	// Parallel Collector Begin
 	fixture.CacheExpect().GetLength(CACHE_KEY_SYMBOL).
 		Return(int64(numSymbols), nil).Times(1)
+	fixture.CacheExpect().GetLength(CACHE_KEY_PROXY).Return(int64(0), nil).AnyTimes()
 
 	// Parallel Collect Process
-	fixture.CacheExpect().AddToSet(CACHE_KEY_SYMBOL, "MSFT").Times(numSymbols)
+	fixture.CacheExpect().AddToSet(CACHE_KEY_SYMBOL, "msft").Times(numSymbols)
 	fixture.CacheExpect().
 		PopFromSet(CACHE_KEY_SYMBOL).
-		Return("MSFT", nil).
+		Return("msft", nil).
 		Times(numSymbols) // Return the same symbol
 	fixture.CacheExpect().
 		PopFromSet(CACHE_KEY_SYMBOL).
 		Return("", nil).
 		AnyTimes() // No symbol left
+	fixture.CacheExpect().
+		PopFromSet(CACHE_KEY_PROXY).
+		Return("", nil).
+		AnyTimes() // No proxy left
 
 	// Parallel Collector End
 	fixture.CacheExpect().GetLength(CACHE_KEY_SYMBOL).
@@ -106,36 +111,11 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 
 		if key != SA_REDIRECTED_SYMBOLS {
 			fixture.DBExpect().LoadByJsonText(
-				testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
+				testcommon.NewStringPatternMatcher("\"Symbol\":\"msft\""),
 				SADataTables[key],
 				SADataTypes[key]).Times(numSymbols)
 		}
 	}
-
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_STOCKOVERVIEW],
-	// 	SADataTypes[SA_STOCKOVERVIEW]).Times(1)
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_FINANCIALSINCOME],
-	// 	SADataTypes[SA_FINANCIALSINCOME]).Times(1)
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_FINANCIALSBALANCESHEET],
-	// 	SADataTypes[SA_FINANCIALSBALANCESHEET]).Times(1)
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_FINANCIALSCASHFLOW],
-	// 	SADataTypes[SA_FINANCIALSCASHFLOW]).Times(1)
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_FINANCIALRATIOS],
-	// 	SADataTypes[SA_FINANCIALRATIOS]).Times(1)
-	// fixture.DBExpect().LoadByJsonText(
-	// 	testcommon.NewStringPatternMatcher("\"Symbol\":\"MSFT\""),
-	// 	SADataTables[SA_ANALYSTSRATING],
-	// 	SADataTypes[SA_ANALYSTSRATING]).Times(2)
 
 	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
@@ -153,7 +133,7 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 
 			// Create a new instance of result type
 			row := reflect.New(resultType).Elem()
-			row.Field(0).SetString("MSFT")
+			row.Field(0).SetString("msft")
 			for i := 0; i < numSymbols; i++ {
 				result = reflect.Append(result, row)
 			}
@@ -163,12 +143,13 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 	// Parallel Collector Begin
 	fixture.CacheExpect().GetLength(CACHE_KEY_SYMBOL).
 		Return(int64(numSymbols), nil).Times(1)
+	fixture.CacheExpect().GetLength(CACHE_KEY_PROXY).Return(int64(0), nil).AnyTimes()
 
 	// Parallel Collect Process
-	fixture.CacheExpect().AddToSet(CACHE_KEY_SYMBOL, "MSFT").Times(numSymbols)
+	fixture.CacheExpect().AddToSet(CACHE_KEY_SYMBOL, "msft").Times(numSymbols)
 	fixture.CacheExpect().
 		PopFromSet(CACHE_KEY_SYMBOL).
-		Return("MSFT", nil).
+		Return("msft", nil).
 		Times(numSymbols) // Return the same symbol
 	fixture.CacheExpect().
 		PopFromSet(CACHE_KEY_SYMBOL).

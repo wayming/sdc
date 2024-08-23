@@ -19,8 +19,7 @@ func main() {
 			"Supported options include:\n"+
 			"tickers: Download tickers information from YF and load them into database.\n"+
 			"EOD: Download EOD for all tickers from YF and load them into database.\n"+
-			"financialOverviews: Download financial overviews information for all tickers from SA and load them into database.\n"+
-			"financialDetails: Download financial details information for all tickers from SA and load them into database.")
+			"financials: Download financial data from SA and load them into database.")
 	tickersJSONOpt := flag.String("tickers_json", "", "Load tickers from JSON file instead of YF. The csv file name is used as the table name.")
 	symbolOpt := flag.String("symbol", "", "Load financials for the specified symbol only. Can only be used with option -load financialOverviews or financialDetails")
 	parallelOpt := flag.Int("parallel", 1, "Parallel streams of loading")
@@ -55,6 +54,7 @@ func main() {
 	params := collector.PCParams{
 		IsContinue:  *continueOpt,
 		TickersJSON: *tickersJSONOpt,
+		ProxyFile:   *proxyOpt,
 	}
 	if len(*loadOpt) > 0 {
 		switch *loadOpt {
@@ -74,24 +74,11 @@ func main() {
 			} else {
 				fmt.Println("All EODs of tickers were loaded")
 			}
-		case "financialOverviews":
+		case "financials":
 			if len(*symbolOpt) > 0 {
-				err = collector.CollectFinancialsForSymbol(config.SchemaName, *symbolOpt)
+				err = collector.CollectFinancialsForSymbol(*symbolOpt)
 			} else {
-				pCollector := collector.NewFinancialOverviewParallelCollector(params)
-				err = pCollector.Execute(*parallelOpt)
-			}
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
-			} else {
-				fmt.Println("Financial overviews for all tickers were loaded")
-			}
-		case "financialDetails":
-			if len(*symbolOpt) > 0 {
-				err = collector.CollectFinancialsForSymbol(config.SchemaName, *symbolOpt)
-			} else {
-				pCollector := collector.NewFinancialDetailsParallelCollector(params)
+				pCollector := collector.NewFinancialParallelCollector(params)
 				err = pCollector.Execute(*parallelOpt)
 			}
 			if err != nil {
