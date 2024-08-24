@@ -46,6 +46,7 @@ func isProxyValid(proxy string) bool {
 
 	cmd = exec.Command("wget",
 		"--timeout", "2",
+		"--tries", "1",
 		"-e", "use_proxy=yes",
 		"-e", "http_proxy="+proxyURL,
 		"--proxy-user", proxyUser,

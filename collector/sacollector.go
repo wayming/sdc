@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/wayming/sdc/config"
@@ -96,6 +97,14 @@ func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
 // Extract and write financial overview to database.
 func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 	c.thisSymbol = symbol
+
+	err := c.loader.Exec(
+		"DELETE FROM " + SADataTables[SA_STOCKOVERVIEW] +
+			" WHERE symbol = " + strconv.Quote(strings.ToUpper(symbol)))
+	if err != nil {
+		c.logger.Println(err.Error())
+	}
+
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	jsonText, err := c.readOverviewPage(overallUrl, nil)
 	if err != nil {
@@ -134,31 +143,31 @@ func (c *SACollector) CollectFinancialDetails(symbol string) error {
 
 func (c *SACollector) CollectFinancialsIncome(symbol string) (int64, error) {
 	c.thisSymbol = symbol
-	financialsIncome := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
+	financialsIncome := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/?p=quarterly"
 	return c.collectFinancialDetailsCommon(financialsIncome, SADataTypes[SA_FINANCIALSINCOME], SADataTables[SA_FINANCIALSINCOME])
 }
 
 func (c *SACollector) CollectFinancialsBalanceSheet(symbol string) (int64, error) {
 	c.thisSymbol = symbol
-	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + symbol + "/financials/balance-sheet/?p=quarterly"
+	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/balance-sheet/?p=quarterly"
 	return c.collectFinancialDetailsCommon(financialsBalanceSheet, SADataTypes[SA_FINANCIALSBALANCESHEET], SADataTables[SA_FINANCIALSBALANCESHEET])
 }
 
 func (c *SACollector) CollectFinancialsCashFlow(symbol string) (int64, error) {
 	c.thisSymbol = symbol
-	financialsICashFlow := "https://stockanalysis.com/stocks/" + symbol + "/financials/cash-flow-statement/?p=quarterly"
+	financialsICashFlow := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/cash-flow-statement/?p=quarterly"
 	return c.collectFinancialDetailsCommon(financialsICashFlow, SADataTypes[SA_FINANCIALSCASHFLOW], SADataTables[SA_FINANCIALSCASHFLOW])
 }
 
 func (c *SACollector) CollectFinancialsRatios(symbol string) (int64, error) {
 	c.thisSymbol = symbol
-	financialsRatios := "https://stockanalysis.com/stocks/" + symbol + "/financials/ratios/?p=quarterly"
+	financialsRatios := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/ratios/?p=quarterly"
 	return c.collectFinancialDetailsCommon(financialsRatios, SADataTypes[SA_FINANCIALRATIOS], SADataTables[SA_FINANCIALRATIOS])
 }
 
 func (c *SACollector) CollectAnalystRatings(symbol string) (int64, error) {
 	c.thisSymbol = symbol
-	url := "https://stockanalysis.com/stocks/" + symbol + "/ratings"
+	url := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/ratings"
 
 	jsonText, err := c.readAnalystRatingsPage(url, nil)
 	if err != nil {
@@ -317,7 +326,7 @@ func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStruct
 
 func (c *SACollector) redirectdSymbol(symbol string) string {
 	symbol = strings.ToLower(symbol)
-	url := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
+	url := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/?p=quarterly"
 	redirectedURL, _ := c.reader.RedirectedUrl(url)
 	if redirectedURL == url {
 		c.logger.Printf("no redirected symbol found for %s", symbol)

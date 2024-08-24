@@ -139,7 +139,7 @@ func (b *CommonWorkerBuilder) Prepare() error {
 	}
 
 	if len(b.Params.ProxyFile) > 0 {
-		if err := b.loadProxyFromFile(b.Params.TickersJSON); err != nil {
+		if err := b.loadProxyFromFile(b.Params.ProxyFile); err != nil {
 			return err
 		}
 	}
