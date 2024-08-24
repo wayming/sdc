@@ -1,4 +1,3 @@
-104.239.90.201:6592:tqgpmvtg:a5pqqviwuxhu
 104.239.6.54:6188:tqgpmvtg:a5pqqviwuxhu
 137.59.4.199:6068:tqgpmvtg:a5pqqviwuxhu
 155.254.48.248:6154:tqgpmvtg:a5pqqviwuxhu
@@ -13,14 +12,10 @@
 104.239.37.102:5754:tqgpmvtg:a5pqqviwuxhu
 89.40.222.17:6393:tqgpmvtg:a5pqqviwuxhu
 194.39.33.172:5881:tqgpmvtg:a5pqqviwuxhu
-104.223.222.236:6833:tqgpmvtg:a5pqqviwuxhu
 216.173.75.190:6491:tqgpmvtg:a5pqqviwuxhu
-107.179.60.45:5077:tqgpmvtg:a5pqqviwuxhu
-134.73.69.208:6198:tqgpmvtg:a5pqqviwuxhu
 104.239.7.35:6439:tqgpmvtg:a5pqqviwuxhu
 104.245.244.220:6660:tqgpmvtg:a5pqqviwuxhu
 43.228.237.78:6024:tqgpmvtg:a5pqqviwuxhu
-23.247.101.77:6816:tqgpmvtg:a5pqqviwuxhu
 216.173.120.126:6418:tqgpmvtg:a5pqqviwuxhu
 45.141.81.98:6158:tqgpmvtg:a5pqqviwuxhu
 64.137.70.246:5797:tqgpmvtg:a5pqqviwuxhu
@@ -69,7 +64,6 @@
 193.42.225.8:6499:tqgpmvtg:a5pqqviwuxhu
 104.143.250.51:5683:tqgpmvtg:a5pqqviwuxhu
 103.99.34.244:6859:tqgpmvtg:a5pqqviwuxhu
-134.73.107.133:6425:tqgpmvtg:a5pqqviwuxhu
 217.69.121.38:5703:tqgpmvtg:a5pqqviwuxhu
 104.239.10.128:5799:tqgpmvtg:a5pqqviwuxhu
 209.99.135.141:6772:tqgpmvtg:a5pqqviwuxhu
@@ -83,7 +77,6 @@
 216.74.80.180:6752:tqgpmvtg:a5pqqviwuxhu
 45.41.160.144:6126:tqgpmvtg:a5pqqviwuxhu
 104.249.55.170:6538:tqgpmvtg:a5pqqviwuxhu
-134.73.109.211:5976:tqgpmvtg:a5pqqviwuxhu
 154.92.122.184:5254:tqgpmvtg:a5pqqviwuxhu
 45.41.177.47:5697:tqgpmvtg:a5pqqviwuxhu
 45.192.141.236:5273:tqgpmvtg:a5pqqviwuxhu
@@ -92,9 +85,15 @@
 104.239.23.138:5899:tqgpmvtg:a5pqqviwuxhu
 154.29.233.174:5935:tqgpmvtg:a5pqqviwuxhu
 84.33.26.168:5839:tqgpmvtg:a5pqqviwuxhu
-23.247.101.212:6951:tqgpmvtg:a5pqqviwuxhu
 136.0.207.246:6823:tqgpmvtg:a5pqqviwuxhu
 89.45.125.37:5763:tqgpmvtg:a5pqqviwuxhu
 161.123.5.63:5112:tqgpmvtg:a5pqqviwuxhu
 193.161.3.162:6266:tqgpmvtg:a5pqqviwuxhu
 45.43.64.170:6428:tqgpmvtg:a5pqqviwuxhu
+64.137.101.1:5315:tqgpmvtg:a5pqqviwuxhu
+103.75.230.28:6419:tqgpmvtg:a5pqqviwuxhu
+23.129.252.183:6451:tqgpmvtg:a5pqqviwuxhu
+192.177.103.6:6499:tqgpmvtg:a5pqqviwuxhu
+98.159.38.113:6413:tqgpmvtg:a5pqqviwuxhu
+104.239.0.219:5920:tqgpmvtg:a5pqqviwuxhu
+154.29.232.247:6907:tqgpmvtg:a5pqqviwuxhu

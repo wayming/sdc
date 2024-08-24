@@ -1,9 +1,7 @@
 package collector_test
 
 import (
-	"os"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -191,8 +189,7 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
-	proxies, _ := os.ReadFile(os.Getenv("SDC_HOME") + "/data/proxies100.txt")
-	oneProxy := strings.Split(string(proxies), "\n")[0]
+	oneProxy, _ := testcommon.GetProxy()
 
 	parallel := 1
 	numSymbols := 4

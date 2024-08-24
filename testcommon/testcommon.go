@@ -129,3 +129,11 @@ func RunReidsCliCommand(redisCmd string) {
 	// Print the output
 	sdclogger.SDCLoggerInstance.Printf("Output:\n%s\n", out.String())
 }
+
+func GetProxy() (string, error) {
+	proxies, err := os.ReadFile(os.Getenv("SDC_HOME") + "/data/proxies100.txt")
+	if err != nil {
+		return "", err
+	}
+	return strings.Split(string(proxies), "\n")[0], nil
+}
