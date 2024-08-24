@@ -16,6 +16,27 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
+type TestFixture struct {
+	logger *log.Logger
+}
+
+func NewTestFixture(t *testing.T) *TestFixture {
+	var f TestFixture
+	f.Setup(t)
+	return &f
+}
+
+func (f *TestFixture) Setup(t *testing.T) {
+	f.logger = TestLogger(t.Name())
+}
+
+func (f *TestFixture) Teardown(t *testing.T) {
+	f.logger.Printf("teardown test %s", t.Name())
+}
+func (m *TestFixture) Logger() *log.Logger {
+	return m.logger
+}
+
 type MockTestFixture struct {
 	mockCtl   *gomock.Controller
 	dbMock    *dbloader.MockDBLoader

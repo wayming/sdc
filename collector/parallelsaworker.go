@@ -55,7 +55,7 @@ func (w *SAWorker) Done() error {
 }
 func (b *SAWorkerBuilder) Default() error {
 	if b.logger == nil {
-		b.logger = &sdclogger.SDCLoggerInstance.Logger
+		b.logger = sdclogger.SDCLoggerInstance.Logger
 	}
 
 	if b.db == nil {

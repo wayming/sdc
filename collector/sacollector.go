@@ -28,7 +28,7 @@ type SACollector struct {
 func NewSACollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader, l *log.Logger) *SACollector {
 	logger := l
 	if logger == nil {
-		logger = &sdclogger.SDCLoggerInstance.Logger
+		logger = sdclogger.SDCLoggerInstance.Logger
 	}
 	collector := SACollector{
 		loader:        db,
@@ -371,14 +371,14 @@ func (c *SACollector) parseRedirectedSymbol(symbol string) string {
 // 	}
 
 // 	// Create tables
-// 	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+// 	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance.Logger)
 // 	dbLoader.Connect(os.Getenv("PGHOST"),
 // 		os.Getenv("PGPORT"),
 // 		os.Getenv("PGUSER"),
 // 		os.Getenv("PGPASSWORD"),
 // 		os.Getenv("PGDATABASE"))
 // 	defer dbLoader.Disconnect()
-// 	collector := NewSACollector(dbLoader, nil, &sdclogger.SDCLoggerInstance.Logger, schemaName)
+// 	collector := NewSACollector(dbLoader, nil, sdclogger.SDCLoggerInstance.Logger, schemaName)
 // 	if err := c.CreateTables(); err != nil {
 // 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 // 		return err
@@ -568,7 +568,7 @@ func searchText(node *html.Node, text string) *html.Node {
 // Entry function
 func CollectFinancialsForSymbol(symbol string) error {
 	// dbloader
-	dbLoader := dbloader.NewPGLoader(config.SchemaName, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(config.SchemaName, sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -584,7 +584,7 @@ func CollectFinancialsForSymbol(symbol string) error {
 	exporter.AddExporter(NewDBExporter(dbLoader, config.SchemaName))
 	exporter.AddExporter(NewMSFileExporter())
 
-	c := NewSACollector(httpReader, &exporter, dbLoader, &sdclogger.SDCLoggerInstance.Logger)
+	c := NewSACollector(httpReader, &exporter, dbLoader, sdclogger.SDCLoggerInstance.Logger)
 
 	if err := c.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)

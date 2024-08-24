@@ -11,7 +11,7 @@ import (
 )
 
 func LoadSymbols(cm ICacheManager, key string, fromSchema string) (int64, error) {
-	dbLoader := dbloader.NewPGLoader(fromSchema, &sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(fromSchema, sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),

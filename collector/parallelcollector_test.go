@@ -81,7 +81,7 @@ func TestParallelCollector_Execute_YFWorker(t *testing.T) {
 			b.WithReader(NewHttpReader(NewLocalClient()))
 			b.WithExporter(NewDBExporter(fixture.DBMock(), config.SchemaName))
 			b.WithCache(fixture.CacheMock())
-			b.WithLogger(&sdclogger.SDCLoggerInstance.Logger)
+			b.WithLogger(sdclogger.SDCLoggerInstance.Logger)
 			return &b
 		},
 		fixture.CacheMock(),
@@ -169,7 +169,7 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 			b.WithReader(NewHttpReader(NewLocalClient()))
 			b.WithExporter(NewDBExporter(fixture.DBMock(), config.SchemaName))
 			b.WithCache(fixture.CacheMock())
-			b.WithLogger(&sdclogger.SDCLoggerInstance.Logger)
+			b.WithLogger(sdclogger.SDCLoggerInstance.Logger)
 			return &b
 		},
 		fixture.CacheMock(),
@@ -191,7 +191,7 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 
 	oneProxy, _ := testcommon.GetProxy()
 
-	parallel := 1
+	parallel := 4
 	numSymbols := 4
 
 	for key, _ := range SADataTables {
@@ -267,7 +267,7 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 			b.WithReader(NewHttpReader(NewLocalClient()))
 			b.WithExporter(NewDBExporter(fixture.DBMock(), config.SchemaName))
 			b.WithCache(fixture.CacheMock())
-			b.WithLogger(&sdclogger.SDCLoggerInstance.Logger)
+			b.WithLogger(sdclogger.SDCLoggerInstance.Logger)
 			return &b
 		},
 		fixture.CacheMock(),

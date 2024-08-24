@@ -24,36 +24,21 @@ func NewHttpReader(c *http.Client) *HttpReader {
 }
 
 // Get redirected url. Return empty string if the specified url is not redirected.
-func (reader HttpReader) RedirectedUrl(url string) (string, error) {
-	tokens := strings.Split(url, "//")
-	if len(tokens) != 2 {
-		return "", fmt.Errorf("unknown url format for %s", url)
-	}
-	baseURL := tokens[0] + "//" + strings.Split(tokens[1], "/")[0]
-	wgetCmd := NewWgetCmd("--max-redirect=0", "-S", url)
-
-	if redirectedUrl, err := wgetCmd.RedirectedUrl(); err != nil {
-		return "", err
+func (r *HttpReader) RedirectedUrl(url string) (string, error) {
+	res, err := r.client.Get(url)
+	sdclogger.SDCLoggerInstance.Logger.Printf("res.Request: %v, res.StatusCode: %v", res.Request.URL.String(), res.StatusCode)
+	if err != nil {
+		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)
 	} else {
-		return baseURL + redirectedUrl, nil
+		if res.StatusCode == http.StatusOK {
+			return res.Request.URL.String(), nil
+		} else {
+			return "", NewHttpServerError(res.StatusCode, res.Header, err.Error())
+		}
 	}
 }
 
 func (r *HttpReader) Read(url string, params map[string]string) (string, error) {
-	// req, err := http.NewRequest("GET", url, nil)
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to create GET request for %s: %v", url, err)
-	// }
-
-	// q := req.URL.Query()
-	// for key, val := range params {
-	// 	q.Add(key, val)
-	// }
-
-	// req.URL.RawQuery = q.Encode()
-
-	// var res *http.Response
-	// res, err = r.client.Do(req)
 	res, err := r.client.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)

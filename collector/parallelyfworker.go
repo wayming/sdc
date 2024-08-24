@@ -40,7 +40,7 @@ func (w *YFEODWorker) Done() error {
 }
 func (b *YFWorkerBuilder) Default() error {
 	if b.logger == nil {
-		b.logger = &sdclogger.SDCLoggerInstance.Logger
+		b.logger = sdclogger.SDCLoggerInstance.Logger
 	}
 
 	if b.db == nil {

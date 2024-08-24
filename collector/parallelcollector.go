@@ -119,6 +119,9 @@ func (pc *ParallelCollector) workerRoutine(
 				"", WORKER_DONE_FAILURE, err.Error(),
 			}
 		}
+
+		// Complete
+		break
 	}
 
 	logMessage("Finish")
@@ -172,10 +175,10 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 				return err
 			}
 			if proxy == "" {
-				sdclogger.SDCLoggerInstance.Println("All proxies are pushed into input channel.")
+				sdclogger.SDCLoggerInstance.Println("All proxies are pushed into [proxy] channel.")
 				break
 			}
-			sdclogger.SDCLoggerInstance.Printf("Push %s into input channel.", proxy)
+			sdclogger.SDCLoggerInstance.Printf("Push %s into [proxy] channel.", proxy)
 			proxyChan <- proxy
 		}
 	}
@@ -191,10 +194,10 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 				break // Exit on error
 			}
 			if len(symbol) == 0 {
-				sdclogger.SDCLoggerInstance.Println("All symbols are pushed into input channel.")
+				sdclogger.SDCLoggerInstance.Println("All symbols are pushed into [input] channel.")
 				break
 			}
-			sdclogger.SDCLoggerInstance.Printf("Push %s into input channel.", symbol)
+			sdclogger.SDCLoggerInstance.Printf("Push %s into [input] channel.", symbol)
 			inChan <- symbol
 		}
 	}()
@@ -209,11 +212,6 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	processed := 0
 	succeeded := 0
 	for resp := range outChan {
-		// if resp.ErrorID == WORKER_INIT_FAILURE {
-		// 	wg.Add(1)
-		// 	pc.workerRoutine(strconv.Itoa(i), inChan, outChan, &wg, pc.cache)
-		// 	i++
-		// }
 		processed++
 		if resp.ErrorID != SUCCESS {
 			sdclogger.SDCLoggerInstance.Printf("Failed to process symbol %s. Error %s", resp.Symbol, resp.ErrorText)
