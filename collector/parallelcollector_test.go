@@ -101,7 +101,7 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
-	parallel := 2
+	parallel := 1
 	numSymbols := 4
 
 	for key, _ := range SADataTables {

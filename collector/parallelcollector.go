@@ -99,6 +99,7 @@ func (pc *ParallelCollector) workerRoutine(
 
 				e, ok := err.(HttpServerError)
 				if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+					// Symbol does not exist
 					outChan <- PCResponse{
 						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
 					}
@@ -215,6 +216,11 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 		processed++
 		if resp.ErrorID != SUCCESS {
 			sdclogger.SDCLoggerInstance.Printf("Failed to process symbol %s. Error %s", resp.Symbol, resp.ErrorText)
+			if resp.ErrorID == SERVER_SYMBOL_NOT_VALID {
+				pc.Cache.AddToSet(CACHE_KEY_SYMBOL_INVALID, resp.Symbol)
+			} else {
+				pc.Cache.AddToSet(CACHE_KEY_SYMBOL_ERROR, resp.Symbol)
+			}
 		} else {
 			succeeded++
 		}
@@ -231,6 +237,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check error symbols. Symbols are valid, but fails to process.
+	// These symbols can be retried.
 	if errorLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
 		errs, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
 		sdclogger.SDCLoggerInstance.Printf("Error Symbols: [%v]", errs)
@@ -240,6 +247,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check invalid symbols.
+	// These symbols does not exist and should not be retired.
 	if invalidLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
 		invalids, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
 		sdclogger.SDCLoggerInstance.Printf("Invalid Symbols: [%v]", invalids)

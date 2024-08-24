@@ -38,17 +38,28 @@ func (r *HttpReader) RedirectedUrl(url string) (string, error) {
 	}
 }
 
-func (r *HttpReader) Read(url string, params map[string]string) (string, error) {
-	res, err := r.client.Get(url)
+func (r *HttpReader) Read(baseURL string, params map[string]string) (string, error) {
+	req, err := http.NewRequest("GET", baseURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)
+		return "", fmt.Errorf("failed to create request for %s: %v", baseURL, err)
+	}
+
+	q := req.URL.Query()
+	for key, val := range params {
+		q.Add(key, val)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	res, err := r.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to perform request for %s: %v", req.URL.String(), err)
 	}
 
 	if res.StatusCode != http.StatusOK {
 		return "",
 			NewHttpServerError(
 				res.StatusCode, res.Header,
-				fmt.Sprintf("Received non-succes status %s when requesting %s", res.Status, url))
+				fmt.Sprintf("Received non-succes status %s when requesting %s", res.Status, req.URL.String()))
 	}
 	defer res.Body.Close()
 

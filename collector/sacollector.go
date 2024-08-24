@@ -68,12 +68,11 @@ func (c *SACollector) CreateTables() error {
 }
 
 func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
-	symbol = strings.ToLower(symbol)
-	redirected := c.parseRedirectedSymbol(symbol)
+	redirected := c.redirectdSymbol(symbol)
 	if len(redirected) == 0 {
-		c.logger.Printf("no redirected found for symbol %s", symbol)
 		return "", nil
 	}
+
 	redirectMap := make(map[string]string)
 	redirectMap["symbol"] = symbol
 	redirectMap["redirected_symbol"] = redirected
@@ -316,11 +315,11 @@ func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStruct
 	}
 }
 
-func (c *SACollector) parseRedirectedSymbol(symbol string) string {
+func (c *SACollector) redirectdSymbol(symbol string) string {
 	symbol = strings.ToLower(symbol)
 	url := "https://stockanalysis.com/stocks/" + symbol + "/financials/?p=quarterly"
 	redirectedURL, _ := c.reader.RedirectedUrl(url)
-	if len(redirectedURL) == 0 {
+	if redirectedURL == url {
 		c.logger.Printf("no redirected symbol found for %s", symbol)
 		return ""
 	}
@@ -334,8 +333,9 @@ func (c *SACollector) parseRedirectedSymbol(symbol string) string {
 	match := regexp.FindStringSubmatch(redirectedURL)
 	if len(match) > 1 {
 		return match[1]
+	} else {
+		return ""
 	}
-	return ""
 }
 
 // // Entry function

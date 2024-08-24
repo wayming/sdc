@@ -66,7 +66,7 @@ func (c *YFCollector) EODForSymbol(symbol string) error {
 		"adjustment":      "splits_only",
 		"extended_hours":  "false",
 		"adjusted":        "false",
-		"use_cache":       "true",
+		"use_cache":       "false",
 		"timezone":        "America/New_York",
 		"source":          "realtime",
 		"sort":            "asc",
