@@ -69,7 +69,7 @@ func (b *CommonWorkerBuilder) loadSymFromFile(f string) error {
 		return err
 	}
 
-	var stocksStruct []FYTickers
+	var stocksStruct []YFTickers
 	if err := json.Unmarshal(textJSON, &stocksStruct); err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (b *CommonWorkerBuilder) Prepare() error {
 			return err
 		}
 	} else {
-		if err := b.loadSymFromDB(FYDataTables[FY_TICKERS]); err != nil {
+		if err := b.loadSymFromDB(YFDataTables[YF_TICKERS]); err != nil {
 			return err
 		}
 	}

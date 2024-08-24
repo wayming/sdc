@@ -14,8 +14,8 @@ func TestYFCollector_Tickers(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
-	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
-	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_TICKERS]+".*"), FYDataTypes[FY_TICKERS])
+	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(YFDataTables[YF_TICKERS]+".*"), YFDataTypes[YF_TICKERS])
+	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(YFDataTables[YF_TICKERS]+".*"), YFDataTypes[YF_TICKERS])
 	t.Run("TestYFCollector_Tickers", func(t *testing.T) {
 		c := NewYFCollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 		if err := c.Tickers(); err != nil {
@@ -48,8 +48,8 @@ func TestYFCollector_EOD(t *testing.T) {
 			result = reflect.Append(result, row)
 			return result.Interface(), nil
 		})
-	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD])
-	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"), FYDataTypes[FY_EOD]).
+	fixture.DBExpect().CreateTableByJsonStruct(testcommon.NewStringPatternMatcher(YFDataTables[YF_EOD]+".*"), YFDataTypes[YF_EOD])
+	fixture.DBExpect().LoadByJsonText(gomock.Any(), testcommon.NewStringPatternMatcher(YFDataTables[YF_EOD]+".*"), YFDataTypes[YF_EOD]).
 		DoAndReturn(func(text string, tableName string, structType reflect.Type) (int64, error) {
 			countOfFirstField := 0
 			var err error
@@ -141,7 +141,7 @@ func TestExtractData(t *testing.T) {
 		}
 	}`
 
-	var tickers []FYTickers
+	var tickers []YFTickers
 	json.Unmarshal([]byte(inpuJSONText), &tickers)
 	expectedJSONText, _ := (json.Marshal(tickers))
 

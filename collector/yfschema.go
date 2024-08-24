@@ -2,10 +2,10 @@ package collector
 
 import "reflect"
 
-const FY_TICKERS = "FYTickers"
-const FY_EOD = "FYEOD"
+const YF_TICKERS = "YFTickers"
+const YF_EOD = "YFEOD"
 
-type FYTickers struct {
+type YFTickers struct {
 	Symbol          string  `json:"symbol"`
 	Name            string  `json:"name"`
 	NASDAQTraded    string  `json:"nasdaq_traded"`
@@ -20,7 +20,7 @@ type FYTickers struct {
 	NextShares      string  `json:"next_shares"`
 }
 
-type FYEOD struct {
+type YFEOD struct {
 	Date       string  `json:"date"`
 	Open       float64 `json:"open"`
 	High       float64 `json:"high"`
@@ -31,12 +31,12 @@ type FYEOD struct {
 	Dividend   float64 `json:"dividend"`
 }
 
-type FYEODResponse struct {
-	Results []FYEOD `json:"results"`
+type YFEODResponse struct {
+	Results []YFEOD `json:"results"`
 }
 
 type FYTickersResponse struct {
-	Results  []FYTickers   `json:"results"`
+	Results  []YFTickers   `json:"results"`
 	Provider string        `json:"provider"`
 	Warnings []Warning     `json:"warnings"`
 	Chart    interface{}   `json:"chart"` // Can be any type, using interface{} to represent null or other types
@@ -89,12 +89,12 @@ type ExtraParams struct {
 	IsFund bool  `json:"is_fund"`
 }
 
-var FYDataTables = map[string]string{
-	FY_TICKERS: "fy_tickers",
-	FY_EOD:     "fy_eod",
+var YFDataTables = map[string]string{
+	YF_TICKERS: "fy_tickers",
+	YF_EOD:     "fy_eod",
 }
 
-var FYDataTypes = map[string]reflect.Type{
-	FY_TICKERS: reflect.TypeFor[FYTickers](),
-	FY_EOD:     reflect.TypeFor[FYEOD](),
+var YFDataTypes = map[string]reflect.Type{
+	YF_TICKERS: reflect.TypeFor[YFTickers](),
+	YF_EOD:     reflect.TypeFor[YFEOD](),
 }

@@ -19,12 +19,12 @@ func TestParallelCollector_Execute_YFWorker(t *testing.T) {
 	numSymbols := 4
 
 	fixture.DBExpect().CreateTableByJsonStruct(
-		testcommon.NewStringPatternMatcher(FYDataTables[FY_EOD]+".*"),
-		FYDataTypes[FY_EOD]).Times(numSymbols)
+		testcommon.NewStringPatternMatcher(YFDataTables[YF_EOD]+".*"),
+		YFDataTypes[YF_EOD]).Times(numSymbols)
 	fixture.DBExpect().LoadByJsonText(
 		gomock.Any(),
-		FYDataTables[FY_EOD]+"_msft",
-		FYDataTypes[FY_EOD]).Times(numSymbols)
+		YFDataTables[YF_EOD]+"_msft",
+		YFDataTypes[YF_EOD]).Times(numSymbols)
 	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type

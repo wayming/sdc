@@ -54,11 +54,11 @@ func NewDBExporter(db dbloader.DBLoader, schema string) *DBExporter {
 }
 
 func (e DBExporter) Export(entity string, table string, data string) error {
-	if err := e.db.CreateTableByJsonStruct(table, FYDataTypes[entity]); err != nil {
+	if err := e.db.CreateTableByJsonStruct(table, YFDataTypes[entity]); err != nil {
 		return err
 	}
 
-	numOfRows, err := e.db.LoadByJsonText(data, table, FYDataTypes[entity])
+	numOfRows, err := e.db.LoadByJsonText(data, table, YFDataTypes[entity])
 	if err != nil {
 		return fmt.Errorf("failed to load json text to table %s: %v", table, err)
 	}

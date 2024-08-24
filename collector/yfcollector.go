@@ -49,7 +49,7 @@ func (c *YFCollector) Tickers() error {
 		return err
 	}
 
-	if err := c.exporters.Export(FY_TICKERS, strings.ToLower(FYDataTables[FY_TICKERS]), dataText); err != nil {
+	if err := c.exporters.Export(YF_TICKERS, strings.ToLower(YFDataTables[YF_TICKERS]), dataText); err != nil {
 		return err
 	}
 
@@ -90,14 +90,14 @@ func (c *YFCollector) EODForSymbol(symbol string) error {
 	}
 	c.logger.Printf("EOD received:\n%s", textJSON)
 
-	dataText, err := ExtractData(textJSON, reflect.TypeFor[FYEODResponse]())
+	dataText, err := ExtractData(textJSON, reflect.TypeFor[YFEODResponse]())
 	if err != nil {
 		return err
 	}
 
 	if len(dataText) > 0 {
-		tableName := strings.ToLower(FYDataTables[FY_EOD] + "_" + symbol)
-		if err := c.exporters.Export(FY_EOD, tableName, dataText); err != nil {
+		tableName := strings.ToLower(YFDataTables[YF_EOD] + "_" + symbol)
+		if err := c.exporters.Export(YF_EOD, tableName, dataText); err != nil {
 			return err
 		}
 		c.logger.Printf("Successfully loaded EOD rows to %s", tableName)
@@ -113,7 +113,7 @@ func (c *YFCollector) EOD() error {
 		Symbol string
 	}
 
-	sql := "select symbol from " + FYDataTables[FY_TICKERS] + " limit 10"
+	sql := "select symbol from " + YFDataTables[YF_TICKERS] + " limit 10"
 	results, err := c.db.RunQuery(sql, reflect.TypeFor[queryResult]())
 	if err != nil {
 		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
@@ -122,7 +122,7 @@ func (c *YFCollector) EOD() error {
 	if !ok {
 		return errors.New("failed to assert the slice of queryResults")
 	} else {
-		c.logger.Printf("%d symbols retrieved from table %s", len(queryResults), FYDataTables[FY_TICKERS])
+		c.logger.Printf("%d symbols retrieved from table %s", len(queryResults), YFDataTables[YF_TICKERS])
 	}
 
 	for _, row := range queryResults {
@@ -182,7 +182,7 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 				return errors.New("Failed to read file " + fileJSON)
 			}
 
-			if err := exporters.Export(FY_EOD, path.Base(fileJSON), string(text)); err != nil {
+			if err := exporters.Export(YF_EOD, path.Base(fileJSON), string(text)); err != nil {
 				return err
 			}
 		} else {
