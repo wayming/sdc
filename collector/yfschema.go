@@ -35,7 +35,7 @@ type YFEODResponse struct {
 	Results []YFEOD `json:"results"`
 }
 
-type FYTickersResponse struct {
+type YFTickersResponse struct {
 	Results  []YFTickers   `json:"results"`
 	Provider string        `json:"provider"`
 	Warnings []Warning     `json:"warnings"`
@@ -90,8 +90,8 @@ type ExtraParams struct {
 }
 
 var YFDataTables = map[string]string{
-	YF_TICKERS: "fy_tickers",
-	YF_EOD:     "fy_eod",
+	YF_TICKERS: "yf_tickers",
+	YF_EOD:     "yf_eod",
 }
 
 var YFDataTypes = map[string]reflect.Type{

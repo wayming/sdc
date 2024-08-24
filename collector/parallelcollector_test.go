@@ -25,7 +25,7 @@ func TestParallelCollector_Execute_YFWorker(t *testing.T) {
 		gomock.Any(),
 		YFDataTables[YF_EOD]+"_msft",
 		YFDataTypes[YF_EOD]).Times(numSymbols)
-	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
+	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from yf_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -117,7 +117,7 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 		}
 	}
 
-	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
+	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from yf_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -207,7 +207,7 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 		}
 	}
 
-	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
+	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from yf_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {

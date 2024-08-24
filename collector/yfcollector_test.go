@@ -28,7 +28,7 @@ func TestYFCollector_EOD(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
-	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from fy_tickers.*"), gomock.Any()).
+	fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from yf_tickers.*"), gomock.Any()).
 		DoAndReturn(func(sql string, resultType reflect.Type, args ...any) (interface{}, error) {
 			// Validate the struct type
 			if resultType.NumField() != 1 {
@@ -146,7 +146,7 @@ func TestExtractData(t *testing.T) {
 	expectedJSONText, _ := (json.Marshal(tickers))
 
 	t.Run("TestExtractData", func(t *testing.T) {
-		got, err := ExtractData(textJSON, reflect.TypeFor[FYTickersResponse]())
+		got, err := ExtractData(textJSON, reflect.TypeFor[YFTickersResponse]())
 		if err != nil {
 			t.Errorf("ExtractData() error = %v", err)
 		}

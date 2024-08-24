@@ -44,7 +44,7 @@ func (c *YFCollector) Tickers() error {
 		return fmt.Errorf("failed to load data from %s: %v ", apiURL, err)
 	}
 	textJSON = strings.ReplaceAll(textJSON, "`", "")
-	dataText, err := ExtractData(textJSON, reflect.TypeFor[FYTickersResponse]())
+	dataText, err := ExtractData(textJSON, reflect.TypeFor[YFTickersResponse]())
 	if err != nil {
 		return err
 	}
