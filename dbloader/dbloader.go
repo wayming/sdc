@@ -6,7 +6,7 @@ type DBLoader interface {
 	Connect(host string, port string, user string, password string, dbname string)
 	Disconnect()
 	CreateSchema(schema string)
-	DropSchema(schema string)
+	DropSchema(schema string) error
 	RunQuery(sql string, structType reflect.Type, args ...any) (interface{}, error)
 	Exec(sql string) error
 	LoadByJsonText(jsonText string, tableName string, jsonStructType reflect.Type) (int64, error)

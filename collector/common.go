@@ -3,13 +3,13 @@ package collector
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"regexp"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
 )
 
 const LOG_FILE = "logs/sdc.log"
@@ -64,18 +64,13 @@ func ClearCache() error {
 	return nil
 }
 func DropSchema(schema string) error {
-	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-	defer file.Close()
-
-	dbLoader := dbloader.NewPGLoader(schema, logger)
+	dbLoader := dbloader.NewPGLoader(schema, sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	dbLoader.DropSchema(schema)
-	return nil
+	return dbLoader.DropSchema(schema)
 }
 
 type JsonFieldMetadata struct {

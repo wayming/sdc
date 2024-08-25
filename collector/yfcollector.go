@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -181,8 +181,8 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 			if err != nil {
 				return errors.New("Failed to read file " + fileJSON)
 			}
-
-			if err := exporters.Export(YF_EOD, path.Base(fileJSON), string(text)); err != nil {
+			table := strings.TrimSuffix(filepath.Base(fileJSON), filepath.Ext(fileJSON))
+			if err := exporters.Export(YF_TICKERS, table, string(text)); err != nil {
 				return err
 			}
 		} else {

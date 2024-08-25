@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/wayming/sdc/config"
@@ -98,12 +97,12 @@ func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
 func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 
-	err := c.loader.Exec(
-		"DELETE FROM " + SADataTables[SA_STOCKOVERVIEW] +
-			" WHERE symbol = " + strconv.Quote(strings.ToUpper(symbol)))
-	if err != nil {
-		c.logger.Println(err.Error())
-	}
+	// err := c.loader.Exec(
+	// 	"DELETE FROM " + SADataTables[SA_STOCKOVERVIEW] +
+	// 		" WHERE symbol = " + strconv.Quote(strings.ToUpper(symbol)))
+	// if err != nil {
+	// 	c.logger.Println(err.Error())
+	// }
 
 	overallUrl := "https://stockanalysis.com/stocks/" + symbol
 	jsonText, err := c.readOverviewPage(overallUrl, nil)

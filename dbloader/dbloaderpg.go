@@ -61,14 +61,15 @@ func (loader *PGLoader) CreateSchema(schema string) {
 	loader.Exec("SET search_path TO " + schema)
 }
 
-func (loader *PGLoader) DropSchema(schema string) {
+func (loader *PGLoader) DropSchema(schema string) error {
 	loader.schema = schema
 	DropSchemaSQL := loader.sqlConverter.GenDropSchema(schema)
-	if _, err := loader.db.Exec(DropSchemaSQL); err != nil {
-		loader.logger.Fatal("Failed to execute SQL ", DropSchemaSQL, ". Error ", err)
-	} else {
-		loader.logger.Println("Execute SQL: ", DropSchemaSQL)
+	_, err := loader.db.Exec(DropSchemaSQL)
+	if err != nil {
+		loader.logger.Printf("Failed to execute SQL %s. Error %v", DropSchemaSQL, err)
 	}
+	loader.logger.Println("Execute SQL: ", DropSchemaSQL)
+	return err
 }
 
 func ExistsInSlice(s []string, e string) bool {

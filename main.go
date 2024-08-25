@@ -35,7 +35,6 @@ func main() {
 		fmt.Println("proxy file required when loading financial for multiple symbols.")
 	}
 	var err error
-
 	if *resetDBOpt {
 		if err := collector.DropSchema(config.SchemaName); err != nil {
 			fmt.Println(err.Error())
