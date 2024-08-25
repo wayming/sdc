@@ -95,6 +95,7 @@ func (pc *ParallelCollector) workerRoutine(
 		}
 
 		for symbol := range inChan {
+			logMessage("Begin processing [" + symbol + "]")
 			if err := worker.Do(symbol); err != nil {
 				logMessage(err.Error())
 
@@ -104,15 +105,18 @@ func (pc *ParallelCollector) workerRoutine(
 					outChan <- PCResponse{
 						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
 					}
+					logMessage("End processing [" + symbol + "]. Symbol Not Valid.")
 					continue
 				}
 				outChan <- PCResponse{
 					symbol, WORKER_PROCESS_FAILURE, err.Error(),
 				}
+				logMessage("End processing [" + symbol + "]. Process Error: " + err.Error())
 			} else {
 				outChan <- PCResponse{
 					symbol, SUCCESS, "",
 				}
+				logMessage("End processing [" + symbol + "]. Succeeded.")
 			}
 		}
 
@@ -131,9 +135,7 @@ func (pc *ParallelCollector) workerRoutine(
 func (pc *ParallelCollector) Execute(parallel int) error {
 
 	var nAll int64
-	var nLeft int64
-	var summary string
-
+	summary := "\nResults Summary:\n"
 	builder := pc.NewBuilderFunc()
 	builder.WithParams(&pc.Params)
 	builder.Default()
@@ -150,7 +152,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	// Get total number of symbols to be processed
 	if nAll, _ = pc.Cache.GetLength(CACHE_KEY_SYMBOL); nAll > 0 {
 		sdclogger.SDCLoggerInstance.Printf("%d symbols to be processed in parallel(%d).", nAll, parallel)
-		summary += fmt.Sprint("Total: %ld", nAll)
+		summary += fmt.Sprintf("Total: %d\n", nAll)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No symbol found.")
 		return nil
@@ -229,39 +231,36 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	}
 
 	// Check left symbols
-	if nLeft, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL); nLeft > 0 {
+	if leftCnt, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL); leftCnt > 0 {
 		lefts, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL)
-		sdclogger.SDCLoggerInstance.Printf("Left symbols: [%v]", lefts)
-		summary += fmt.Sprintf("Left: [%v]", lefts)
+		sdclogger.SDCLoggerInstance.Printf("Left symbols: %v", lefts)
+		summary += fmt.Sprintf("Left: %v\n", lefts)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No left symbol.")
 	}
 
 	// Check error symbols. Symbols are valid, but fails to process.
 	// These symbols can be retried.
-	if errorLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorLen > 0 {
+	if errorCnt, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_ERROR); errorCnt > 0 {
 		errs, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_ERROR)
-		sdclogger.SDCLoggerInstance.Printf("Error Symbols: [%v]", errs)
-		summary += fmt.Sprintf("Error: [%v]", errs)
+		sdclogger.SDCLoggerInstance.Printf("Error Symbols: %v", errs)
+		summary += fmt.Sprintf("Error: %v\n", errs)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No error symbol.")
 	}
 
 	// Check invalid symbols.
 	// These symbols does not exist and should not be retired.
-	if invalidLen, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidLen > 0 {
+	if invalidCnt, _ := pc.Cache.GetLength(CACHE_KEY_SYMBOL_INVALID); invalidCnt > 0 {
 		invalids, _ := pc.Cache.GetAllFromSet(CACHE_KEY_SYMBOL_INVALID)
-		sdclogger.SDCLoggerInstance.Printf("Invalid Symbols: [%v]", invalids)
-		summary += fmt.Sprintf("Invalid: [%v]", invalids)
+		sdclogger.SDCLoggerInstance.Printf("Invalid Symbols: %v", invalids)
+		summary += fmt.Sprintf("Invalid: %v\n", invalids)
 	} else {
 		sdclogger.SDCLoggerInstance.Println("No invalid symbol.")
 	}
 
-	if nLeft > 0 {
-		return errors.New(summary)
-	} else {
-		return nil
-	}
+	fmt.Println(summary)
+	return nil
 }
 func (pc *ParallelCollector) Done() {
 

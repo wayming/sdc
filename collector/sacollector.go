@@ -69,7 +69,10 @@ func (c *SACollector) CreateTables() error {
 }
 
 func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
-	redirected := c.redirectdSymbol(symbol)
+	redirected, err := c.redirectdSymbol(symbol)
+	if err != nil {
+		return "", err
+	}
 	if len(redirected) == 0 {
 		return "", nil
 	}
@@ -195,13 +198,20 @@ func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType r
 		return 0, err
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
-	if err != nil {
-		return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
+	// Write to database for the retrieved data
+	rowCount := int64(0)
+	if len(jsonText) > 0 {
+		rowCount, err = c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+		if err != nil {
+			return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
+		}
+		c.logger.Println(rowCount, "rows have been loaded into", dbTableName)
+
+	} else {
+		c.logger.Printf("No data got from %s", url)
 	}
 
-	c.logger.Println(numOfRows, "rows have been loaded into", dbTableName)
-	return numOfRows, nil
+	return rowCount, nil
 }
 
 // Read page from SA and extract the information
@@ -293,8 +303,9 @@ func (c *SACollector) readFinanaceDetailsPage(url string, params map[string]stri
 		return "", errors.New("Failed to parse the html page " + url + ". Error: " + err.Error())
 	}
 
+	// No data avaiable - not an error
 	if searchText(htmlDoc, "No quarterly.*available for this stock") != nil {
-		return "", errors.New("Ignore the symbol " + c.thisSymbol + ". No quarterly data available")
+		return "", nil
 	}
 
 	indicatorsMap, err := c.htmlParser.DecodeFinancialsPage(htmlDoc, dataStructTypeName)
@@ -329,13 +340,16 @@ func (c *SACollector) packSymbolField(metrics map[string]interface{}, dataStruct
 	}
 }
 
-func (c *SACollector) redirectdSymbol(symbol string) string {
+func (c *SACollector) redirectdSymbol(symbol string) (string, error) {
 	symbol = strings.ToLower(symbol)
 	url := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/?p=quarterly"
-	redirectedURL, _ := c.reader.RedirectedUrl(url)
+	redirectedURL, err := c.reader.RedirectedUrl(url)
+	if err != nil {
+		return "", err
+	}
 	if redirectedURL == url {
 		c.logger.Printf("no redirected symbol found for %s", symbol)
-		return ""
+		return "", nil
 	}
 
 	pattern := "stocks/([A-Za-z]+)/"
@@ -346,9 +360,9 @@ func (c *SACollector) redirectdSymbol(symbol string) string {
 
 	match := regexp.FindStringSubmatch(redirectedURL)
 	if len(match) > 1 {
-		return match[1]
+		return match[1], nil
 	} else {
-		return ""
+		return "", nil
 	}
 }
 

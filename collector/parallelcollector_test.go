@@ -101,13 +101,13 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 	fixture := testcommon.NewMockTestFixture(t)
 	defer fixture.Teardown(t)
 
-	parallel := 1
+	parallel := 2
 	numSymbols := 4
 
 	for key, _ := range SADataTables {
 		fixture.DBExpect().CreateTableByJsonStruct(
 			SADataTables[key],
-			SADataTypes[key]).Times(parallel)
+			SADataTypes[key]).Times(1)
 
 		if key != SA_REDIRECTED_SYMBOLS {
 			fixture.DBExpect().LoadByJsonText(
@@ -197,7 +197,7 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 	for key, _ := range SADataTables {
 		fixture.DBExpect().CreateTableByJsonStruct(
 			SADataTables[key],
-			SADataTypes[key]).Times(parallel)
+			SADataTypes[key]).Times(1)
 
 		if key != SA_REDIRECTED_SYMBOLS {
 			fixture.DBExpect().LoadByJsonText(

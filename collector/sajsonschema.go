@@ -41,53 +41,64 @@ type StockOverview struct {
 }
 
 type FinancialsIncome struct {
-	CostOfRevenue                   float64   `json:"cost_of_revenue"`
-	CurrencyExchangeGainLoss        float64   `json:"currency_exchange_gain_loss"`
-	DAForEBITDA                     float64   `json:"depreciation_amortization"`
-	DepreciationAmortization        float64   `json:"d_a_for_ebitda"`
-	DividendGrowth                  float64   `json:"dividend_growth"`
-	DividendPerShare                float64   `json:"dividend_per_share"`
-	EarningsFromEquityInvestments   float64   `json:"earnings_from_equity_investments"`
-	EBIT                            float64   `json:"ebit"`
-	EBITMargin                      float64   `json:"ebit_margin"`
-	EBITDA                          float64   `json:"ebitda"`
-	EBITDAMargin                    float64   `json:"ebitda_margin"`
-	EBTExcludingUnusualItems        float64   `json:"ebt_excluding_unusual_items"`
-	EffectiveTaxRate                float64   `json:"effective_tax_rate"`
-	EPSBasic                        float64   `json:"eps_basic"`
-	EPSDiluted                      float64   `json:"eps_diluted"`
-	EPSGrowth                       float64   `json:"eps_growth"`
-	FreeCashFlow                    float64   `json:"free_cash_flow"`
-	FreeCashFlowMargin              float64   `json:"free_cash_flow_margin"`
-	FreeCashFlowPerShare            float64   `json:"free_cash_flow_per_share"`
-	GainLossOnSaleOfInvestments     float64   `json:"gain_loss_on_sale_of_investments"`
-	GrossMargin                     float64   `json:"gross_margin"`
-	GrossProfit                     float64   `json:"gross_profit"`
-	IncomeTaxExpense                float64   `json:"income_tax_expense"`
-	InterestInvestmentIncome        float64   `json:"interest_investment_income"`
-	InterestExpense                 float64   `json:"interest_expense"`
-	InterestIncome                  float64   `json:"interest_income"`
-	MergerRestructuringCharges      float64   `json:"merger_restructuring_charges"`
-	NetIncome                       float64   `json:"net_income"`
-	NetIncomeToCommon               float64   `json:"net_income_to_common"`
-	NetIncomeGrowth                 float64   `json:"net_income_growth"`
-	OperatingExpenses               float64   `json:"operating_expenses"`
-	OperatingIncome                 float64   `json:"operating_income"`
-	OperatingMargin                 float64   `json:"operating_margin"`
-	OtherNonOperatingIncomeExpenses float64   `json:"other_non_operating_income_expenses"`
-	PreferredDividends              float64   `json:"preferred_dividends"`
-	PretaxIncome                    float64   `json:"pretax_income"`
-	ProfitMargin                    float64   `json:"profit_margin"`
-	QuarterEnding                   time.Time `json:"quarter_ending" db:"PrimaryKey"`
-	ResearchDevelopment             float64   `json:"research_development"`
-	Revenue                         float64   `json:"revenue"`
-	RevenueAsReported               float64   `json:"revenue_as_reported"`
-	RevenueGrowthYOY                float64   `json:"revenue_growth_yoy"`
-	SellingGeneralAdmin             float64   `json:"selling_general_admin"`
-	SharesChangeYoY                 float64   `json:"shares_change_yoy"`
-	SharesOutstandingBasic          float64   `json:"shares_outstanding_basic"`
-	SharesOutstandingDiluted        float64   `json:"shares_outstanding_diluted"`
-	Symbol                          string    `json:"symbol" db:"PrimaryKey"`
+	CostOfRevenue                      float64   `json:"cost_of_revenue"`
+	CurrencyExchangeGainLoss           float64   `json:"currency_exchange_gain_loss"`
+	DAForEBITDA                        float64   `json:"depreciation_amortization"`
+	DepreciationAmortization           float64   `json:"d_a_for_ebitda"`
+	DividendGrowth                     float64   `json:"dividend_growth"`
+	DividendPerShare                   float64   `json:"dividend_per_share"`
+	EarningsFromContinuingOperations   float64   `json:"earnings_from_continuing_operations"`
+	EarningsFromDiscontinuedOperations float64   `json:"earnings_from_discontinued_operations"`
+	EarningsFromEquityInvestments      float64   `json:"earnings_from_equity_investments"`
+	EBIT                               float64   `json:"ebit"`
+	EBITMargin                         float64   `json:"ebit_margin"`
+	EBITDA                             float64   `json:"ebitda"`
+	EBITDAMargin                       float64   `json:"ebitda_margin"`
+	EBTExcludingUnusualItems           float64   `json:"ebt_excluding_unusual_items"`
+	EffectiveTaxRate                   float64   `json:"effective_tax_rate"`
+	EPSBasic                           float64   `json:"eps_basic"`
+	EPSDiluted                         float64   `json:"eps_diluted"`
+	EPSGrowth                          float64   `json:"eps_growth"`
+	FreeCashFlow                       float64   `json:"free_cash_flow"`
+	FreeCashFlowMargin                 float64   `json:"free_cash_flow_margin"`
+	FreeCashFlowPerShare               float64   `json:"free_cash_flow_per_share"`
+	GainLossOnSaleOfAssets             float64   `json:"gain_loss_on_sale_of_assets"`
+	GainLossOnSaleOfInvestments        float64   `json:"gain_loss_on_sale_of_investments"`
+	GrossMargin                        float64   `json:"gross_margin"`
+	GrossProfit                        float64   `json:"gross_profit"`
+	IncomeTaxExpense                   float64   `json:"income_tax_expense"`
+	InterestInvestmentIncome           float64   `json:"interest_investment_income"`
+	InterestExpense                    float64   `json:"interest_expense"`
+	InterestIncome                     float64   `json:"interest_income"`
+	LegalSettlements                   float64   `json:"legal_settlements"`
+	MergerRestructuringCharges         float64   `json:"merger_restructuring_charges"`
+	MinorityInterestInEarnings         float64   `json:"minority_interest_in_earnings"`
+	NetIncome                          float64   `json:"net_income"`
+	NetIncomeToCommon                  float64   `json:"net_income_to_common"`
+	NetIncomeToCompany                 float64   `json:"net_income_to_company"`
+	NetIncomeGrowth                    float64   `json:"net_income_growth"`
+	OperatingExpenses                  float64   `json:"operating_expenses"`
+	OperatingIncome                    float64   `json:"operating_income"`
+	OperatingMargin                    float64   `json:"operating_margin"`
+	OperatingRevenue                   float64   `json:"operating_revenue"`
+	OtherNonOperatingIncomeExpenses    float64   `json:"other_non_operating_income_expenses"`
+	OtherOperatingExpenses             float64   `json:"other_operating_expenses"`
+	OtherUnusalItems                   float64   `json:"other_unusual_items"`
+	PreferredDividends                 float64   `json:"preferred_dividends"`
+	PreferredDividendsOtherAdjustments float64   `json:"preferred_dividends_other_adjustments"`
+	PretaxIncome                       float64   `json:"pretax_income"`
+	ProfitMargin                       float64   `json:"profit_margin"`
+	QuarterEnding                      time.Time `json:"quarter_ending" db:"PrimaryKey"`
+	ResearchDevelopment                float64   `json:"research_development"`
+	Revenue                            float64   `json:"revenue"`
+	RevenueAsReported                  float64   `json:"revenue_as_reported"`
+	RevenueGrowthYOY                   float64   `json:"revenue_growth_yoy"`
+	SellingGeneralAdmin                float64   `json:"selling_general_admin"`
+	SharesChangeYoY                    float64   `json:"shares_change_yoy"`
+	SharesOutstandingBasic             float64   `json:"shares_outstanding_basic"`
+	SharesOutstandingDiluted           float64   `json:"shares_outstanding_diluted"`
+	Symbol                             string    `json:"symbol" db:"PrimaryKey"`
+	AssetWritedown                     string    `json:"asset_writedown"`
 }
 
 type FinancialsBalanceSheet struct {
@@ -119,12 +130,14 @@ type FinancialsBalanceSheet struct {
 	LeaseholdImprovements          float64   `json:"leasehold_improvements"`
 	LongTermAccountsReceivable     float64   `json:"long_term_accounts_receivable"`
 	LongTermDebt                   float64   `json:"long_term_debt"`
+	LongTermDeferredCharges        float64   `json:"long_term_deferred_charges"`
 	LongTermDeferredTaxAssets      float64   `json:"long_term_deferred_tax_assets"`
 	LongTermDeferredTaxLiabilities float64   `json:"long_term_deferred_tax_liabilities"`
 	LongTermInvestments            float64   `json:"long_term_investments"`
 	LongTermLeases                 float64   `json:"long_term_leases"`
 	LongTermUneanedRevenue         float64   `json:"long_term_unearned_revenue"`
 	Machinery                      float64   `json:"machinery"`
+	MinorityInterest               float64   `json:"minority_interest"`
 	NetCashDebt                    float64   `json:"net_cash_debt"`
 	NetCashGrowth                  float64   `json:"net_cash_growth"`
 	NetCashPerShare                float64   `json:"net_cash_per_share"`
@@ -147,6 +160,7 @@ type FinancialsBalanceSheet struct {
 	TangibleBookValue              float64   `json:"tangible_book_value"`
 	TangibleBookValuePerShare      float64   `json:"tangible_book_value_per_share"`
 	TotalAssets                    float64   `json:"total_assets"`
+	TotalCommonEquity              float64   `json:"total_common_equity"`
 	TotalCommonSharesOutstanding   float64   `json:"total_common_shares_outstanding"`
 	TotalCurrentAssets             float64   `json:"total_current_assets"`
 	TotalCurrentLiabilities        float64   `json:"total_current_liabilities"`
@@ -155,6 +169,7 @@ type FinancialsBalanceSheet struct {
 	TotalLiabilitiesEquity         float64   `json:"total_liabilities_equity"`
 	TotalLongTermAssets            float64   `json:"total_long_term_assets"`
 	TotalLongTermLiabilities       float64   `json:"total_long_term_liabilities"`
+	TreasuryStock                  float64   `json:"treasury_stock"`
 	WorkingCapital                 float64   `json:"working_capital"`
 }
 
@@ -181,6 +196,7 @@ type FinancialsCashFlow struct {
 	DividendGrowth                   float64   `json:"dividend_growth"`
 	DividendPerShare                 float64   `json:"dividend_per_share"`
 	DividendsPaid                    float64   `json:"dividends_paid"`
+	Divestitures                     float64   `json:"divestitures"`
 	EBIT                             float64   `json:"ebit"`
 	EBITMargin                       float64   `json:"ebit_margin"`
 	EBITDA                           float64   `json:"ebitda"`
@@ -206,7 +222,9 @@ type FinancialsCashFlow struct {
 	LeveredFreeCashFlow              float64   `json:"levered_free_cash_flow"`
 	LongTermDebtIssued               float64   `json:"long_term_debt_issued"`
 	LongTermDebtRepaid               float64   `json:"long_term_debt_repaid"`
+	LossGainFromSaleOfAssets         float64   `json:"loss_gain_from_sale_of_assets"`
 	LossGainFromSaleOfInvestments    float64   `json:"loss_gain_from_sale_of_investments"`
+	LossGainOnEquityInvestments      float64   `json:"loss_gain_on_equity_investments"`
 	NetCashFlow                      float64   `json:"net_cash_flow"`
 	NetDebtIssuedRepaid              float64   `json:"net_debt_issued_repaid"`
 	NetIncome                        float64   `json:"net_income"`
@@ -223,6 +241,7 @@ type FinancialsCashFlow struct {
 	OtherOperatingExpenses           float64   `json:"other_operating_expenses"`
 	PretaxIncome                     float64   `json:"pretax_income"`
 	ProfitMargin                     float64   `json:"profit_margin"`
+	ProvisionWriteOffOfBadDebts      float64   `json:"provision_write_off_of_bad_debts"`
 	QuarterEnding                    time.Time `json:"quarter_ending" db:"PrimaryKey"`
 	RepurchaseOfCommonStock          float64   `json:"repurchase_of_common_stock"`
 	ResearchDevelopment              float64   `json:"research_development"`

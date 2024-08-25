@@ -26,9 +26,9 @@ type SAWorkerBuilder struct {
 func (w *SAWorker) Init() error {
 	// Collector
 	w.collector = NewSACollector(w.reader, w.exporter, w.db, w.logger)
-	if err := w.collector.CreateTables(); err != nil {
-		return err
-	}
+	// if err := w.collector.CreateTables(); err != nil {
+	// 	return err
+	// }
 	return nil
 }
 func (w *SAWorker) Do(symbol string) error {
