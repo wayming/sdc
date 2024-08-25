@@ -85,6 +85,20 @@ func (b *SAWorkerBuilder) Default() error {
 	return nil
 }
 
+func (b *SAWorkerBuilder) Prepare() error {
+
+	b.Default()
+
+	// Prepare tables
+	c := NewSACollector(b.reader, b.exporter, b.db, b.logger)
+	if err := c.CreateTables(); err != nil {
+		return err
+	}
+
+	b.CommonWorkerBuilder.Prepare()
+	return nil
+}
+
 func (b *SAWorkerBuilder) Build() IWorker {
 	return &SAWorker{
 		db:       b.db,

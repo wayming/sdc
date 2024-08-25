@@ -63,7 +63,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			} else {
-				fmt.Println("All tickers were loaded")
+				fmt.Println("Complete collecting tickers")
 			}
 		case "EOD":
 			col := collector.NewEODParallelCollector(params)
@@ -71,7 +71,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			} else {
-				fmt.Println("All EODs of tickers were loaded")
+				fmt.Println("Complete collecting EODs for tickers")
 			}
 		case "financials":
 			if len(*symbolOpt) > 0 {
@@ -84,7 +84,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			} else {
-				fmt.Println("Financial details for all tickers were loaded")
+				fmt.Println("Complete collecting financials")
 			}
 		default:
 			fmt.Println("Unknown load option " + *loadOpt)

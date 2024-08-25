@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -170,6 +171,11 @@ func (c *SACollector) CollectAnalystRatings(symbol string) (int64, error) {
 
 	jsonText, err := c.readAnalystRatingsPage(url, nil)
 	if err != nil {
+		httpError, ok := err.(HttpServerError)
+		if ok && httpError.StatusCode() == http.StatusNotFound {
+			c.logger.Printf("No Analyst Rating page found for symbol %s, url %s. Ignore.", c.thisSymbol, url)
+			return 0, nil
+		}
 		return 0, err
 	}
 
@@ -605,7 +611,7 @@ func CollectFinancialsForSymbol(symbol string) error {
 	redirected, err := c.MapRedirectedSymbol(symbol)
 	if err != nil {
 		e, ok := err.(HttpServerError)
-		if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+		if ok && e.StatusCode() == http.StatusNotFound {
 			sdclogger.SDCLoggerInstance.Printf("Symbol %s not found", symbol)
 		}
 		return err

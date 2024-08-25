@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -98,7 +99,7 @@ func (pc *ParallelCollector) workerRoutine(
 				logMessage(err.Error())
 
 				e, ok := err.(HttpServerError)
-				if ok && e.StatusCode() == HTTP_ERROR_NOT_FOUND {
+				if ok && e.StatusCode() == http.StatusNotFound {
 					// Symbol does not exist
 					outChan <- PCResponse{
 						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
