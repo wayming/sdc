@@ -88,7 +88,7 @@ type FinancialsIncome struct {
 	PreferredDividendsOtherAdjustments float64   `json:"preferred_dividends_other_adjustments"`
 	PretaxIncome                       float64   `json:"pretax_income"`
 	ProfitMargin                       float64   `json:"profit_margin"`
-	QuarterEnding                      time.Time `json:"quarter_ending" db:"PrimaryKey"`
+	PeriodEnding                       time.Time `json:"period_ending" db:"PrimaryKey"`
 	ResearchDevelopment                float64   `json:"research_development"`
 	Revenue                            float64   `json:"revenue"`
 	RevenueAsReported                  float64   `json:"revenue_as_reported"`
@@ -149,7 +149,7 @@ type FinancialsBalanceSheet struct {
 	OtherReceivables               float64   `json:"other_receivables"`
 	PropertyPlantEquipment         float64   `json:"property_plant_equipment"`
 	PrepaidExpenses                float64   `json:"prepaid_expenses"`
-	QuarterEnding                  time.Time `json:"quarter_ending" db:"PrimaryKey"`
+	PeriodEnding                   time.Time `json:"period_ending" db:"PrimaryKey"`
 	Receivables                    float64   `json:"receivables"`
 	RestrictedCash                 float64   `json:"restricted_cash"`
 	RetainedEarnings               float64   `json:"retained_earnings"`
@@ -242,7 +242,7 @@ type FinancialsCashFlow struct {
 	PretaxIncome                     float64   `json:"pretax_income"`
 	ProfitMargin                     float64   `json:"profit_margin"`
 	ProvisionWriteOffOfBadDebts      float64   `json:"provision_write_off_of_bad_debts"`
-	QuarterEnding                    time.Time `json:"quarter_ending" db:"PrimaryKey"`
+	PeriodEnding                     time.Time `json:"period_ending" db:"PrimaryKey"`
 	RepurchaseOfCommonStock          float64   `json:"repurchase_of_common_stock"`
 	ResearchDevelopment              float64   `json:"research_development"`
 	Revenue                          float64   `json:"revenue"`
@@ -290,7 +290,7 @@ type FinancialRatios struct {
 	PBRatio                float64   `json:"pb_ratio"`
 	PERatio                float64   `json:"pe_ratio"`
 	PSRatio                float64   `json:"ps_ratio"`
-	QuarterEnding          time.Time `json:"quarter_ending" db:"PrimaryKey"`
+	PeriodEnding           time.Time `json:"period_ending" db:"PrimaryKey"`
 	QuickRatio             float64   `json:"quick_ratio"`
 	ReturnOnAssetsROA      float64   `json:"return_on_assets_roa"`
 	ReturnOnCapitalROIC    float64   `json:"return_on_capital_roic"`

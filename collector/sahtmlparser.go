@@ -440,6 +440,8 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 	var convertedValue any
 	var err error
 
+	value = strings.TrimSpace(value)
+
 	switch vType.Kind() {
 	case reflect.Float64:
 		if convertedValue, err = stringToFloat64(value); err != nil {

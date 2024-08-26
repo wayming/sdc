@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/wayming/sdc/config"
@@ -38,13 +39,18 @@ func NewYFCollector(httpReader IHttpReader, exporters IDataExporter, db dbloader
 }
 
 func (c *YFCollector) Tickers() error {
-	apiURL := "http://openbb:8001/api/v1/equity/search?provider=nasdaq&is_symbol=false&use_cache=true&active=true&limit=100000&is_fund=false"
+	apiURL := "http://openbb:8001/api/v1/equity/search?provider=nasdaq&is_symbol=true&use_cache=true&active=true&is_etf=false&is_fund=false"
 	textJSON, err := c.reader.Read(apiURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to load data from %s: %v ", apiURL, err)
 	}
 	textJSON = strings.ReplaceAll(textJSON, "`", "")
 	dataText, err := ExtractData(textJSON, reflect.TypeFor[YFTickersResponse]())
+	if err != nil {
+		return err
+	}
+
+	dataText, err = FilterSymbolVariations(dataText)
 	if err != nil {
 		return err
 	}
@@ -151,6 +157,30 @@ func ExtractData(textJSON string, t reflect.Type) (string, error) {
 	}
 
 	return string(resultsText), nil
+}
+
+func FilterSymbolVariations(textJSON string) (string, error) {
+	var tickers []YFTickers
+	if err := json.Unmarshal([]byte(textJSON), &tickers); err != nil {
+		return "", errors.New("Failed to unmarshal json text, Error: " + err.Error())
+	}
+
+	var filtered []YFTickers
+	pattern := `\.|\$`
+	re := regexp.MustCompile(pattern)
+	for _, ticker := range tickers {
+		match := re.FindString(ticker.Symbol)
+		if len(match) == 0 {
+			filtered = append(filtered, ticker)
+		}
+	}
+
+	results, err := json.Marshal(filtered)
+	if err != nil {
+		return "", errors.New("Failed to marshal json struct, Error: " + err.Error())
+	}
+
+	return string(results), nil
 }
 
 // Entry Function

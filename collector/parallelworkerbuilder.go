@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
@@ -74,8 +75,15 @@ func (b *CommonWorkerBuilder) loadSymFromFile(f string) error {
 		return err
 	}
 
+	pattern := `\.|\$`
+	re := regexp.MustCompile(pattern)
 	for _, stock := range stocksStruct {
 		if len(stock.Symbol) > 0 {
+			match := re.FindString(stock.Symbol)
+			if len(match) > 0 {
+				b.logger.Printf("Ignore the symbol %s.", stock.Symbol)
+				continue
+			}
 			if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, stock.Symbol); err != nil {
 				return err
 			}
