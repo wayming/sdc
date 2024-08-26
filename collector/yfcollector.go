@@ -166,11 +166,15 @@ func FilterSymbolVariations(textJSON string) (string, error) {
 	}
 
 	var filtered []YFTickers
-	pattern := `\.|\$`
-	re := regexp.MustCompile(pattern)
+	symbolPattern := `\.|\$`
+	reSymbol := regexp.MustCompile(symbolPattern)
+	namePattern := `- Warrants`
+	reName := regexp.MustCompile(namePattern)
+
 	for _, ticker := range tickers {
-		match := re.FindString(ticker.Symbol)
-		if len(match) == 0 {
+		matchSymbol := reSymbol.FindString(ticker.Symbol)
+		matchName := reName.FindString(ticker.Name)
+		if len(matchSymbol) == 0 && len(matchName) == 0 {
 			filtered = append(filtered, ticker)
 		}
 	}
@@ -207,12 +211,20 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 				return errors.New("Failed to open file " + fileJSON)
 			}
 
+			// Read in all tickers
 			text, err := io.ReadAll(reader)
 			if err != nil {
 				return errors.New("Failed to read file " + fileJSON)
 			}
+
+			// Filter symbol variations
+			textFiltered, err := FilterSymbolVariations(string(text))
+			if err != nil {
+				return fmt.Errorf("failed filter symbol variations, error %v", err)
+			}
+
 			table := strings.TrimSuffix(filepath.Base(fileJSON), filepath.Ext(fileJSON))
-			if err := exporters.Export(YF_TICKERS, table, string(text)); err != nil {
+			if err := exporters.Export(YF_TICKERS, table, textFiltered); err != nil {
 				return err
 			}
 		} else {
