@@ -306,10 +306,17 @@ func normaliseJSONKey(key string) string {
 	key = strings.ReplaceAll(key, "(", "")
 	key = strings.ReplaceAll(key, ")", "")
 
+	// remove dot
+	key = strings.ReplaceAll(key, ".", "")
+
 	// remove consecutive underscore
 	pattern := `_+`
 	re := regexp.MustCompile(pattern)
 	key = re.ReplaceAllString(key, "_")
+
+	if key == "quarter_ending" {
+		key = "period_ending"
+	}
 
 	return key
 }

@@ -41,6 +41,7 @@ type StockOverview struct {
 }
 
 type FinancialsIncome struct {
+	AdvertisingExpenses                float64   `json:"advertising_expenses"`
 	CostOfRevenue                      float64   `json:"cost_of_revenue"`
 	CurrencyExchangeGainLoss           float64   `json:"currency_exchange_gain_loss"`
 	DAForEBITDA                        float64   `json:"depreciation_amortization"`
@@ -66,6 +67,7 @@ type FinancialsIncome struct {
 	GainLossOnSaleOfInvestments        float64   `json:"gain_loss_on_sale_of_investments"`
 	GrossMargin                        float64   `json:"gross_margin"`
 	GrossProfit                        float64   `json:"gross_profit"`
+	ImpairmentOfGoodwill               float64   `json:"impairment_of_goodwill"`
 	IncomeTaxExpense                   float64   `json:"income_tax_expense"`
 	InterestInvestmentIncome           float64   `json:"interest_investment_income"`
 	InterestExpense                    float64   `json:"interest_expense"`
@@ -84,6 +86,7 @@ type FinancialsIncome struct {
 	OtherNonOperatingIncomeExpenses    float64   `json:"other_non_operating_income_expenses"`
 	OtherOperatingExpenses             float64   `json:"other_operating_expenses"`
 	OtherUnusalItems                   float64   `json:"other_unusual_items"`
+	OtherRevenue                       float64   `json:"other_revenue"`
 	PreferredDividends                 float64   `json:"preferred_dividends"`
 	PreferredDividendsOtherAdjustments float64   `json:"preferred_dividends_other_adjustments"`
 	PretaxIncome                       float64   `json:"pretax_income"`
@@ -99,169 +102,220 @@ type FinancialsIncome struct {
 	SharesOutstandingDiluted           float64   `json:"shares_outstanding_diluted"`
 	Symbol                             string    `json:"symbol" db:"PrimaryKey"`
 	AssetWritedown                     string    `json:"asset_writedown"`
+	InterestAndDividendIncome          string    `json:"interest_and_dividend_income"`
+	TotalInterestExpense               string    `json:"total_interest_expense"`
+	NetInterestInccome                 string    `json:"net_interest_income"`
+	RevenueBeforeLoanLosses            string    `json:"revenue_before_loan_losses"`
+	MortgageBanking                    string    `json:"mortgage_banking"`
+	PremiumsAnnuityRevenue             string    `json:"premiums_annuity_revenue"`
 }
 
 type FinancialsBalanceSheet struct {
-	AccountsPayable                float64   `json:"accounts_payable"`
-	AccountsReceivable             float64   `json:"accounts_receivable"`
-	AccruedExpenses                float64   `json:"accrued_expenses"`
-	AdditionalPaidInCapital        float64   `json:"additional_paid_in_capital"`
-	BookValuePerShare              float64   `json:"book_value_per_share"`
-	Buildings                      float64   `json:"buildings"`
-	CashEquivalents                float64   `json:"cash_equivalents"`
-	CashGrowth                     float64   `json:"cash_growth"`
-	CashShortTermInvestments       float64   `json:"cash_short_term_investments"`
-	CommonStock                    float64   `json:"common_stock"`
-	ComprensiveIncomeOther         float64   `json:"comprensive_income_other"`
-	ConstructionInProgress         float64   `json:"construction_in_progress"`
-	CurrentDebt                    float64   `json:"current_debt"`
-	CurrentIncomeTaxesPayable      float64   `json:"current_income_taxes_payable"`
-	CurrentPortionOfLeases         float64   `json:"current_portion_of_leases"`
-	CurrentPortionOLongTermDebt    float64   `json:"current_portion_of_long_term_debt"`
-	CurrentUnearnedRevenue         float64   `json:"current_unearned_revenue"`
-	DebtGrowth                     float64   `json:"debt_growth"`
-	DeferredRevenue                float64   `json:"deferred_revenue"`
-	FillingDateSharesOutstanding   float64   `json:"filing_date_shares_outstanding"`
-	Goodwill                       float64   `json:"goodwill"`
-	GoodwillAndIntangibles         float64   `json:"goodwill_and_intangibles"`
-	IntangibleAssets               float64   `json:"intangible_assets"`
-	Inventory                      float64   `json:"inventory"`
-	Land                           float64   `json:"land"`
-	LeaseholdImprovements          float64   `json:"leasehold_improvements"`
-	LongTermAccountsReceivable     float64   `json:"long_term_accounts_receivable"`
-	LongTermDebt                   float64   `json:"long_term_debt"`
-	LongTermDeferredCharges        float64   `json:"long_term_deferred_charges"`
-	LongTermDeferredTaxAssets      float64   `json:"long_term_deferred_tax_assets"`
-	LongTermDeferredTaxLiabilities float64   `json:"long_term_deferred_tax_liabilities"`
-	LongTermInvestments            float64   `json:"long_term_investments"`
-	LongTermLeases                 float64   `json:"long_term_leases"`
-	LongTermUneanedRevenue         float64   `json:"long_term_unearned_revenue"`
-	Machinery                      float64   `json:"machinery"`
-	MinorityInterest               float64   `json:"minority_interest"`
-	NetCashDebt                    float64   `json:"net_cash_debt"`
-	NetCashGrowth                  float64   `json:"net_cash_growth"`
-	NetCashPerShare                float64   `json:"net_cash_per_share"`
-	OtherCurrentAssets             float64   `json:"other_current_assets"`
-	OtherCurrentLiabilities        float64   `json:"other_current_liabilities"`
-	OtherIntangibleAssets          float64   `json:"other_intangible_assets"`
-	OtherLongTermAssets            float64   `json:"other_long_term_assets"`
-	OtherLongTermLiabilities       float64   `json:"other_long_term_liabilities"`
-	OtherReceivables               float64   `json:"other_receivables"`
-	PropertyPlantEquipment         float64   `json:"property_plant_equipment"`
-	PrepaidExpenses                float64   `json:"prepaid_expenses"`
-	PeriodEnding                   time.Time `json:"period_ending" db:"PrimaryKey"`
-	Receivables                    float64   `json:"receivables"`
-	RestrictedCash                 float64   `json:"restricted_cash"`
-	RetainedEarnings               float64   `json:"retained_earnings"`
-	ShareholdersEquity             float64   `json:"shareholders_equity"`
-	Symbol                         string    `json:"symbol" db:"PrimaryKey"`
-	ShortTermDebt                  float64   `json:"short_term_debt"`
-	ShortTermInvestments           float64   `json:"short_term_investments"`
-	TangibleBookValue              float64   `json:"tangible_book_value"`
-	TangibleBookValuePerShare      float64   `json:"tangible_book_value_per_share"`
-	TotalAssets                    float64   `json:"total_assets"`
-	TotalCommonEquity              float64   `json:"total_common_equity"`
-	TotalCommonSharesOutstanding   float64   `json:"total_common_shares_outstanding"`
-	TotalCurrentAssets             float64   `json:"total_current_assets"`
-	TotalCurrentLiabilities        float64   `json:"total_current_liabilities"`
-	TotalDebt                      float64   `json:"total_debt"`
-	TotalLiabilities               float64   `json:"total_liabilities"`
-	TotalLiabilitiesEquity         float64   `json:"total_liabilities_equity"`
-	TotalLongTermAssets            float64   `json:"total_long_term_assets"`
-	TotalLongTermLiabilities       float64   `json:"total_long_term_liabilities"`
-	TreasuryStock                  float64   `json:"treasury_stock"`
-	WorkingCapital                 float64   `json:"working_capital"`
+	AccountsPayable                        float64   `json:"accounts_payable"`
+	AccountsReceivable                     float64   `json:"accounts_receivable"`
+	AccruedExpenses                        float64   `json:"accrued_expenses"`
+	AdditionalPaidInCapital                float64   `json:"additional_paid_in_capital"`
+	BookValuePerShare                      float64   `json:"book_value_per_share"`
+	Buildings                              float64   `json:"buildings"`
+	CashEquivalents                        float64   `json:"cash_equivalents"`
+	CashGrowth                             float64   `json:"cash_growth"`
+	CashShortTermInvestments               float64   `json:"cash_short_term_investments"`
+	CommonStock                            float64   `json:"common_stock"`
+	ComprensiveIncomeOther                 float64   `json:"comprensive_income_other"`
+	ConstructionInProgress                 float64   `json:"construction_in_progress"`
+	CurrentDebt                            float64   `json:"current_debt"`
+	CurrentIncomeTaxesPayable              float64   `json:"current_income_taxes_payable"`
+	CurrentPortionOfLeases                 float64   `json:"current_portion_of_leases"`
+	CurrentPortionOLongTermDebt            float64   `json:"current_portion_of_long_term_debt"`
+	CurrentUnearnedRevenue                 float64   `json:"current_unearned_revenue"`
+	DebtGrowth                             float64   `json:"debt_growth"`
+	DeferredRevenue                        float64   `json:"deferred_revenue"`
+	FillingDateSharesOutstanding           float64   `json:"filing_date_shares_outstanding"`
+	Goodwill                               float64   `json:"goodwill"`
+	GoodwillAndIntangibles                 float64   `json:"goodwill_and_intangibles"`
+	IntangibleAssets                       float64   `json:"intangible_assets"`
+	Inventory                              float64   `json:"inventory"`
+	InvestmentsInDebtSecurities            float64   `json:"investments_in_debt_securities"`
+	InvestmentsInEquityPreferredSecurities float64   `json:"investments_in_equity_preferred_securities"`
+	Land                                   float64   `json:"land"`
+	LeaseholdImprovements                  float64   `json:"leasehold_improvements"`
+	LoansLeaseReceivables                  float64   `json:"loans_lease_receivables"`
+	LongTermAccountsReceivable             float64   `json:"long_term_accounts_receivable"`
+	LongTermDebt                           float64   `json:"long_term_debt"`
+	LongTermDeferredCharges                float64   `json:"long_term_deferred_charges"`
+	LongTermDeferredTaxAssets              float64   `json:"long_term_deferred_tax_assets"`
+	LongTermDeferredTaxLiabilities         float64   `json:"long_term_deferred_tax_liabilities"`
+	LongTermInvestments                    float64   `json:"long_term_investments"`
+	LongTermLeases                         float64   `json:"long_term_leases"`
+	LongTermUneanedRevenue                 float64   `json:"long_term_unearned_revenue"`
+	Machinery                              float64   `json:"machinery"`
+	MinorityInterest                       float64   `json:"minority_interest"`
+	NetCashDebt                            float64   `json:"net_cash_debt"`
+	NetCashGrowth                          float64   `json:"net_cash_growth"`
+	NetCashPerShare                        float64   `json:"net_cash_per_share"`
+	OrderBacklog                           float64   `json:"order_backlog"`
+	OtherCurrentAssets                     float64   `json:"other_current_assets"`
+	OtherCurrentLiabilities                float64   `json:"other_current_liabilities"`
+	OtherIntangibleAssets                  float64   `json:"other_intangible_assets"`
+	OtherInvestments                       float64   `json:"other_investments"`
+	OtherLongTermAssets                    float64   `json:"other_long_term_assets"`
+	OtherLongTermLiabilities               float64   `json:"other_long_term_liabilities"`
+	OtherReceivables                       float64   `json:"other_receivables"`
+	PropertyPlantEquipment                 float64   `json:"property_plant_equipment"`
+	PrepaidExpenses                        float64   `json:"prepaid_expenses"`
+	PeriodEnding                           time.Time `json:"period_ending" db:"PrimaryKey"`
+	Receivables                            float64   `json:"receivables"`
+	RestrictedCash                         float64   `json:"restricted_cash"`
+	RetainedEarnings                       float64   `json:"retained_earnings"`
+	ShareholdersEquity                     float64   `json:"shareholders_equity"`
+	Symbol                                 string    `json:"symbol" db:"PrimaryKey"`
+	ShortTermDebt                          float64   `json:"short_term_debt"`
+	ShortTermInvestments                   float64   `json:"short_term_investments"`
+	TangibleBookValue                      float64   `json:"tangible_book_value"`
+	TangibleBookValuePerShare              float64   `json:"tangible_book_value_per_share"`
+	TotalAssets                            float64   `json:"total_assets"`
+	TotalCommonEquity                      float64   `json:"total_common_equity"`
+	TotalCommonSharesOutstanding           float64   `json:"total_common_shares_outstanding"`
+	TotalCurrentAssets                     float64   `json:"total_current_assets"`
+	TotalCurrentLiabilities                float64   `json:"total_current_liabilities"`
+	TotalDebt                              float64   `json:"total_debt"`
+	TotalInvestments                       float64   `json:"total_investments"`
+	TotalLiabilities                       float64   `json:"total_liabilities"`
+	TotalLiabilitiesEquity                 float64   `json:"total_liabilities_equity"`
+	TotalLongTermAssets                    float64   `json:"total_long_term_assets"`
+	TotalLongTermLiabilities               float64   `json:"total_long_term_liabilities"`
+	TradingAssetSecurities                 float64   `json:"trading_asset_securities"`
+	TreasuryStock                          float64   `json:"treasury_stock"`
+	WorkingCapital                         float64   `json:"working_capital"`
+	PolicyLoans                            float64   `json:"policy_loans"`
+	ReinsuranceRecoverable                 float64   `json:"reinsurance_recoverable"`
+	DeferredPolicyAcquisitionCost          float64   `json:"deferred_policy_acquisition_cost"`
+	InsuranceAnnuityLiabilities            float64   `json:"insurance_annuity_liabilities"`
+	UnpaidClaims                           float64   `json:"unpaid_claims"`
+	DeferredLongTermCharges                float64   `json:"deferred_long_term_charges"`
+	UnearnedPremiums                       float64   `json:"unearned_premiums"`
+	ReinsurancePayable                     float64   `json:"reinsurance_payable"`
+	InvestmentSecurities                   float64   `json:"investment_securities"`
+	MortgageBackedSecurities               float64   `json:"mortgage_backed_securities"`
+	DistributionsInExcessOfEarnings        float64   `json:"distributions_in_excess_of_earnings"`
 }
 
 type FinancialsCashFlow struct {
-	Acquisitions                     float64   `json:"acquisitions"`
-	AssetWritedownRestructuringCosts float64   `json:"asset_writedown_restructuring_costs"`
-	CaptialExpenditures              float64   `json:"capital_expenditures"`
-	CashAcquistions                  float64   `json:"cash_acquisitions"`
-	CashIncomeTaxPaid                float64   `json:"cash_income_tax_paid"`
-	CashInterestPaid                 float64   `json:"cash_interest_paid"`
-	ChangeInInventory                float64   `json:"change_in_inventory"`
-	ChangeInIncomeTaxes              float64   `json:"change_in_income_taxes"`
-	ChangeInInvestments              float64   `json:"change_in_investments"`
-	ChangeInAccountsReceivable       float64   `json:"change_in_accounts_receivable"`
-	ChangeInAccountsPayable          float64   `json:"change_in_accounts_payable"`
-	ChangeInNetWorkingCapital        float64   `json:"change_in_net_working_capital"`
-	ChangeInOtherNetOperatingAssets  float64   `json:"change_in_other_net_operating_assets"`
-	ChangeInUnearnedRevenue          float64   `json:"change_in_unearned_revenue"`
-	CommonDividendsPaid              float64   `json:"common_dividends_paid"`
-	CommonStockIssued                float64   `json:"common_stock_issued"`
-	CostOfRevenue                    float64   `json:"cost_of_revenue"`
-	DebtIssuedPaid                   float64   `json:"debt_issued_paid"`
-	DepreciationAmortization         float64   `json:"depreciation_amortization"`
-	DividendGrowth                   float64   `json:"dividend_growth"`
-	DividendPerShare                 float64   `json:"dividend_per_share"`
-	DividendsPaid                    float64   `json:"dividends_paid"`
-	Divestitures                     float64   `json:"divestitures"`
-	EBIT                             float64   `json:"ebit"`
-	EBITMargin                       float64   `json:"ebit_margin"`
-	EBITDA                           float64   `json:"ebitda"`
-	EBITDAMargin                     float64   `json:"ebitda_margin"`
-	EffectiveTaxRate                 float64   `json:"effective_tax_ratsde"`
-	EPSBasic                         float64   `json:"eps_basic"`
-	EPSDiluted                       float64   `json:"eps_diluted"`
-	EPSGrowth                        float64   `json:"eps_growth"`
-	ExchangeRateEffect               float64   `json:"exchange_rate_effect"`
-	FinancinCashFlow                 float64   `json:"financing_cash_flow"`
-	ForeignExchangeRateAdjustments   float64   `json:"foreign_exchange_rate_adjustments"`
-	FreeCashFlow                     float64   `json:"free_cash_flow"`
-	FreeCashFlowGrowth               float64   `json:"free_cash_flow_growth"`
-	FreeCashFlowMargin               float64   `json:"free_cash_flow_margin"`
-	FreeCashFlowPerShare             float64   `json:"free_cash_flow_per_share"`
-	GrossMargin                      float64   `json:"gross_margin"`
-	GrossProfit                      float64   `json:"gross_profit"`
-	IncomeTax                        float64   `json:"income_tax"`
-	InvestingCashFlow                float64   `json:"investing_cash_flow"`
-	InvestmentInSecurities           float64   `json:"investment_in_securities"`
-	InterestExpenseIncome            float64   `json:"interest_expense_income"`
-	IssuanceOfCommonStock            float64   `json:"issuance_of_common_stock"`
-	LeveredFreeCashFlow              float64   `json:"levered_free_cash_flow"`
-	LongTermDebtIssued               float64   `json:"long_term_debt_issued"`
-	LongTermDebtRepaid               float64   `json:"long_term_debt_repaid"`
-	LossGainFromSaleOfAssets         float64   `json:"loss_gain_from_sale_of_assets"`
-	LossGainFromSaleOfInvestments    float64   `json:"loss_gain_from_sale_of_investments"`
-	LossGainOnEquityInvestments      float64   `json:"loss_gain_on_equity_investments"`
-	NetCashFlow                      float64   `json:"net_cash_flow"`
-	NetDebtIssuedRepaid              float64   `json:"net_debt_issued_repaid"`
-	NetIncome                        float64   `json:"net_income"`
-	NetIncomeGrowth                  float64   `json:"net_income_growth"`
-	OperatingCashFlow                float64   `json:"operating_cash_flow"`
-	OperatingCashFlowGrowth          float64   `json:"operating_cash_flow_growth"`
-	OperatingExpenses                float64   `json:"operating_expenses"`
-	OperatingIncome                  float64   `json:"operating_income"`
-	OperatingMargin                  float64   `json:"operating_margin"`
-	OtherExpenseIncome               float64   `json:"other_expense_income"`
-	OtherFinancingActivities         float64   `json:"other_financing_activities"`
-	OtherInvestinActivities          float64   `json:"other_investing_activities"`
-	OtherOperatingActivities         float64   `json:"other_operating_activities"`
-	OtherOperatingExpenses           float64   `json:"other_operating_expenses"`
-	PretaxIncome                     float64   `json:"pretax_income"`
-	ProfitMargin                     float64   `json:"profit_margin"`
-	ProvisionWriteOffOfBadDebts      float64   `json:"provision_write_off_of_bad_debts"`
-	PeriodEnding                     time.Time `json:"period_ending" db:"PrimaryKey"`
-	RepurchaseOfCommonStock          float64   `json:"repurchase_of_common_stock"`
-	ResearchDevelopment              float64   `json:"research_development"`
-	Revenue                          float64   `json:"revenue"`
-	RevenueGrowthYOY                 float64   `json:"revenue_growth_yoy"`
-	SaleOfPropertyPlantEquipment     float64   `json:"sale_of_property_plant_equipment"`
-	SellingGeneralAdmin              float64   `json:"selling_general_admin"`
-	ShareBasedCompensation           float64   `json:"share_based_compensation"`
-	ShareIssuanceRepurchase          float64   `json:"share_issuance_repurchase"`
-	SharesChange                     float64   `json:"shares_change"`
-	SharesOutstandingBasic           float64   `json:"shares_outstanding_basic"`
-	SharesOutstandingDiluted         float64   `json:"shares_outstanding_diluted"`
-	ShareRepurchases                 float64   `json:"share_repurchases"`
-	ShortTermDebtIssued              float64   `json:"short_term_debt_issued"`
-	ShortTermDebtRepaid              float64   `json:"short_term_debt_repaid"`
-	StockBasedCompensation           float64   `json:"stock_based_compensation"`
-	Symbol                           string    `json:"symbol" db:"PrimaryKey"`
-	TotalDebtIssued                  float64   `json:"total_debt_issued"`
-	TotalDebtRepaid                  float64   `json:"total_debt_repaid"`
-	UnleveredFreeCashFlow            float64   `json:"unlevered_free_cash_flow"`
+	Acquisitions                                      float64   `json:"acquisitions"`
+	AccruedInterestReceivable                         float64   `json:"accrued_interest_receivable"`
+	AcquisitionOfRealEstateAssets                     float64   `json:"acquisition_of_real_estate_assets"`
+	AssetWritedownRestructuringCosts                  float64   `json:"asset_writedown_restructuring_costs"`
+	CaptialExpenditures                               float64   `json:"capital_expenditures"`
+	CashAcquistions                                   float64   `json:"cash_acquisitions"`
+	CashIncomeTaxPaid                                 float64   `json:"cash_income_tax_paid"`
+	CashInterestPaid                                  float64   `json:"cash_interest_paid"`
+	ChangeInAccountsReceivable                        float64   `json:"change_in_accounts_receivable"`
+	ChangeInAccountsPayable                           float64   `json:"change_in_accounts_payable"`
+	ChangeInDeferredTaxes                             float64   `json:"change_in_deferred_taxes"`
+	ChangeInIncomeTaxes                               float64   `json:"change_in_income_taxes"`
+	ChangeInInventory                                 float64   `json:"change_in_inventory"`
+	ChangeInInvestments                               float64   `json:"change_in_investments"`
+	ChangeInInsuranceReservesLiabilities              float64   `json:"change_in_insurance_reserves_liabilities"`
+	ChangeInNetWorkingCapital                         float64   `json:"change_in_net_working_capital"`
+	ChangeInOtherNetOperatingAssets                   float64   `json:"change_in_other_net_operating_assets"`
+	ChangeInUnearnedRevenue                           float64   `json:"change_in_unearned_revenue"`
+	CommonDividendsPaid                               float64   `json:"common_dividends_paid"`
+	CommonStockIssued                                 float64   `json:"common_stock_issued"`
+	CostOfRevenue                                     float64   `json:"cost_of_revenue"`
+	DebtIssuedPaid                                    float64   `json:"debt_issued_paid"`
+	DepreciationAmortization                          float64   `json:"depreciation_amortization"`
+	DividendGrowth                                    float64   `json:"dividend_growth"`
+	DividendPerShare                                  float64   `json:"dividend_per_share"`
+	DividendsPaid                                     float64   `json:"dividends_paid"`
+	Divestitures                                      float64   `json:"divestitures"`
+	EBIT                                              float64   `json:"ebit"`
+	EBITMargin                                        float64   `json:"ebit_margin"`
+	EBITDA                                            float64   `json:"ebitda"`
+	EBITDAMargin                                      float64   `json:"ebitda_margin"`
+	EffectiveTaxRate                                  float64   `json:"effective_tax_ratsde"`
+	EPSBasic                                          float64   `json:"eps_basic"`
+	EPSDiluted                                        float64   `json:"eps_diluted"`
+	EPSGrowth                                         float64   `json:"eps_growth"`
+	ExchangeRateEffect                                float64   `json:"exchange_rate_effect"`
+	FinancinCashFlow                                  float64   `json:"financing_cash_flow"`
+	ForeignExchangeRateAdjustments                    float64   `json:"foreign_exchange_rate_adjustments"`
+	FreeCashFlow                                      float64   `json:"free_cash_flow"`
+	FreeCashFlowGrowth                                float64   `json:"free_cash_flow_growth"`
+	FreeCashFlowMargin                                float64   `json:"free_cash_flow_margin"`
+	FreeCashFlowPerShare                              float64   `json:"free_cash_flow_per_share"`
+	GainLossOnSaleOfAssets                            float64   `json:"gain_loss_on_sale_of_assets"`
+	GainLossOnSaleOfInvestments                       float64   `json:"gain_loss_on_sale_of_investments"`
+	GainOnSaleOfLoansReceivables                      float64   `json:"gain_on_sale_of_loans_receivables"`
+	GrossMargin                                       float64   `json:"gross_margin"`
+	GrossProfit                                       float64   `json:"gross_profit"`
+	IncomeTax                                         float64   `json:"income_tax"`
+	IssuanceOfPreferredStock                          float64   `json:"issuance_of_preferred_stock"`
+	InterestExpenseIncome                             float64   `json:"interest_expense_income"`
+	InvestingCashFlow                                 float64   `json:"investing_cash_flow"`
+	InvestmentInSecurities                            float64   `json:"investment_in_securities"`
+	IssuanceOfCommonStock                             float64   `json:"issuance_of_common_stock"`
+	LeveredFreeCashFlow                               float64   `json:"levered_free_cash_flow"`
+	LongTermDebtIssued                                float64   `json:"long_term_debt_issued"`
+	LongTermDebtRepaid                                float64   `json:"long_term_debt_repaid"`
+	LossGainFromSaleOfAssets                          float64   `json:"loss_gain_from_sale_of_assets"`
+	LossGainFromSaleOfInvestments                     float64   `json:"loss_gain_from_sale_of_investments"`
+	LossGainOnEquityInvestments                       float64   `json:"loss_gain_on_equity_investments"`
+	MiscellaneousCashFlowAdjustments                  float64   `json:"miscellaneous_cash_flow_adjustments"`
+	NetCashFlow                                       float64   `json:"net_cash_flow"`
+	NetDebtIssuedRepaid                               float64   `json:"net_debt_issued_repaid"`
+	NetDecreaseIncreaseInLoansOriginatedSoldInvestin  float64   `json:"net_decrease_increase_in_loans_originated_sold_investing"`
+	NetDecreaseIncreaseInLoansOriginatedSoldOperating float64   `json:"net_decrease_increase_in_loans_originated_sold_operating"`
+	NetIncome                                         float64   `json:"net_income"`
+	NetIncomeGrowth                                   float64   `json:"net_income_growth"`
+	NetIncomeGrNetSaleAcqOfRealEstateAssets           float64   `json:"net_sale_acq_of_real_estate_assets"`
+	OperatingCashFlow                                 float64   `json:"operating_cash_flow"`
+	OperatingCashFlowGrowth                           float64   `json:"operating_cash_flow_growth"`
+	OperatingExpenses                                 float64   `json:"operating_expenses"`
+	OperatingIncome                                   float64   `json:"operating_income"`
+	OperatingMargin                                   float64   `json:"operating_margin"`
+	OtherAmortization                                 float64   `json:"other_amortization"`
+	OtherExpenseIncome                                float64   `json:"other_expense_income"`
+	OtherFinancingActivities                          float64   `json:"other_financing_activities"`
+	OtherInvestinActivities                           float64   `json:"other_investing_activities"`
+	OtherOperatingActivities                          float64   `json:"other_operating_activities"`
+	OtherOperatingExpenses                            float64   `json:"other_operating_expenses"`
+	PreferredDividendsPaid                            float64   `json:"preferred_dividends_paid"`
+	PretaxIncome                                      float64   `json:"pretax_income"`
+	ProfitMargin                                      float64   `json:"profit_margin"`
+	ProvisionForCreditLosses                          float64   `json:"provision_for_credit_losses"`
+	ProvisionWriteOffOfBadDebts                       float64   `json:"provision_write_off_of_bad_debts"`
+	PeriodEnding                                      time.Time `json:"period_ending" db:"PrimaryKey"`
+	ReinsuranceRecoverable                            float64   `json:"reinsurance_recoverable"`
+	RepurchasesOfCommonStock                          float64   `json:"repurchases_of_common_stock"`
+	RepurchaseOfCommonStock                           float64   `json:"repurchase_of_common_stock"`
+	RepurchasesOfPreferredStock                       float64   `json:"repurchases_of_preferred_stock"`
+	ResearchDevelopment                               float64   `json:"research_development"`
+	Revenue                                           float64   `json:"revenue"`
+	RevenueGrowthYOY                                  float64   `json:"revenue_growth_yoy"`
+	SaleOfPropertyPlantEquipment                      float64   `json:"sale_of_property_plant_equipment"`
+	SalePurchaseOfIntangibles                         float64   `json:"sale_purchase_of_intangibles"`
+	SellingGeneralAdmin                               float64   `json:"selling_general_admin"`
+	ShareBasedCompensation                            float64   `json:"share_based_compensation"`
+	ShareIssuanceRepurchase                           float64   `json:"share_issuance_repurchase"`
+	SharesChange                                      float64   `json:"shares_change"`
+	SharesOutstandingBasic                            float64   `json:"shares_outstanding_basic"`
+	SharesOutstandingDiluted                          float64   `json:"shares_outstanding_diluted"`
+	ShareRepurchases                                  float64   `json:"share_repurchases"`
+	ShortTermDebtIssued                               float64   `json:"short_term_debt_issued"`
+	ShortTermDebtRepaid                               float64   `json:"short_term_debt_repaid"`
+	StockBasedCompensation                            float64   `json:"stock_based_compensation"`
+	Symbol                                            string    `json:"symbol" db:"PrimaryKey"`
+	TotalAssetWritedown                               float64   `json:"total_asset_writedown"`
+	TotalDebtIssued                                   float64   `json:"total_debt_issued"`
+	TotalDebtRepaid                                   float64   `json:"total_debt_repaid"`
+	TotalDividendsPaid                                float64   `json:"total_dividends_paid"`
+	UnleveredFreeCashFlow                             float64   `json:"unlevered_free_cash_flow"`
+	SaleOfPropertyPlantAndEquipment                   float64   `json:"sale_of_property_plant_and_equipment"`
+	InvestmentInMarketableEquitySecurities            float64   `json:"investment_in_marketable_equity_securities"`
+	PreferredShareRepurchases                         float64   `json:"preferred_share_repurchases"`
+	PurchaseSaleOfIntangibles                         float64   `json:"purchase_sale_of_intangibles"`
+	DeferredPolicyAcquisitionCost                     float64   `json:"deferred_policy_acquisition_cost"`
+	NetIncreaseDecreaseInDepositAccounts              float64   `json:"net_increase_decrease_in_deposit_accounts"`
 }
 
 type FinancialRatios struct {
@@ -289,6 +343,8 @@ type FinancialRatios struct {
 	PayoutRatio            float64   `json:"payout_ratio"`
 	PBRatio                float64   `json:"pb_ratio"`
 	PERatio                float64   `json:"pe_ratio"`
+	PriceAffoRatio         float64   `json:"price_affo_ratio"`
+	PriceFfoRatio          float64   `json:"price_ffo_ratio"`
 	PSRatio                float64   `json:"ps_ratio"`
 	PeriodEnding           time.Time `json:"period_ending" db:"PrimaryKey"`
 	QuickRatio             float64   `json:"quick_ratio"`
