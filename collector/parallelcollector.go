@@ -186,13 +186,6 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 	outChan := make(chan PCResponse, 1000*1000)
 	proxyChan := make(chan string, 1000)
 
-	// Start goroutine
-	i := 0
-	for ; i < parallel; i++ {
-		wg.Add(1)
-		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, proxyChan, &wg)
-	}
-
 	// Push proxies to channel
 	numProxies, _ := pc.Cache.GetLength(CACHE_KEY_PROXY)
 	if numProxies > 0 {
@@ -228,6 +221,13 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 		}
 	}()
 	defer close(inChan) // Close the inChan when done
+
+	// Start goroutine
+	i := 0
+	for ; i < parallel; i++ {
+		wg.Add(1)
+		go pc.workerRoutine(strconv.Itoa(i), inChan, outChan, proxyChan, &wg)
+	}
 
 	// Cleanup
 	go func() {
