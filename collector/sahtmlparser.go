@@ -176,6 +176,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	thead := node.FirstChild
 
 	// For each tr
+	dataPoints := make(map[string][]interface{})
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
@@ -191,10 +192,11 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				continue
 			}
 
+			dataPoints[normKey] = make([]interface{}, 0)
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
 				if text2 != nil {
-					dataPoint := make(map[string]interface{})
+					// dataPoint := make(map[string]interface{})
 					p.logger.Println(text2.Data)
 					if !isValidValue(text2.Data) {
 						p.logger.Println("ignore value ", text2.Data)
@@ -207,12 +209,20 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 						return dataSeries, err
 					}
 
-					dataPoint[normKey] = normVal
-					dataSeries = append(dataSeries, dataPoint)
+					// dataPoint[normKey] = normVal
+					// dataSeries = append(dataSeries, dataPoint)
+					dataPoints[normKey] = append(dataPoints[normKey], normVal)
 					continue
 				}
 			}
 		}
+	}
+	for key, s := range dataPoints {
+		dataPoint := make(map[string]interface{})
+		for _, v := range s {
+			dataPoint[key] = v
+		}
+		dataSeries = append(dataSeries, dataPoint)
 	}
 
 	if len(dataSeries) <= 0 {
@@ -391,6 +401,13 @@ func isValidDate(value string) bool {
 	return err == nil
 }
 
+func isFiscalQuarter(value string) bool {
+	pattern := `Q\d \d{4}`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindString(value)
+	return len(matches) > 0
+}
+
 func isValidValue(value string) bool {
 	value = strings.TrimSpace(value)
 	// Null Value
@@ -404,7 +421,7 @@ func isValidValue(value string) bool {
 
 	matches := re.FindAllString(value, -1)
 	// The value shold not contain characters except date
-	if len(matches) > 0 && !isValidDate(value) {
+	if len(matches) > 0 && !isValidDate(value) && !isFiscalQuarter(value) {
 		return false
 	}
 

@@ -131,3 +131,9 @@ func TestSACollector_CollectRatios(t *testing.T) {
 		t.Fatalf("Expecting %d rows were inserted into database table. However %d rows inserted.", expectNumOfRows, num)
 	}
 }
+
+// func TestCollectFinancialsForSymbol(t *testing.T) {
+// 	if err := CollectFinancialsForSymbol("adi"); err != nil {
+// 		t.Errorf("CollectFinancialsForSymbol() error = %v", err)
+// 	}
+// }
