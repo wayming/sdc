@@ -34,7 +34,6 @@ func (p *SAHTMLParser) DecodeOverviewPages(node *html.Node, dataStructTypeName s
 				if err != nil {
 					return nil, errors.New("Failed to decode html table overview-info. Error: " + err.Error())
 				}
-
 			}
 			if attr.Key == "data-test" && attr.Val == "overview-quote" {
 				indicatorsMap, err = p.decodeSimpleTable(node, dataStructTypeName)
@@ -158,8 +157,21 @@ func (p *SAHTMLParser) decodeSimpleTable(node *html.Node, dataStructTypeName str
 
 }
 
+/*
+	dataSeries: []map[string]interface{}{
+	            {
+	                "period_ending":  "Jan 2, 2006",
+	                "Revenue":   10000,
+	                "GrossProfit": 100,
+	            },
+	            {
+					...
+	            },
+				...
+			}
+*/
 func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
-	completeSeries := make([]map[string]interface{}, 0)
+	dataSeries := make([]map[string]interface{}, 0)
 	// thead
 	thead := node.FirstChild
 
@@ -172,36 +184,40 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				p.logger.Println(text1.Data)
 			}
 
+			normKey := normaliseJSONKey(text1.Data)
+			fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
+			if fieldType == nil {
+				p.logger.Println("ignore key ", normKey)
+				continue
+			}
+
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
 				if text2 != nil {
 					dataPoint := make(map[string]interface{})
 					p.logger.Println(text2.Data)
 					if !isValidValue(text2.Data) {
-						p.logger.Println("ignore ", text2.Data)
+						p.logger.Println("ignore value ", text2.Data)
 						continue
-					}
-
-					normKey := normaliseJSONKey(text1.Data)
-					fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
-					if fieldType == nil {
-						return completeSeries, errors.New("Failed to get field type for tag " + normKey)
 					}
 
 					p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 					normVal, err := normaliseJSONValue(text2.Data, fieldType)
 					if err != nil {
-						return completeSeries, err
+						return dataSeries, err
 					}
 
 					dataPoint[normKey] = normVal
-					completeSeries = append(completeSeries, dataPoint)
+					dataSeries = append(dataSeries, dataPoint)
 					continue
 				}
 			}
 		}
 	}
 
+	if len(dataSeries) <= 0 {
+		return nil, errors.New("faild to get a valid header")
+	}
 	// tbody
 	if thead.NextSibling == nil || thead.NextSibling.NextSibling == nil {
 		return nil, errors.New("unexpected structure. Can not find the tbody element")
@@ -220,29 +236,29 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 
 			idx := 0
 			// Assumes the same amount of tds as the the thead
-			for td2 := td.NextSibling; td2 != nil && idx < len(completeSeries); td2 = td2.NextSibling {
+			for td2 := td.NextSibling; td2 != nil && idx < len(dataSeries); td2 = td2.NextSibling {
 				if td2.Type == html.ElementNode && td2.Data == "td" {
 					text2 := firstTextNode(td2)
 					if text2 != nil {
 						p.logger.Println(text2.Data)
 						if !isValidValue(text2.Data) {
-							p.logger.Println("ignore ", text2.Data)
+							p.logger.Println("ignore value ", text2.Data)
 							continue
 						}
 
 						normKey := normaliseJSONKey(text1.Data)
 						fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
 						if fieldType == nil {
-							return completeSeries, errors.New("Failed to get field type for tag " + normKey)
+							return dataSeries, errors.New("Failed to get field type for tag " + normKey)
 						}
 
 						p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 						normVal, err := normaliseJSONValue(text2.Data, fieldType)
 						if err != nil {
-							return completeSeries, err
+							return dataSeries, err
 						}
 
-						completeSeries[idx][normKey] = normVal
+						dataSeries[idx][normKey] = normVal
 						idx++
 					}
 				}
@@ -252,11 +268,11 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	}
 
 	// // Fill symbol name
-	// for _, dataPoint := range completeSeries {
+	// for _, dataPoint := range dataSeries {
 	// 	collector.PackSymbolField(dataPoint, dataStructTypeName)
 	// }
 
-	return completeSeries, nil
+	return dataSeries, nil
 
 }
 
@@ -349,6 +365,21 @@ func stringToDate(value string) (any, error) {
 	}
 
 	convertedValue, err = time.Parse("Jan 2, 2006", value)
+	if err == nil {
+		return convertedValue, err
+	}
+
+	format := "Jan '06"
+	convertedValue, err = time.Parse(format, value)
+	if err == nil {
+		// Since the parsed time represents only the month and year, default to the first day of the month
+		year := convertedValue.Year()
+		month := convertedValue.Month()
+		day := 1 // Defaulting to the first day of the month
+
+		// Construct a new time.Time object representing January 1, 2006
+		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	}
 
 	return convertedValue, err
 }
