@@ -101,17 +101,31 @@ type FinancialsIncome struct {
 	SharesOutstandingBasic             float64   `json:"shares_outstanding_basic"`
 	SharesOutstandingDiluted           float64   `json:"shares_outstanding_diluted"`
 	Symbol                             string    `json:"symbol" db:"PrimaryKey"`
-	// AssetWritedown                     float64   `json:"asset_writedown"`
-	// InterestAndDividendIncome          float64   `json:"interest_and_dividend_income"`
-	// TotalInterestExpense               float64   `json:"total_interest_expense"`
-	// NetInterestInccome                 float64   `json:"net_interest_income"`
-	// RevenueBeforeLoanLosses            float64   `json:"revenue_before_loan_losses"`
-	// MortgageBanking                    float64   `json:"mortgage_banking"`
-	// PremiumsAnnuityRevenue             float64   `json:"premiums_annuity_revenue"`
-	// GainLossOnSaleOfLoansReceivables   float64   `json:"gain_loss_on_sale_of_loans_receivables"`
-	// ProvisionForLoanLosses             float64   `json:"provision_for_loan_losses"`
-	// RentalRevenue                      float64   `json:"rental_revenue"`
-	// TotalInterestDividendIncome        float64   `json:"total_interest_dividend_income"`
+	AssetWritedown                     float64   `json:"asset_writedown"`
+	InterestAndDividendIncome          float64   `json:"interest_and_dividend_income"`
+	TotalInterestExpense               float64   `json:"total_interest_expense"`
+	NetInterestInccome                 float64   `json:"net_interest_income"`
+	RevenueBeforeLoanLosses            float64   `json:"revenue_before_loan_losses"`
+	MortgageBanking                    float64   `json:"mortgage_banking"`
+	PremiumsAnnuityRevenue             float64   `json:"premiums_annuity_revenue"`
+	GainLossOnSaleOfLoansReceivables   float64   `json:"gain_loss_on_sale_of_loans_receivables"`
+	ProvisionForLoanLosses             float64   `json:"provision_for_loan_losses"`
+	RentalRevenue                      float64   `json:"rental_revenue"`
+	TotalInterestDividendIncome        float64   `json:"total_interest_dividend_income"`
+	SalariesEmployeeBenefits           float64   `json:"salaries_employee_benefits"`
+	TotalRevenue                       float64   `json:"total_revenue"`
+	CostOfServicesProvided             float64   `json:"cost_of_services_provided"`
+	PolicyBenefits                     float64   `json:"policy_benefits"`
+	PropertyExpenses                   float64   `json:"property_expenses"`
+	PolicyAcquisitionUnderwritingCosts float64   `json:"policy_acquisition_underwriting_costs"`
+	SellingGeneralAdministrative       float64   `json:"selling_general_administrative"`
+	TotalOperatinExpenses              float64   `json:"total_operating_expenses"`
+	AmortizationOfGoodwillIntangibles  float64   `json:"amortization_of_goodwill_intangibles"`
+	EarninsFromContinuingOps           float64   `json:"earnings_from_continuing_ops"`
+	OtherNonOperatingIncome            float64   `json:"other_non_operating_income"`
+	BasicSharesOutstanding             float64   `json:"basic_shares_outstanding"`
+	EarningsFromDiscontinuedOps        float64   `json:"earnings_from_discontinued_ops"`
+	DilutedSharesOutstanding           float64   `json:"diluted_shares_outstanding"`
 }
 
 type FinancialsBalanceSheet struct {
@@ -202,9 +216,18 @@ type FinancialsBalanceSheet struct {
 	InvestmentSecurities                   float64   `json:"investment_securities"`
 	MortgageBackedSecurities               float64   `json:"mortgage_backed_securities"`
 	DistributionsInExcessOfEarnings        float64   `json:"distributions_in_excess_of_earnings"`
-	// GrossLoans                             float64   `json:"gross_loans"`
-	// PreferredStockConvertible              float64   `json:"preferred_stock_convertible"`
-	// PreferredStockRedeemable               float64   `json:"preferred_stock_redeemable"`
+	GrossLoans                             float64   `json:"gross_loans"`
+	PreferredStockConvertible              float64   `json:"preferred_stock_convertible"`
+	PreferredStockRedeemable               float64   `json:"preferred_stock_redeemable"`
+	AllowanceForLoanLosses                 float64   `json:"allowance_for_loan_losses"`
+	TotalPreferredEquity                   float64   `json:"total_preferred_equity"`
+	OtherAdjustmentsToGrossLoans           float64   `json:"other_adjustments_to_gross_loans"`
+	NetLoans                               float64   `json:"net_loans"`
+	LoansHeldForSale                       float64   `json:"loans_held_for_sale"`
+	AccruedInterestReceivable              float64   `json:"accrued_interest_receivable"`
+	OtherRealEstateOwnedForeclosed         float64   `json:"other_real_estate_owned_foreclosed"`
+	InterestBearingDeposits                float64   `json:"interest_bearing_deposits"`
+	InstitutionalDeposits                  float64   `json:"institutional_deposits"`
 }
 
 type FinancialsCashFlow struct {

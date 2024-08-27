@@ -94,19 +94,41 @@ func (pc *ParallelCollector) workerRoutine(
 			return
 		}
 
-		for symbol := range inChan {
-			logMessage("Begin processing [" + symbol + "]")
+		complete := false
+		for {
+
+			var symbol string
+			select {
+			case symbol = <-inChan:
+				logMessage("Begin processing [" + symbol + "]")
+			default:
+				logMessage("All symbols are processed")
+				complete = true
+			}
+
+			if complete {
+				break
+			}
+
 			if err := worker.Do(symbol); err != nil {
 				logMessage(err.Error())
 
 				e, ok := err.(HttpServerError)
-				if ok && e.StatusCode() == http.StatusNotFound {
-					// Symbol does not exist
-					outChan <- PCResponse{
-						symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
+				if ok {
+					if e.StatusCode() == http.StatusNotFound {
+						// Symbol does not exist
+						outChan <- PCResponse{
+							symbol, SERVER_SYMBOL_NOT_VALID, e.Error(),
+						}
+						logMessage("End processing [" + symbol + "]. Symbol Not Valid.")
+						continue
 					}
-					logMessage("End processing [" + symbol + "]. Symbol Not Valid.")
-					continue
+
+					if e.StatusCode() == http.StatusTooManyRequests {
+						logMessage("End processing [" + symbol + "]. Too many request.")
+						complete = false // Continue processing with another proxy
+						break
+					}
 				}
 				outChan <- PCResponse{
 					symbol, WORKER_PROCESS_FAILURE, err.Error(),
@@ -126,8 +148,9 @@ func (pc *ParallelCollector) workerRoutine(
 			}
 		}
 
-		// Complete
-		break
+		if complete {
+			break
+		}
 	}
 
 	logMessage("Finish")
@@ -190,7 +213,6 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 
 	// Push symbols to channel
 	go func() {
-		defer close(inChan) // Close the inChan when done
 		for {
 			symbol, err := pc.Cache.PopFromSet(CACHE_KEY_SYMBOL)
 
@@ -205,6 +227,7 @@ func (pc *ParallelCollector) Execute(parallel int) error {
 			inChan <- symbol
 		}
 	}()
+	defer close(inChan) // Close the inChan when done
 
 	// Cleanup
 	go func() {
