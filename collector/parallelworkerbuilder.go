@@ -138,6 +138,13 @@ func (b *CommonWorkerBuilder) loadSymFromDB(tableName string) error {
 	return nil
 }
 
+func (b *CommonWorkerBuilder) loadSymFromCache(setName string) error {
+	if err := b.cache.MoveSet(setName, CACHE_KEY_SYMBOL); err != nil {
+		return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+	}
+	return nil
+}
+
 func (b *CommonWorkerBuilder) loadProxyFromFile(fname string) error {
 	num, err := cache.LoadProxies(b.cache, CACHE_KEY_PROXY, fname)
 
@@ -152,6 +159,10 @@ func (b *CommonWorkerBuilder) Prepare() error {
 
 	if len(b.Params.TickersJSON) > 0 {
 		if err := b.loadSymFromFile(b.Params.TickersJSON); err != nil {
+			return err
+		}
+	} else if b.Params.IsContinue {
+		if err := b.loadSymFromCache(CACHE_KEY_SYMBOL_ERROR); err != nil {
 			return err
 		}
 	} else {
