@@ -117,13 +117,24 @@ func GetPrimaryKeyFiledNames(fieldsMetadata map[string]JsonFieldMetadata) []stri
 	return names
 }
 
-func IsKeyField(fieldsMetadata map[string]JsonFieldMetadata, fieldName string) bool {
-	meta, ok := fieldsMetadata[fieldName]
-	if ok {
-		return meta.FieldTags["db"] == "PrimaryKey"
-	} else {
-		return false
+func IsKeyField(fieldsMetadata map[string]JsonFieldMetadata, jsonTagValue string) bool {
+	for _, v := range fieldsMetadata {
+		jsonTag, ok := v.FieldTags["json"]
+		if !ok {
+			continue
+		}
+
+		dbTag, ok := v.FieldTags["db"]
+		if !ok {
+			continue
+		}
+
+		if jsonTag == jsonTagValue && dbTag == "PrimaryKey" {
+			return true
+		}
 	}
+
+	return false
 }
 
 func CacheCleanup() {

@@ -95,6 +95,7 @@ func (p *SAHTMLParser) DecodeAnalystRatingsGrid(node *html.Node, dataStructTypeN
 	}
 	for _, fieldText := range htmlFieldTexts {
 		if value := textOfAdjacentDiv(node, fieldText); len(value) > 0 {
+			p.logger.Printf("Read %s", value)
 			normKey := normaliseJSONKey(fieldText)
 			fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
 			if fieldType == nil {
@@ -105,6 +106,7 @@ func (p *SAHTMLParser) DecodeAnalystRatingsGrid(node *html.Node, dataStructTypeN
 			if err != nil {
 				return analystRatinMetrics, err
 			}
+			p.logger.Printf("Got %v", normVal)
 
 			analystRatinMetrics[normKey] = normVal
 		}
@@ -123,7 +125,7 @@ func (p *SAHTMLParser) decodeSimpleTable(node *html.Node, dataStructTypeName str
 		if td != nil {
 			text1 := firstTextNode(td)
 			if text1 != nil {
-				p.logger.Println(text1.Data)
+				p.logger.Printf("Read %s", text1.Data)
 			} else {
 				// No text node for this sibling, try next one
 				continue
@@ -138,12 +140,14 @@ func (p *SAHTMLParser) decodeSimpleTable(node *html.Node, dataStructTypeName str
 						return simpleTableMetrics, errors.New("Failed to get field type for tag " + normKey)
 					}
 
+					p.logger.Printf("Read %s", text2.Data)
 					p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 					// TODO - remove n/a value from map
 					normVal, err := normaliseJSONValue(text2.Data, fieldType)
 					if err != nil {
 						return simpleTableMetrics, err
 					}
+					p.logger.Printf("Got %v", normVal)
 
 					simpleTableMetrics[normKey] = normVal
 					continue
@@ -181,30 +185,37 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	// Count of column for the key field
 	keyFiledValueCnt := 0
 
-	// For each tr
+	p.logger.Printf("Metadata for struct %s: %v", dataStructTypeName, p.metricsFields[dataStructTypeName])
+
 	dataPoints := make(map[string][]interface{})
+	// For each tr
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
 			text1 := firstTextNode(td)
 			if text1 != nil {
-				p.logger.Println(text1.Data)
+				p.logger.Printf("Read %s", text1.Data)
 			}
 
 			normKey := normaliseJSONKey(text1.Data)
+			if !IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
+				p.logger.Printf("ignore table header key %s: not db primary key", normKey)
+				continue
+			}
 			fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
 			if fieldType == nil {
-				p.logger.Println("ignore key ", normKey)
+				p.logger.Printf("ignore table header key %s: no field type found", normKey)
 				continue
 			}
 
 			dataPoints[normKey] = make([]interface{}, 0)
 			firstSibling := td.NextSibling
 			var values []any
+			// For each td
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
 				if text2 != nil {
-					p.logger.Println(text2.Data)
+					p.logger.Printf("Read %s", text2.Data)
 					if !isValidValue(text2.Data) {
 						p.logger.Println("ignore value ", text2.Data)
 
@@ -222,15 +233,15 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 					if err != nil {
 						return dataSeries, err
 					}
+					p.logger.Printf("Got %v", normVal)
+
 					values = append(values, normVal)
 
 					continue
 				}
 			}
 
-			for _, v := range values {
-				dataPoints[normKey] = append(dataPoints[normKey], v)
-			}
+			dataPoints[normKey] = append(dataPoints[normKey], values...)
 
 			if IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
 				keyFiledValueCnt = len(values)
@@ -261,7 +272,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 			// First column is the key column
 			text1 := firstTextNode(td)
 			if text1 != nil {
-				p.logger.Println(text1.Data)
+				p.logger.Printf("Read %s", text1.Data)
 			} else {
 				// Skip row if the key is not valid
 				continue
@@ -283,7 +294,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				if td2.Type == html.ElementNode && td2.Data == "td" {
 					text2 := firstTextNode(td2)
 					if text2 != nil {
-						p.logger.Println(text2.Data)
+						p.logger.Printf("Read %s", text2.Data)
 						if !isValidValue(text2.Data) {
 							p.logger.Println("ignore value ", text2.Data)
 							continue
@@ -299,6 +310,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 						if err != nil {
 							return dataSeries, err
 						}
+						p.logger.Printf("Got %v", normVal)
 
 						values = append(values, normVal)
 						// dataSeries[idx][normKey] = normVal
@@ -311,9 +323,9 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				p.logger.Printf("The key field has %d data points, however, the field %s has %d data points. Ignore the field.",
 					keyFiledValueCnt, normKey, len(values))
 			}
-			for _, v := range values {
-				dataPoints[normKey] = append(dataPoints[normKey], v)
-			}
+
+			dataPoints[normKey] = append(dataPoints[normKey], values...)
+
 		}
 	}
 
@@ -388,7 +400,7 @@ func normaliseJSONKey(key string) string {
 }
 
 func stringToFloat64(value string) (any, error) {
-	baseNumber, sign, multi := normaliseValueForNumeric(value)
+	baseNumber, sign, multi := normaliseValueToNumeric(value)
 	valFloat, err := strconv.ParseFloat(baseNumber, 64)
 	if err != nil {
 		return nil, err
@@ -398,7 +410,7 @@ func stringToFloat64(value string) (any, error) {
 }
 
 func stringToInt64(value string) (any, error) {
-	baseNumber, sign, multi := normaliseValueForNumeric(value)
+	baseNumber, sign, multi := normaliseValueToNumeric(value)
 	valInt, err := strconv.ParseInt(baseNumber, 10, 64)
 	if err != nil {
 		return nil, err
@@ -505,7 +517,7 @@ func isValidValue(value string) bool {
 
 // Normalised input string value for numeric conversion
 // Return normalised string, operator, multiplier
-func normaliseValueForNumeric(value string) (string, int, float64) {
+func normaliseValueToNumeric(value string) (string, int, float64) {
 
 	// Remove spaces
 	value = strings.ReplaceAll(value, " ", "")
