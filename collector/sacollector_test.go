@@ -3,6 +3,7 @@ package collector_test
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/wayming/sdc/collector"
 	testcommon "github.com/wayming/sdc/testcommon"
 )
@@ -36,6 +37,9 @@ func TestSACollector_CollectFinancialOverview(t *testing.T) {
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"msft\"*"),
 		SADataTables[SA_STOCKOVERVIEW],
 		SADataTypes[SA_STOCKOVERVIEW]).Times(1).Return(expectNumOfRows, nil)
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialOverview("msft")
@@ -57,6 +61,9 @@ func TestSACollector_CollectFinancialsIncome(t *testing.T) {
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"msft\"*"),
 		SADataTables[SA_FINANCIALSINCOME],
 		SADataTypes[SA_FINANCIALSINCOME]).Times(1).Return(expectNumOfRows, nil)
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialsIncome("msft")
@@ -78,6 +85,9 @@ func TestSACollector_CollectBalanceSheet(t *testing.T) {
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"msft\"*"),
 		SADataTables[SA_FINANCIALSBALANCESHEET],
 		SADataTypes[SA_FINANCIALSBALANCESHEET]).Times(1).Return(expectNumOfRows, nil)
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialsBalanceSheet("msft")
@@ -99,6 +109,9 @@ func TestSACollector_CollectCashFlow(t *testing.T) {
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"msft\"*"),
 		SADataTables[SA_FINANCIALSCASHFLOW],
 		SADataTypes[SA_FINANCIALSCASHFLOW]).Times(1).Return(expectNumOfRows, nil)
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialsCashFlow("msft")
@@ -120,6 +133,9 @@ func TestSACollector_CollectRatios(t *testing.T) {
 		testcommon.NewStringPatternMatcher(".*\"Symbol\":\"msft\"*"),
 		SADataTables[SA_FINANCIALRATIOS],
 		SADataTypes[SA_FINANCIALRATIOS]).Times(1).Return(expectNumOfRows, nil)
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	c := NewSACollector(fixture.Reader(), fixture.Exporter(), fixture.DBMock(), fixture.Logger())
 	num, err := c.CollectFinancialsRatios("msft")

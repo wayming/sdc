@@ -175,6 +175,12 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	// thead
 	thead := node.FirstChild
 
+	// If skip the first value column
+	skipFirstValue := false
+
+	// Count of column for the key field
+	keyFiledValueCnt := 0
+
 	// For each tr
 	dataPoints := make(map[string][]interface{})
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
@@ -193,13 +199,21 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 			}
 
 			dataPoints[normKey] = make([]interface{}, 0)
+			firstSibling := td.NextSibling
+			var values []any
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
 				if text2 != nil {
-					// dataPoint := make(map[string]interface{})
 					p.logger.Println(text2.Data)
 					if !isValidValue(text2.Data) {
 						p.logger.Println("ignore value ", text2.Data)
+
+						if IsKeyField(p.metricsFields[dataStructTypeName], normKey) && td2 == firstSibling {
+							// The first value field does not contain a valid value for a key row.
+							// Skip this value field for all remaining tr(rows)
+							// This is to skip the "Current" column of the table.
+							skipFirstValue = true
+						}
 						continue
 					}
 
@@ -208,12 +222,18 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 					if err != nil {
 						return dataSeries, err
 					}
+					values = append(values, normVal)
 
-					// dataPoint[normKey] = normVal
-					// dataSeries = append(dataSeries, dataPoint)
-					dataPoints[normKey] = append(dataPoints[normKey], normVal)
 					continue
 				}
+			}
+
+			for _, v := range values {
+				dataPoints[normKey] = append(dataPoints[normKey], v)
+			}
+
+			if IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
+				keyFiledValueCnt = len(values)
 			}
 		}
 	}
@@ -233,20 +253,33 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 		return nil, errors.New("unexpected structure. Can not find the tbody element")
 	}
 	tbody := thead.NextSibling.NextSibling
-	// For each tr
+	// For each tr(row)
 	for tr := tbody.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
 		if td != nil {
+
+			// First column is the key column
 			text1 := firstTextNode(td)
 			if text1 != nil {
 				p.logger.Println(text1.Data)
 			} else {
+				// Skip row if the key is not valid
 				continue
 			}
+			normKey := normaliseJSONKey(text1.Data)
 
-			idx := 0
-			// Assumes the same amount of tds as the the thead
-			for td2 := td.NextSibling; td2 != nil && idx < len(dataSeries); td2 = td2.NextSibling {
+			if td.NextSibling == nil {
+				p.logger.Printf("Skip the values for key %s as it does not contain any data fields.", normKey)
+			}
+
+			// Skil the first value column ("current")
+			if skipFirstValue {
+				td = td.NextSibling
+			}
+
+			// For each remaining td(column)
+			var values []any
+			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				if td2.Type == html.ElementNode && td2.Data == "td" {
 					text2 := firstTextNode(td2)
 					if text2 != nil {
@@ -256,7 +289,6 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 							continue
 						}
 
-						normKey := normaliseJSONKey(text1.Data)
 						fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
 						if fieldType == nil {
 							return dataSeries, errors.New("Failed to get field type for tag " + normKey)
@@ -268,12 +300,20 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 							return dataSeries, err
 						}
 
-						dataSeries[idx][normKey] = normVal
-						idx++
+						values = append(values, normVal)
+						// dataSeries[idx][normKey] = normVal
+						// idx++
 					}
 				}
 			}
 
+			if len(values) != keyFiledValueCnt {
+				p.logger.Printf("The key field has %d data points, however, the field %s has %d data points. Ignore the field.",
+					keyFiledValueCnt, normKey, len(values))
+			}
+			for _, v := range values {
+				dataPoints[normKey] = append(dataPoints[normKey], v)
+			}
 		}
 	}
 
@@ -394,6 +434,41 @@ func stringToDate(value string) (any, error) {
 	return convertedValue, err
 }
 
+func convertFiscalToDate(value string) string {
+	pattern := `([QH])(\d) (\d{4})`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(value)
+
+	if len(matches) > 0 {
+		var monthAndDay string
+		if matches[1] == "Q" {
+			switch matches[2] {
+			case "1":
+				monthAndDay = "01-01"
+			case "2":
+				monthAndDay = "04-01"
+			case "3":
+				monthAndDay = "07-01"
+			case "4":
+				monthAndDay = "01-01"
+			default:
+				return value
+			}
+		} else if matches[1] == "H" {
+			switch matches[2] {
+			case "1":
+				monthAndDay = "01-01"
+			case "2":
+				monthAndDay = "07-01"
+			default:
+				return value
+			}
+		}
+		return matches[3] + "-" + monthAndDay
+	} else {
+		return value
+	}
+}
 func isValidDate(value string) bool {
 	_, err := stringToDate(value)
 
@@ -401,8 +476,8 @@ func isValidDate(value string) bool {
 	return err == nil
 }
 
-func isFiscalQuarter(value string) bool {
-	pattern := `Q\d \d{4}`
+func isFiscalDate(value string) bool {
+	pattern := `[QH]\d \d{4}`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindString(value)
 	return len(matches) > 0
@@ -421,7 +496,7 @@ func isValidValue(value string) bool {
 
 	matches := re.FindAllString(value, -1)
 	// The value shold not contain characters except date
-	if len(matches) > 0 && !isValidDate(value) && !isFiscalQuarter(value) {
+	if len(matches) > 0 && !isValidDate(value) && !isFiscalDate(value) {
 		return false
 	}
 
@@ -511,8 +586,11 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 	}
 
 	if vType == reflect.TypeFor[time.Time]() {
-		if convertedValue, err = stringToDate(value); err != nil {
-			return convertedValue, err
+		if isFiscalDate((value)) {
+			value = convertFiscalToDate(value)
+			if convertedValue, err = stringToDate(value); err != nil {
+				return convertedValue, err
+			}
 		}
 	}
 

@@ -140,6 +140,10 @@ func TestParallelCollector_Execute_SAWorker(t *testing.T) {
 			return result.Interface(), nil
 		})
 
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
+
 	// Parallel Collector Begin
 	fixture.CacheExpect().GetLength(CACHE_KEY_SYMBOL).
 		Return(int64(numSymbols), nil).Times(1)
@@ -229,6 +233,9 @@ func TestParallelCollector_Execute_SAWorker_Proxy(t *testing.T) {
 			}
 			return result.Interface(), nil
 		})
+	for _, v := range SADataTables {
+		fixture.DBExpect().RunQuery(testcommon.NewStringPatternMatcher("select symbol from "+v+".*"), gomock.Any()).AnyTimes()
+	}
 
 	// Parallel Collector Begin
 	fixture.CacheExpect().GetLength(CACHE_KEY_SYMBOL).

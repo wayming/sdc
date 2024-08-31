@@ -75,28 +75,55 @@ func DropSchema(schema string) error {
 }
 
 type JsonFieldMetadata struct {
-	FieldName    string
-	FieldType    reflect.Type
-	FieldJsonTag string
+	FieldName string
+	FieldType reflect.Type
+	FieldTags map[string]string
 }
 
 func GetJsonStructMetadata(jsonStructType reflect.Type) map[string]JsonFieldMetadata {
 	fieldTypeMap := make(map[string]JsonFieldMetadata)
 	for idx := 0; idx < jsonStructType.NumField(); idx++ {
 		field := jsonStructType.Field(idx)
-		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, field.Tag.Get("json")}
+		tagsMap := make(map[string]string, 0)
+		for _, tagKey := range [2]string{"json", "db"} {
+			t, ok := field.Tag.Lookup(tagKey)
+			if ok {
+				tagsMap[tagKey] = t
+			}
+		}
+
+		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, tagsMap}
 	}
 	return fieldTypeMap
 }
 
 func GetFieldTypeByTag(fieldsMetadata map[string]JsonFieldMetadata, tag string) reflect.Type {
 	for _, v := range fieldsMetadata {
-		if v.FieldJsonTag == tag {
+		if v.FieldTags["json"] == tag {
 			return v.FieldType
 		}
 	}
 
 	return nil
+}
+
+func GetPrimaryKeyFiledNames(fieldsMetadata map[string]JsonFieldMetadata) []string {
+	var names []string
+	for k, v := range fieldsMetadata {
+		if v.FieldTags["db"] == "PrimaryKey" {
+			names = append(names, k)
+		}
+	}
+	return names
+}
+
+func IsKeyField(fieldsMetadata map[string]JsonFieldMetadata, fieldName string) bool {
+	meta, ok := fieldsMetadata[fieldName]
+	if ok {
+		return meta.FieldTags["db"] == "PrimaryKey"
+	} else {
+		return false
+	}
 }
 
 func CacheCleanup() {

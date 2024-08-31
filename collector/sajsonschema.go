@@ -92,7 +92,7 @@ type FinancialsIncome struct {
 	PretaxIncome                           float64   `json:"pretax_income"`
 	ProfitMargin                           float64   `json:"profit_margin"`
 	PeriodEnding                           time.Time `json:"period_ending"`
-	FiscalQuarter                          string    `json:"fiscal_quarter" db:"PrimaryKey"`
+	FiscalQuarter                          time.Time `json:"fiscal_quarter" db:"PrimaryKey"`
 	ResearchDevelopment                    float64   `json:"research_development"`
 	Revenue                                float64   `json:"revenue"`
 	RevenueAsReported                      float64   `json:"revenue_as_reported"`
@@ -211,7 +211,7 @@ type FinancialsBalanceSheet struct {
 	PropertyPlantEquipment                 float64   `json:"property_plant_equipment"`
 	PrepaidExpenses                        float64   `json:"prepaid_expenses"`
 	PeriodEnding                           time.Time `json:"period_ending"`
-	FiscalQuarter                          string    `json:"fiscal_quarter" db:"PrimaryKey"`
+	FiscalQuarter                          time.Time `json:"fiscal_quarter" db:"PrimaryKey"`
 	Receivables                            float64   `json:"receivables"`
 	RestrictedCash                         float64   `json:"restricted_cash"`
 	RetainedEarnings                       float64   `json:"retained_earnings"`
