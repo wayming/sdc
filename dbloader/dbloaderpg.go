@@ -174,6 +174,7 @@ func (loader *PGLoader) CreateTableByJsonStruct(tableName string, jsonStructType
 
 	tx, _ := loader.db.Begin()
 	if _, err := tx.Exec(tableCreateSQL); err != nil {
+		tx.Rollback()
 		return errors.New("Failed to execute SQL " + tableCreateSQL + ". Error: " + err.Error())
 	} else {
 		loader.logger.Println("Execute SQL: ", tableCreateSQL)
@@ -189,19 +190,27 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		loader.logger.Fatal("Schema must be created first")
 	}
 
+	// Query to get the current search_path
+	var searchPath string
+	err := loader.db.QueryRow("SHOW search_path").Scan(&searchPath)
+	if err != nil {
+		loader.logger.Fatalf("database QueryRow failed: %v", err)
+	}
+	loader.logger.Printf("Current search_path: %s, loader database schema: %s\n", searchPath, loader.schema)
+
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Insert
 	fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
 	if err != nil || len(rows) == 0 {
 		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
-
 		return 0, err
 	}
 
 	// Start a transaction
 	tx, err := loader.db.Begin()
 	if err != nil {
+		tx.Rollback()
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}
 
@@ -234,6 +243,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to execute CopyIn statement. Error: %s", err.Error())
 		loader.logger.Printf(errMsg)
+		tx.Rollback()
 		return 0, errors.New(errMsg)
 
 	}

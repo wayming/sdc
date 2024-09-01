@@ -131,6 +131,9 @@ func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 // Extract and write financial details to database. Only return the last error
 func (c *SACollector) CollectFinancialDetails(symbol string) error {
 	var retErr error
+	if _, err := c.CollectFinancialOverview(symbol); err != nil {
+		retErr = err
+	}
 	if _, err := c.CollectFinancialsIncome(symbol); err != nil {
 		retErr = err
 	}
@@ -228,7 +231,7 @@ func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType r
 		return 0, err
 	}
 
-	// Write to database for the retrieved data
+	// Write the the retrieved data to database
 	rowCount := int64(0)
 	if len(jsonText) > 0 {
 		rowCount, err = c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)

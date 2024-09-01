@@ -2,6 +2,7 @@ package collector
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 	"regexp"
@@ -175,19 +176,15 @@ func (p *SAHTMLParser) decodeSimpleTable(node *html.Node, dataStructTypeName str
 			}
 */
 func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName string) ([]map[string]interface{}, error) {
-	dataSeries := make([]map[string]interface{}, 0)
+	var dataPoints []map[string]interface{}
 	// thead
 	thead := node.FirstChild
 
 	// If skip the first value column
 	skipFirstValue := false
-
-	// Count of column for the key field
-	keyFiledValueCnt := 0
-
+	skipLastValue := false
 	p.logger.Printf("Metadata for struct %s: %v", dataStructTypeName, p.metricsFields[dataStructTypeName])
 
-	dataPoints := make(map[string][]interface{})
 	// For each tr
 	for tr := thead.FirstChild; tr != nil; tr = tr.NextSibling {
 		td := tr.FirstChild
@@ -197,6 +194,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				p.logger.Printf("Read %s", text1.Data)
 			}
 
+			// Only process fields that mapps db primary key
 			normKey := normaliseJSONKey(text1.Data)
 			if !IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
 				p.logger.Printf("ignore table header key %s: not db primary key", normKey)
@@ -208,57 +206,59 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				continue
 			}
 
-			dataPoints[normKey] = make([]interface{}, 0)
 			firstSibling := td.NextSibling
-			var values []any
 			// For each td
+			idx := 0
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
 				if text2 != nil {
 					p.logger.Printf("Read %s", text2.Data)
 					if !isValidValue(text2.Data) {
-						p.logger.Println("ignore value ", text2.Data)
+						if IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
 
-						if IsKeyField(p.metricsFields[dataStructTypeName], normKey) && td2 == firstSibling {
-							// The first value field does not contain a valid value for a key row.
-							// Skip this value field for all remaining tr(rows)
-							// This is to skip the "Current" column of the table.
-							skipFirstValue = true
+							// Ignore the invalid values of the first or last td
+							if td2 == firstSibling {
+								// The first value field does not contain a valid value for a key row.
+								// Skip this value field for all remaining tr(rows)
+								// This is to skip the "Current" column of the table.
+								skipFirstValue = true
+								p.logger.Printf("ignore value %s for key field %s", text2.Data, normKey)
+								continue
+							} else if td2.NextSibling == nil {
+								skipLastValue = true
+								p.logger.Printf("ignore value %s for key field %s", text2.Data, normKey)
+								continue
+							}
+						} else {
+							return dataPoints, fmt.Errorf("invalid value %s forfield %s", text2.Data, normKey)
 						}
-						continue
 					}
 
 					p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 					normVal, err := normaliseJSONValue(text2.Data, fieldType)
 					if err != nil {
-						return dataSeries, err
+						return dataPoints, err
 					}
 					p.logger.Printf("Got %v", normVal)
 
-					values = append(values, normVal)
-
+					if idx == len(dataPoints) {
+						// New data point
+						dataPoints = append(dataPoints, make(map[string]interface{}))
+					}
+					dataPoints[idx][normKey] = normVal
+					idx++
 					continue
 				}
 			}
 
-			dataPoints[normKey] = append(dataPoints[normKey], values...)
-
-			if IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
-				keyFiledValueCnt = len(values)
-			}
+			p.logger.Printf("Collect %d data points for key %s", idx, normKey)
 		}
 	}
-	for key, s := range dataPoints {
-		dataPoint := make(map[string]interface{})
-		for _, v := range s {
-			dataPoint[key] = v
-		}
-		dataSeries = append(dataSeries, dataPoint)
-	}
 
-	if len(dataSeries) <= 0 {
+	if len(dataPoints) <= 0 {
 		return nil, errors.New("faild to get a valid header")
 	}
+
 	// tbody
 	if thead.NextSibling == nil || thead.NextSibling.NextSibling == nil {
 		return nil, errors.New("unexpected structure. Can not find the tbody element")
@@ -283,32 +283,43 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				p.logger.Printf("Skip the values for key %s as it does not contain any data fields.", normKey)
 			}
 
-			// Skil the first value column ("current")
-			if skipFirstValue {
-				td = td.NextSibling
-			}
-
 			// For each remaining td(column)
 			var values []any
+			firstSibling := td.NextSibling
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				if td2.Type == html.ElementNode && td2.Data == "td" {
 					text2 := firstTextNode(td2)
 					if text2 != nil {
+
+						if td2 == firstSibling && skipFirstValue {
+							p.logger.Printf("skip first column %s for field %s", text2.Data, normKey)
+							break
+						}
+						if td2.NextSibling == nil && skipLastValue {
+							p.logger.Printf("skip last column %s for field %s", text2.Data, normKey)
+							break
+						}
+
 						p.logger.Printf("Read %s", text2.Data)
 						if !isValidValue(text2.Data) {
-							p.logger.Println("ignore value ", text2.Data)
-							continue
+							if newVal, ok := fillDefaultValue(text2.Data); ok {
+								p.logger.Printf("Invalid value %s, fill in %s", text2.Data, newVal)
+								text2.Data = newVal
+							} else {
+								p.logger.Printf("Ignore value %s", text2.Data)
+								continue
+							}
 						}
 
 						fieldType := GetFieldTypeByTag(p.metricsFields[dataStructTypeName], normKey)
 						if fieldType == nil {
-							return dataSeries, errors.New("Failed to get field type for tag " + normKey)
+							return dataPoints, errors.New("Failed to get field type for tag " + normKey)
 						}
 
 						p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
 						normVal, err := normaliseJSONValue(text2.Data, fieldType)
 						if err != nil {
-							return dataSeries, err
+							return dataPoints, err
 						}
 						p.logger.Printf("Got %v", normVal)
 
@@ -319,12 +330,16 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				}
 			}
 
-			if len(values) != keyFiledValueCnt {
+			if len(values) != len(dataPoints) {
 				p.logger.Printf("The key field has %d data points, however, the field %s has %d data points. Ignore the field.",
-					keyFiledValueCnt, normKey, len(values))
+					len(dataPoints), normKey, len(values))
+				continue
 			}
 
-			dataPoints[normKey] = append(dataPoints[normKey], values...)
+			// Fill value for each data point
+			for idx, v := range values {
+				dataPoints[idx][normKey] = v
+			}
 
 		}
 	}
@@ -334,7 +349,7 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 	// 	collector.PackSymbolField(dataPoint, dataStructTypeName)
 	// }
 
-	return dataSeries, nil
+	return dataPoints, nil
 
 }
 
@@ -392,6 +407,7 @@ func normaliseJSONKey(key string) string {
 	re := regexp.MustCompile(pattern)
 	key = re.ReplaceAllString(key, "_")
 
+	// Workaround. Symbols have different name for the same field.
 	if key == "quarter_ending" {
 		key = "period_ending"
 	}
@@ -456,22 +472,22 @@ func convertFiscalToDate(value string) string {
 		if matches[1] == "Q" {
 			switch matches[2] {
 			case "1":
-				monthAndDay = "01-01"
+				monthAndDay = "03-31"
 			case "2":
-				monthAndDay = "04-01"
+				monthAndDay = "06-30"
 			case "3":
-				monthAndDay = "07-01"
+				monthAndDay = "09-30"
 			case "4":
-				monthAndDay = "01-01"
+				monthAndDay = "12-31"
 			default:
 				return value
 			}
 		} else if matches[1] == "H" {
 			switch matches[2] {
 			case "1":
-				monthAndDay = "01-01"
+				monthAndDay = "06-30"
 			case "2":
-				monthAndDay = "07-01"
+				monthAndDay = "12-31"
 			default:
 				return value
 			}
@@ -513,6 +529,21 @@ func isValidValue(value string) bool {
 	}
 
 	return true
+}
+
+func fillDefaultValue(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	// Null Value
+
+	if len(value) == 0 {
+		return "0", true
+	}
+
+	if value == "-" {
+		return "0", true
+	}
+
+	return "", false
 }
 
 // Normalised input string value for numeric conversion
