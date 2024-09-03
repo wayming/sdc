@@ -585,12 +585,15 @@ func normaliseValueToNumeric(value string) (string, int, float64) {
 	}
 
 	valLen := len(value)
-	re = regexp.MustCompile(`^[.\d]+[BMT%]?$`)
+	re = regexp.MustCompile(`^[.\d]+[KBMT%]?$`)
 	multiplier := float64(1)
 	baseNumber := value
 	if re.Match([]byte(value)) {
 
 		switch value[valLen-1] {
+		case 'K':
+			multiplier = multiplier * 1000
+			baseNumber = value[:valLen-1]
 		case 'M':
 			multiplier = multiplier * 1000 * 1000
 			baseNumber = value[:valLen-1]

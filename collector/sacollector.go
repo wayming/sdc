@@ -109,7 +109,7 @@ func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 	// }
 
 	if exists, _ := c.symbolExists(symbol, SADataTables[SA_STOCKOVERVIEW]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_STOCKOVERVIEW])
 		return 0, nil
 	}
 
@@ -157,7 +157,7 @@ func (c *SACollector) CollectFinancialsIncome(symbol string) (int64, error) {
 	financialsIncome := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/?p=quarterly"
 
 	if exists, _ := c.symbolExists(symbol, SADataTables[SA_FINANCIALSINCOME]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_FINANCIALSINCOME])
 		return 0, nil
 	}
 	return c.collectFinancialDetailsCommon(financialsIncome, SADataTypes[SA_FINANCIALSINCOME], SADataTables[SA_FINANCIALSINCOME])
@@ -168,7 +168,7 @@ func (c *SACollector) CollectFinancialsBalanceSheet(symbol string) (int64, error
 	financialsBalanceSheet := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/balance-sheet/?p=quarterly"
 
 	if exists, _ := c.symbolExists(symbol, SADataTables[SA_FINANCIALSBALANCESHEET]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_FINANCIALSBALANCESHEET])
 		return 0, nil
 	}
 	return c.collectFinancialDetailsCommon(financialsBalanceSheet, SADataTypes[SA_FINANCIALSBALANCESHEET], SADataTables[SA_FINANCIALSBALANCESHEET])
@@ -178,8 +178,8 @@ func (c *SACollector) CollectFinancialsCashFlow(symbol string) (int64, error) {
 	c.thisSymbol = symbol
 	financialsICashFlow := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/cash-flow-statement/?p=quarterly"
 
-	if exists, _ := c.symbolExists(symbol, SADataTables[SA_FINANCIALRATIOS]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+	if exists, _ := c.symbolExists(symbol, SADataTables[SA_FINANCIALSCASHFLOW]); exists {
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_FINANCIALSCASHFLOW])
 		return 0, nil
 	}
 	return c.collectFinancialDetailsCommon(financialsICashFlow, SADataTypes[SA_FINANCIALSCASHFLOW], SADataTables[SA_FINANCIALSCASHFLOW])
@@ -190,7 +190,7 @@ func (c *SACollector) CollectFinancialsRatios(symbol string) (int64, error) {
 	financialsRatios := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/financials/ratios/?p=quarterly"
 
 	if exists, _ := c.symbolExists(symbol, SADataTables[SA_FINANCIALRATIOS]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_FINANCIALRATIOS])
 		return 0, nil
 	}
 	return c.collectFinancialDetailsCommon(financialsRatios, SADataTypes[SA_FINANCIALRATIOS], SADataTables[SA_FINANCIALRATIOS])
@@ -201,7 +201,7 @@ func (c *SACollector) CollectAnalystRatings(symbol string) (int64, error) {
 	url := "https://stockanalysis.com/stocks/" + strings.ToLower(symbol) + "/ratings"
 
 	if exists, _ := c.symbolExists(symbol, SADataTables[SA_ANALYSTSRATING]); exists {
-		c.logger.Printf("skip [%s] as it already exists.", symbol)
+		c.logger.Printf("skip [%s] as it already exists in %s.", symbol, SADataTables[SA_ANALYSTSRATING])
 		return 0, nil
 	}
 
