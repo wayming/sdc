@@ -12,6 +12,7 @@ import (
 )
 
 const MAX_CHAR_SIZE = 1024
+const NESTED_STRUCT_KEY = "name1"
 
 type JsonToPGSQLConverter struct {
 }
@@ -63,7 +64,7 @@ func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType
 
 // Unmarshals the specified JSON text that represents array of entities.
 // Returns a slice of column names and a slice of rows. These artifacts can be used as the input for the bulk insert interfaces.
-func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, entityStructType reflect.Type) ([]string, [][]interface{}, error) {
+func (d *JsonToPGSQLConverter) SQLData(jsonText string, tableName string, entityStructType reflect.Type) ([]string, [][]interface{}, error) {
 	var rows [][]interface{}
 
 	// Unmarshal the JSON text.
@@ -84,9 +85,9 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 			if fieldValue.Type().Kind() == reflect.Struct &&
 				fieldValue.Type() != reflect.TypeFor[Date]() &&
 				fieldValue.Type() != reflect.TypeFor[time.Time]() {
-				nestedFieldValue := fieldValue.FieldByName("Name")
+				nestedFieldValue := fieldValue.FieldByName(NESTED_STRUCT_KEY)
 				if !nestedFieldValue.IsValid() {
-					return nil, nil, fmt.Errorf("failed to get Name field from value %v, type %v", fieldValue, fieldValue.Type())
+					return nil, nil, fmt.Errorf("no field [%s] found from nested struct %s", NESTED_STRUCT_KEY, fieldName)
 				}
 				row = append(row, nestedFieldValue.Interface())
 			} else {
@@ -106,7 +107,7 @@ func (d *JsonToPGSQLConverter) GenBulkInsert(jsonText string, tableName string, 
 
 // Unmarshals the specified JSON text that represents array of entities.
 // Returns insert SQL with slice of rows. Each row is a slice with each element represents a field value.
-func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, entityStructType reflect.Type) (string, [][]interface{}, error) {
+func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, entityStructType reflect.Type) (string, [][]interface{}, error) {
 	var sql string
 	var rows [][]interface{}
 
@@ -133,10 +134,22 @@ func (d *JsonToPGSQLConverter) GenInsert(jsonText string, tableName string, enti
 	for idx := 0; idx < sliceVal.Len(); idx++ {
 		var row []interface{}
 		for _, fieldName := range fields {
+			fmt.Println(fieldName)
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
-			if fieldValue.Type().Kind() == reflect.Struct {
-				nestedFieldValue := fieldValue.FieldByName("Name")
+			fmt.Printf("%v\n", fieldValue)
+
+			if fieldValue.Type().Kind() == reflect.Struct &&
+				fieldValue.Type() != reflect.TypeFor[Date]() &&
+				fieldValue.Type() != reflect.TypeFor[time.Time]() {
+				nestedFieldValue := fieldValue.FieldByName(NESTED_STRUCT_KEY)
+				fmt.Println(nestedFieldValue.Type())
+				fmt.Println(NESTED_STRUCT_KEY)
+
+				if !nestedFieldValue.IsValid() {
+					return sql, nil, fmt.Errorf("no field [%s] found from nested struct %s", NESTED_STRUCT_KEY, fieldName)
+				}
 				row = append(row, nestedFieldValue.Interface())
+
 			} else {
 				row = append(row, fieldValue.Interface())
 			}
@@ -151,8 +164,7 @@ func (d *JsonToPGSQLConverter) deriveColType(rtype reflect.Type) (string, error)
 	var err error
 	var colType string
 	switch rtype.Kind() {
-	case reflect.Int:
-	case reflect.Int64:
+	case reflect.Int, reflect.Int64:
 		colType = "integer"
 	case reflect.Float32:
 		colType = "numeric(12, 2)"
