@@ -1,7 +1,9 @@
 package json2db
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -13,7 +15,7 @@ const JSON_TEXT = `[
         "field3": 1,
         "field4": false,
         "field5": {
-            "name1": "strVal2",
+            "name": "strVal2",
             "nestedField2": 100
         },
 		"field6": "2015-10-31"
@@ -24,7 +26,7 @@ const JSON_TEXT = `[
         "field3": 2,
         "field4": true,
         "field5": {
-            "name1": "strVal2",
+            "name": "strVal2",
             "nestedField2": 100
         },
 		"field6": "2015-07-31"
@@ -68,47 +70,59 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 	})
 }
 
-func TestJsonToPGSQLConverter_SQLData(t *testing.T) {
+func TestJsonToPGSQLConverter_ExtractSQLData(t *testing.T) {
 	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
 	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
 	date1 := Date{time1}
 	date2 := Date{time2}
 
-	wantFields := []string{"field1", "field2", "field3", "field4", "field5", "field6"}
-	wantValues := [][]interface{}{
+	wantAllCols := []string{"field1", "field2", "field3", "field4", "field5", "field6"}
+	wantKeys := []string{"field1", "field2"}
+	wantRows := [][]interface{}{
 		{"strVal", 10, 1.0, false, "strVal2", date1},
 		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
-	t.Run("SQLData", func(t *testing.T) {
-		gotFields, gotValues, err := NewJsonToPGSQLConverter().SQLData(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+	t.Run("ExtractSQLData", func(t *testing.T) {
+		gotAllCols, gotKeys, gotRows, err := NewJsonToPGSQLConverter().ExtractSQLData(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
 		if err != nil {
-			t.Errorf("JsonToPGSQLConverter.SQLData() error = %v", err)
+			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() error = %v", err)
 			return
 		}
-		if !reflect.DeepEqual(gotFields, wantFields) {
-			t.Errorf("JsonToPGSQLConverter.SQLData() got = %v, want %v", gotFields, wantFields)
+		if !reflect.DeepEqual(gotAllCols, wantAllCols) {
+			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() all columns got = %v, want %v", gotAllCols, wantAllCols)
 		}
-		if !reflect.DeepEqual(gotValues, wantValues) {
-			t.Errorf("JsonToPGSQLConverter.SQLData() got = %v, want %v", gotValues, wantValues)
+		if !reflect.DeepEqual(gotKeys, wantKeys) {
+			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() key columns got = %v, want %v", gotKeys, wantKeys)
+		}
+		if !reflect.DeepEqual(gotRows, wantRows) {
+			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() all rows got = %v, want %v", gotRows, wantRows)
 		}
 	})
 }
 
 func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 
-	wantSQL := "INSERT INTO json2pg_test (field1, field2, field3, field4, field5) " +
-		"VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING"
+	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
+	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
+	date1 := Date{time1}
+	date2 := Date{time2}
+	wantSQL := "INSERT INTO json2pg_test (field1, field2, field3, field4, field5, field6) " +
+		"VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (field1, field2) " +
+		"DO UPDATE SET field1 = EXCLUDED.field1, field2 = EXCLUDED.field2, field3 = EXCLUDED.field3, field4 = EXCLUDED.field4, field5 = EXCLUDED.field5, field6 = EXCLUDED.field6 " +
+		"WHERE json2pg_test.field1 <> EXCLUDED.field1 OR json2pg_test.field2 <> EXCLUDED.field2 OR json2pg_test.field3 <> EXCLUDED.field3 OR json2pg_test.field4 <> EXCLUDED.field4 OR json2pg_test.field5 <> EXCLUDED.field5 OR json2pg_test.field6 <> EXCLUDED.field6"
 	wantFieldValues := [][]interface{}{
-		{"strVal", 10, 1.0, false, "strVal2"},
-		{"strVal3", 20, 2.0, true, "strVal2"},
+		{"strVal", 10, 1.0, false, "strVal2", date1},
+		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
 	t.Run("GenInsertSQL", func(t *testing.T) {
 		gotSQL, gotFieldValues, err := NewJsonToPGSQLConverter().GenInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+		fmt.Println(wantSQL)
+		fmt.Println(gotSQL)
 		if err != nil {
 			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() error = %v", err)
 			return
 		}
-		if gotSQL != wantSQL {
+		if strings.TrimSpace(gotSQL) != strings.TrimSpace(wantSQL) {
 			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotSQL = %v, wantSQL %v", gotSQL, wantSQL)
 		}
 

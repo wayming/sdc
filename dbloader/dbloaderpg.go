@@ -201,7 +201,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Insert
-	fields, rows, err := converter.SQLData(jsonText, tableName, jsonStructType)
+	fields, rows, err := converter.ExtractSQLData(jsonText, tableName, jsonStructType)
 	if err != nil || len(rows) == 0 {
 		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
 		return 0, err

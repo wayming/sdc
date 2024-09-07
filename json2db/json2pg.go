@@ -12,7 +12,9 @@ import (
 )
 
 const MAX_CHAR_SIZE = 1024
-const NESTED_STRUCT_KEY = "name1"
+const NESTED_STRUCT_KEY = "Name"
+const TAG_DB = "db"
+const TAG_DB_PRIMARYKEY = "PrimaryKey"
 
 type JsonToPGSQLConverter struct {
 }
@@ -64,7 +66,7 @@ func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType
 
 // Unmarshals the specified JSON text that represents array of entities.
 // Returns a slice of column names and a slice of rows. These artifacts can be used as the input for the bulk insert interfaces.
-func (d *JsonToPGSQLConverter) SQLData(jsonText string, tableName string, entityStructType reflect.Type) ([]string, [][]interface{}, error) {
+func (d *JsonToPGSQLConverter) ExtractSQLData(jsonText string, tableName string, entityStructType reflect.Type) ([]string, []string, [][]interface{}, error) {
 	var rows [][]interface{}
 
 	// Unmarshal the JSON text.
@@ -73,7 +75,7 @@ func (d *JsonToPGSQLConverter) SQLData(jsonText string, tableName string, entity
 	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
-		return nil, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+		return nil, nil, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
 	}
 
 	// Generate Bind Variables
@@ -87,7 +89,7 @@ func (d *JsonToPGSQLConverter) SQLData(jsonText string, tableName string, entity
 				fieldValue.Type() != reflect.TypeFor[time.Time]() {
 				nestedFieldValue := fieldValue.FieldByName(NESTED_STRUCT_KEY)
 				if !nestedFieldValue.IsValid() {
-					return nil, nil, fmt.Errorf("no field [%s] found from nested struct %s", NESTED_STRUCT_KEY, fieldName)
+					return nil, nil, nil, fmt.Errorf("failed to find [%s] field from nested struct %s", NESTED_STRUCT_KEY, fieldName)
 				}
 				row = append(row, nestedFieldValue.Interface())
 			} else {
@@ -102,7 +104,12 @@ func (d *JsonToPGSQLConverter) SQLData(jsonText string, tableName string, entity
 	for _, field := range fields {
 		cols = append(cols, strings.ToLower(field))
 	}
-	return cols, rows, nil
+
+	var keyCols []string
+	for _, field := range keyFields(entityStructType) {
+		keyCols = append(keyCols, strings.ToLower(field))
+	}
+	return cols, keyCols, rows, nil
 }
 
 // Unmarshals the specified JSON text that represents array of entities.
@@ -111,50 +118,42 @@ func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, e
 	var sql string
 	var rows [][]interface{}
 
-	sliceType := reflect.SliceOf(entityStructType)
-	slicePtr := reflect.New(sliceType)
-	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
-	sliceVal := slicePtr.Elem()
-	if err != nil || sliceVal.Len() == 0 {
-		return sql, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+	allCols, keyCols, rows, err := d.ExtractSQLData(jsonText, tableName, entityStructType)
+	if err != nil {
+		return sql, rows, err
 	}
 
 	// Generage SQL
-	fields := orderedFields(entityStructType)
-	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(fields, ", ")) + ") VALUES ("
-	for index := range fields {
+	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(allCols, ", ")) + ") "
+	sql += "VALUES ("
+	for index := range allCols {
 		if index > 0 {
-			sql = sql + ", "
+			sql += ", "
 		}
-		sql = sql + "$" + strconv.Itoa(index+1)
+		sql += "$" + strconv.Itoa(index+1)
 	}
-	sql = sql + ") ON CONFLICT DO NOTHING"
+	sql += ") "
 
-	// Generate Bind Variables
-	for idx := 0; idx < sliceVal.Len(); idx++ {
-		var row []interface{}
-		for _, fieldName := range fields {
-			fmt.Println(fieldName)
-			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
-			fmt.Printf("%v\n", fieldValue)
-
-			if fieldValue.Type().Kind() == reflect.Struct &&
-				fieldValue.Type() != reflect.TypeFor[Date]() &&
-				fieldValue.Type() != reflect.TypeFor[time.Time]() {
-				nestedFieldValue := fieldValue.FieldByName(NESTED_STRUCT_KEY)
-				fmt.Println(nestedFieldValue.Type())
-				fmt.Println(NESTED_STRUCT_KEY)
-
-				if !nestedFieldValue.IsValid() {
-					return sql, nil, fmt.Errorf("no field [%s] found from nested struct %s", NESTED_STRUCT_KEY, fieldName)
-				}
-				row = append(row, nestedFieldValue.Interface())
-
+	// Handle conflicts if has primary keys
+	if len(keyCols) > 0 {
+		firstStatement := true
+		var setClause string
+		var whereClause string
+		sql += "ON CONFLICT (" + strings.ToLower(strings.Join(keyCols, ", ")) + ") DO UPDATE "
+		for _, col := range allCols {
+			if firstStatement {
+				firstStatement = false
+				setClause = "SET "
+				whereClause = "WHERE "
 			} else {
-				row = append(row, fieldValue.Interface())
+				setClause += ", "
+				whereClause += "OR "
 			}
+
+			setClause += col + " = EXCLUDED." + col
+			whereClause += tableName + "." + col + " <> EXCLUDED." + col + " "
 		}
-		rows = append(rows, row)
+		sql += setClause + " " + whereClause
 	}
 
 	return sql, rows, nil
@@ -197,6 +196,19 @@ func orderedFields(rtype reflect.Type) []string {
 	var keys []string
 	for idx := 0; idx < rtype.NumField(); idx++ {
 		keys = append(keys, rtype.Field(idx).Name)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func keyFields(rtype reflect.Type) []string {
+	var keys []string
+	for idx := 0; idx < rtype.NumField(); idx++ {
+		tags := rtype.Field(idx).Tag
+		dbTag, ok := tags.Lookup(TAG_DB)
+		if ok && dbTag == TAG_DB_PRIMARYKEY {
+			keys = append(keys, rtype.Field(idx).Name)
+		}
 	}
 	sort.Strings(keys)
 	return keys
