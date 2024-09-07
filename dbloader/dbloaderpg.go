@@ -10,6 +10,7 @@ import (
 
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/json2db"
 )
 
@@ -72,15 +73,6 @@ func (loader *PGLoader) DropSchema(schema string) error {
 	return err
 }
 
-func ExistsInSlice(s []string, e string) bool {
-	for _, one := range s {
-		if e == one {
-			return true
-		}
-	}
-	return false
-}
-
 func (loader *PGLoader) Exec(sql string) error {
 	if _, err := loader.db.Exec(sql); err != nil {
 		loader.logger.Fatal("Failed to execute SQL ", sql, ". Error ", err)
@@ -114,7 +106,7 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 			rowValue := reflect.New(structType).Elem()
 			fields := make([]interface{}, 0)
 			for i := 0; i < structType.NumField(); i++ {
-				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+				if common.Contains(columns, strings.ToLower(structType.Field(i).Name)) {
 					fields = append(fields, rowValue.Field(i).Addr().Interface())
 				}
 			}
@@ -136,7 +128,7 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 			rowValue := reflect.New(structType).Elem()
 			fields := make([]interface{}, 0)
 			for i := 0; i < structType.NumField(); i++ {
-				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+				if common.Contains(columns, strings.ToLower(structType.Field(i).Name)) {
 					fields = append(fields, rowValue.Field(i).Addr().Interface())
 				}
 			}
@@ -218,13 +210,21 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, fmt.Errorf("failed to prepare CopyIn statement. SQL: %s Error: %s", prepareSQL, err.Error())
 	}
 
+	var flattened []interface{}
 	for _, row := range rows {
-		loader.logger.Printf("Execute INSERT: columns[%s], row[%s]", strings.Join(columns, ","), joinInterfaceSlice(row, ","))
-		_, err := stmt.Exec(row...)
-		if err != nil {
-			tx.Rollback()
-			return 0, errors.New("Failed to Exec row " + ". Error: " + err.Error())
-		}
+		flattened = append(flattened, row...)
+	}
+
+	loader.logger.Printf("Execute INSERT: columns[%s], row[%s]", strings.Join(columns, ","), joinInterfaceSlice(flattened, ","))
+	result, err := stmt.Exec(flattened...)
+	if err != nil {
+		tx.Rollback()
+		return 0, errors.New("Failed to Exec row " + ". Error: " + err.Error())
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return 0, fmt.Errorf("failed to get number of affected rows. Error: %v", err)
 	}
 
 	// Flush
@@ -249,7 +249,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		loader.logger.Printf(errMsg)
 		return 0, errors.New(errMsg)
 	}
-	return int64(len(rows)), nil
+	return rowsAffected, nil
 }
 
 func joinInterfaceSlice(slice []interface{}, sep string) string {

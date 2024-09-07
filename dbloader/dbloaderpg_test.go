@@ -1,13 +1,17 @@
 package dbloader_test
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
 
 	testcommon "github.com/wayming/sdc/testcommon"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -144,4 +148,88 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 		}
 		fmt.Println(tickers)
 	})
+}
+
+func TestPGLoader_BulkInser(t *testing.T) {
+	// Test schema are dropped and recreated for every test case
+	testFixture := testcommon.NewPGTestFixture(t)
+	defer testFixture.Teardown(t)
+
+	connectonString := "host=" + os.Getenv("PGHOST")
+	connectonString += " port=" + os.Getenv("PGPORT")
+	connectonString += " user=" + os.Getenv("PGUSER")
+	connectonString += " password=" + os.Getenv("PGPASSWORD")
+	connectonString += " dbname=" + os.Getenv("PGDATABASE")
+	connectonString += " sslmode=disable"
+	db, err := sql.Open("postgres", connectonString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// Create temporary table for bulk insert
+	_, err = db.Exec(`
+        CREATE TEMP TABLE temp_employees (
+            employee_id INT PRIMARY KEY,
+            name TEXT,
+            position TEXT,
+            salary INT
+        )
+    `)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Start a transaction
+	tx, err := db.Begin()
+	if err != nil {
+		tx.Rollback()
+		log.Fatal(err)
+	}
+
+	// Prepare COPY command
+	stmt, err := tx.Prepare(pq.CopyIn("temp_employees", "employee_id", "name", "position", "salary"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+
+	// Bulk insert data into the temporary table
+	_, err = stmt.Exec(
+		1, "John Doe", "Software Engineer", 70000,
+		2, "Jane Smith", "Data Scientist", 75000,
+		3, "Emily Davis", "Product Manager", 80000,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// End COPY operation
+	_, err = stmt.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Upsert from temporary table into the main table
+	_, err = db.Exec(`
+        INSERT INTO employees (employee_id, name, position, salary)
+        SELECT employee_id, name, position, salary
+        FROM temp_employees
+        ON CONFLICT (employee_id)
+        DO UPDATE SET
+            name = EXCLUDED.name,
+            position = EXCLUDED.position,
+            salary = EXCLUDED.salary
+    `)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Bulk insert and upsert operation completed successfully")
 }
