@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/wayming/sdc/sdclogger"
-	testcommon "github.com/wayming/sdc/utils"
+	testcommon "github.com/wayming/sdc/testcommon"
 )
 
 const CACHE_KEY_PROXY_TEST = "PROXIESTEST"

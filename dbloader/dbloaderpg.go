@@ -151,17 +151,6 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 	return sliceValue.Interface(), nil
 }
 
-func joinInterfaceSlice(slice []interface{}, sep string) string {
-	// Convert each element to string and append to a slice of strings
-	var strSlice []string
-	for _, v := range slice {
-		strSlice = append(strSlice, fmt.Sprintf("%v", v))
-	}
-
-	// Join the slice of strings with the separator
-	return strings.Join(strSlice, sep)
-}
-
 func (loader *PGLoader) CreateTableByJsonStruct(tableName string, jsonStructType reflect.Type) error {
 	converter := json2db.NewJsonToPGSQLConverter()
 
@@ -201,7 +190,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Insert
-	fields, rows, err := converter.ExtractSQLData(jsonText, tableName, jsonStructType)
+	columns, _, rows, err := converter.ExtractSQLData(jsonText, tableName, jsonStructType)
 	if err != nil || len(rows) == 0 {
 		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
 		return 0, err
@@ -215,14 +204,14 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	}
 
 	// conflictResolution := " ON CONFLICT DO UPDATE SET "
-	// for idx, field := range fields {
+	// for idx, field := range columns {
 	// 	conflictResolution += field + " = EXCLUDED." + field
-	// 	if idx < len(fields)-1 {
+	// 	if idx < len(columns)-1 {
 	// 		conflictResolution += ","
 	// 	}
 	// }
 
-	prepareSQL := pq.CopyIn(tableName, fields...)
+	prepareSQL := pq.CopyIn(tableName, columns...)
 	stmt, err := tx.Prepare(prepareSQL)
 	if err != nil {
 		tx.Rollback()
@@ -230,7 +219,7 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	}
 
 	for _, row := range rows {
-		loader.logger.Printf("Execute INSERT: fields[%s], row[%s]", strings.Join(fields, ","), joinInterfaceSlice(row, ","))
+		loader.logger.Printf("Execute INSERT: columns[%s], row[%s]", strings.Join(columns, ","), joinInterfaceSlice(row, ","))
 		_, err := stmt.Exec(row...)
 		if err != nil {
 			tx.Rollback()
@@ -261,4 +250,15 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, errors.New(errMsg)
 	}
 	return int64(len(rows)), nil
+}
+
+func joinInterfaceSlice(slice []interface{}, sep string) string {
+	// Convert each element to string and append to a slice of strings
+	var strSlice []string
+	for _, v := range slice {
+		strSlice = append(strSlice, fmt.Sprintf("%v", v))
+	}
+
+	// Join the slice of strings with the separator
+	return strings.Join(strSlice, sep)
 }
