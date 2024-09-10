@@ -7,11 +7,11 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	testcommon "github.com/wayming/sdc/testcommon"
 
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -155,81 +155,83 @@ func TestPGLoader_BulkInser(t *testing.T) {
 	testFixture := testcommon.NewPGTestFixture(t)
 	defer testFixture.Teardown(t)
 
-	connectonString := "host=" + os.Getenv("PGHOST")
-	connectonString += " port=" + os.Getenv("PGPORT")
-	connectonString += " user=" + os.Getenv("PGUSER")
-	connectonString += " password=" + os.Getenv("PGPASSWORD")
-	connectonString += " dbname=" + os.Getenv("PGDATABASE")
-	connectonString += " sslmode=disable"
-	db, err := sql.Open("postgres", connectonString)
+	// Connection string
+	connectionString := "host=" + os.Getenv("PGHOST")
+	connectionString += " port=" + os.Getenv("PGPORT")
+	connectionString += " user=" + os.Getenv("PGUSER")
+	connectionString += " password=" + os.Getenv("PGPASSWORD")
+	connectionString += " dbname=" + os.Getenv("PGDATABASE")
+	connectionString += " sslmode=disable"
+
+	// Open the database connection
+	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	// Create temporary table for bulk insert
-	_, err = db.Exec(`
-        CREATE TEMP TABLE temp_employees (
-            employee_id INT PRIMARY KEY,
-            name TEXT,
-            position TEXT,
-            salary INT
-        )
-    `)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Create a buffer with your CSV data
+	csvData := `employee_id,name,position,salary
+	1,John Doe,Software Engineer,70000
+	2,Jane Smith,Data Scientist,75000
+	3,Emily Davis,Product Manager,80000`
+	reader := strings.NewReader(csvData) // You could use any io.Reader here, such as an os.File or network stream
 
 	// Start a transaction
 	tx, err := db.Begin()
 	if err != nil {
-		tx.Rollback()
-		log.Fatal(err)
+		log.Fatal("Failed to begin transaction:", err)
 	}
 
-	// Prepare COPY command
-	stmt, err := tx.Prepare(pq.CopyIn("temp_employees", "employee_id", "name", "position", "salary"))
+	// Create temporary table for bulk insert
+	_, err = tx.Exec(`
+			CREATE TEMP TABLE temp_employees (
+				employee_id INT PRIMARY KEY,
+				name TEXT,
+				position TEXT,
+				salary INT
+			)
+		`)
 	if err != nil {
-		log.Fatal(err)
+		tx.Rollback()
+		log.Fatal("Failed to create temporary table:", err)
 	}
-	defer stmt.Close()
 
-	// Bulk insert data into the temporary table
-	_, err = stmt.Exec(
-		1, "John Doe", "Software Engineer", 70000,
-		2, "Jane Smith", "Data Scientist", 75000,
-		3, "Emily Davis", "Product Manager", 80000,
+	// Perform the COPY operation with io.Reader
+	_, err = tx.CopyFrom(
+		reader,
+		"temp_employees",
+		[]string{"employee_id", "name", "position", "salary"},
+		"CSV",
+		"DELIMITER ','",
+		"HEADER",
 	)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	// End COPY operation
-	_, err = stmt.Exec()
-	if err != nil {
-		log.Fatal(err)
+		tx.Rollback()
+		log.Fatal("Failed to execute COPY command:", err)
 	}
 
 	// Upsert from temporary table into the main table
-	_, err = db.Exec(`
-        INSERT INTO employees (employee_id, name, position, salary)
-        SELECT employee_id, name, position, salary
-        FROM temp_employees
-        ON CONFLICT (employee_id)
-        DO UPDATE SET
-            name = EXCLUDED.name,
-            position = EXCLUDED.position,
-            salary = EXCLUDED.salary
-    `)
+	_, err = tx.Exec(`
+			INSERT INTO employees (employee_id, name, position, salary)
+			SELECT employee_id, name, position, salary
+			FROM temp_employees
+			ON CONFLICT (employee_id)
+			DO UPDATE SET
+				name = EXCLUDED.name,
+				position = EXCLUDED.position,
+				salary = EXCLUDED.salary
+		`)
 	if err != nil {
-		log.Fatal(err)
+		tx.Rollback()
+		log.Fatal("Failed to upsert data:", err)
 	}
 
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to commit transaction:", err)
 	}
 
-	fmt.Println("Bulk insert and upsert operation completed successfully")
+	log.Println("Data successfully loaded and transaction committed.")
 }

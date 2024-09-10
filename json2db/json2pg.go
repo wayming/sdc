@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	. "github.com/wayming/sdc/common"
 )
 
 const MAX_CHAR_SIZE = 1024
@@ -35,28 +36,34 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 
 // Generate table creation SQL
 func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType reflect.Type) (string, error) {
-	var primaryKeys []string
+	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
-	for _, fieldName := range orderedFields(entityStructType) {
-		colName := strings.ToLower(fieldName)
-		field, ok := entityStructType.FieldByName(fieldName)
-		if !ok {
-			return "", errors.New("Failed to get field " + fieldName + " from entity type " + entityStructType.Name())
-		}
-		colType, err := d.deriveColType(field.Type)
+
+	// Columns for key fields
+	for _, name := range Keys(keyCols) {
+		colType, err := d.deriveColType(keyCols[name])
 		if err != nil {
-			err := errors.New(
-				"Failed to derive type for field " + fieldName +
-					", field value type is  " + field.Type.Name() + ". Error: " + err.Error())
+			err := fmt.Errorf(
+				"Failed to derive type for field %s, field type is %s. Error: %s"+name, keyCols[name].Name(), err.Error())
 			return "", err
 		}
-		ddl += colName + " " + colType + ", "
-		if field.Tag.Get("db") == "PrimaryKey" {
-			primaryKeys = append(primaryKeys, colName)
-		}
+		ddl += name + " " + colType + ", "
 	}
-	if len(primaryKeys) > 0 {
-		ddl += "PRIMARY KEY (" + strings.Join(primaryKeys, ", ") + "));"
+
+	// Columns for non-key fields
+	for _, name := range Keys(nonKeyCols) {
+		colType, err := d.deriveColType(keyCols[name])
+		if err != nil {
+			err := fmt.Errorf(
+				"Failed to derive type for field %s, field type is %s. Error: %s"+name, keyCols[name].Name(), err.Error())
+			return "", err
+		}
+		ddl += name + " " + colType + ", "
+	}
+
+	// Primary clause
+	if len(Keys(keyCols)) > 0 {
+		ddl += "PRIMARY KEY (" + strings.Join(Keys(keyCols), ", ") + "));"
 	} else {
 		ddl = ddl[:len(ddl)-2] + ");"
 	}
@@ -65,8 +72,97 @@ func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType
 }
 
 // Unmarshals the specified JSON text that represents array of entities.
+// Returns insert SQL with slice of rows. Each row is a slice with each element represents a field value.
+func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, entityStructType reflect.Type) (string, [][]interface{}, error) {
+	var sql string
+	var rows [][]interface{}
+
+	allCols, keyCols := d.ExtractColData(entityStructType)
+
+	// Generage SQL
+	sql = "INSERT INTO " + tableName + " (" + strings.Join(Keys(allCols), ", ") + ") "
+	sql += "VALUES ("
+	for index := range Keys(allCols) {
+		if index > 0 {
+			sql += ", "
+		}
+		sql += "$" + strconv.Itoa(index+1)
+	}
+	sql += ") "
+
+	sql += d.OnConflitsSQL(tableName, Keys(allCols), Keys(keyCols))
+	return sql, rows, nil
+}
+
+func (d *JsonToPGSQLConverter) GenBulkInsertSQL(jsonText string, tableName string, entityStructType reflect.Type) (string, error) {
+	var sql string
+
+	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
+	allColNames := append(Keys(keyCols), Keys(nonKeyCols)...)
+	rows, err := d.ExtractValues(jsonText, entityStructType)
+	if err != nil {
+		return sql, err
+	}
+
+	// Generage SQL
+	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(allColNames, ", ")) + ") "
+	sql += "VALUES "
+
+	for idx, row := range rows {
+		sql += "("
+		for idx2, v := range row {
+			if idx2 >= len(allColNames) {
+				return sql, fmt.Errorf("Unexpected number of values for a row. %d values, %d colums.", idx2+1, len(allColNames))
+			}
+
+			var colType reflect.Type
+			if Exists(keyCols, allColNames[idx2]) {
+				colType = keyCols[allColNames[idx2]]
+			} else if Exists(nonKeyCols, allColNames[idx2]) {
+				colType = nonKeyCols[allColNames[idx2]]
+			}
+
+			if colType == nil {
+				return sql, fmt.Errorf("Failed to find data type for column %s", &allColNames[idx2])
+			}
+
+			if colType == reflect.TypeFor[string]() ||
+				colType == reflect.TypeFor[Date]() ||
+				colType == reflect.TypeFor[time.Time]() {
+				sql += fmt.Sprintf("'%s',", v)
+			} else {
+				sql += fmt.Sprintf("%s,", v)
+			}
+
+			if idx2 < len(row)-1 {
+				sql += ","
+			}
+		}
+		sql += ")"
+		if idx < len(rows)-1 {
+			sql += ","
+		}
+	}
+
+	sql += d.OnConflitsSQL(tableName, Keys(keyCols), Keys(nonKeyCols))
+	return sql, nil
+}
+
+// Unmarshals the specified JSON text that represents array of entities.
 // Returns a slice of column names and a slice of rows. These artifacts can be used as the input for the bulk insert interfaces.
-func (d *JsonToPGSQLConverter) ExtractSQLData(jsonText string, tableName string, entityStructType reflect.Type) ([]string, []string, [][]interface{}, error) {
+func (d *JsonToPGSQLConverter) ExtractColData(entityStructType reflect.Type) (map[string]reflect.Type, map[string]reflect.Type) {
+	keyFields := keyFields((entityStructType))
+	nonKeyFields := make(map[string]reflect.Type)
+	for idx := 0; idx < entityStructType.NumField(); idx++ {
+		fieldName := strings.ToLower(entityStructType.Field(idx).Name)
+		if !Exists(keyFields, fieldName) {
+			nonKeyFields[fieldName] = entityStructType.Field(idx).Type
+		}
+	}
+	return keyFields, nonKeyFields
+}
+
+func (d *JsonToPGSQLConverter) ExtractValues(jsonText string, entityStructType reflect.Type) ([][]interface{}, error) {
 	var rows [][]interface{}
 
 	// Unmarshal the JSON text.
@@ -75,21 +171,24 @@ func (d *JsonToPGSQLConverter) ExtractSQLData(jsonText string, tableName string,
 	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
-		return nil, nil, nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
+		return nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())
 	}
 
 	// Generate Bind Variables
-	fields := orderedFields(entityStructType)
+	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
+
+	// Key columms first and then non-key columns.
+	fieldNames := append(Keys(keyCols), Keys(nonKeyCols)...)
 	for idx := 0; idx < sliceVal.Len(); idx++ {
 		var row []interface{}
-		for _, fieldName := range fields {
+		for _, fieldName := range fieldNames {
 			fieldValue := sliceVal.Index(idx).FieldByName(fieldName)
 			if fieldValue.Type().Kind() == reflect.Struct &&
 				fieldValue.Type() != reflect.TypeFor[Date]() &&
 				fieldValue.Type() != reflect.TypeFor[time.Time]() {
 				nestedFieldValue := fieldValue.FieldByName(NESTED_STRUCT_KEY)
 				if !nestedFieldValue.IsValid() {
-					return nil, nil, nil, fmt.Errorf("failed to find [%s] field from nested struct %s", NESTED_STRUCT_KEY, fieldName)
+					return nil, fmt.Errorf("failed to find [%s] field from nested struct %s", NESTED_STRUCT_KEY, fieldName)
 				}
 				row = append(row, nestedFieldValue.Interface())
 			} else {
@@ -98,49 +197,18 @@ func (d *JsonToPGSQLConverter) ExtractSQLData(jsonText string, tableName string,
 		}
 		rows = append(rows, row)
 	}
-
-	// Column names are in lower case
-	var cols []string
-	for _, field := range fields {
-		cols = append(cols, strings.ToLower(field))
-	}
-
-	var keyCols []string
-	for _, field := range keyFields(entityStructType) {
-		keyCols = append(keyCols, strings.ToLower(field))
-	}
-	return cols, keyCols, rows, nil
+	return rows, nil
 }
 
-// Unmarshals the specified JSON text that represents array of entities.
-// Returns insert SQL with slice of rows. Each row is a slice with each element represents a field value.
-func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, entityStructType reflect.Type) (string, [][]interface{}, error) {
+func (d *JsonToPGSQLConverter) OnConflitsSQL(table string, keyCols []string, nonKeyCols []string) string {
 	var sql string
-	var rows [][]interface{}
-
-	allCols, keyCols, rows, err := d.ExtractSQLData(jsonText, tableName, entityStructType)
-	if err != nil {
-		return sql, rows, err
-	}
-
-	// Generage SQL
-	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(allCols, ", ")) + ") "
-	sql += "VALUES ("
-	for index := range allCols {
-		if index > 0 {
-			sql += ", "
-		}
-		sql += "$" + strconv.Itoa(index+1)
-	}
-	sql += ") "
-
 	// Handle conflicts if has primary keys
 	if len(keyCols) > 0 {
 		firstStatement := true
 		var setClause string
 		var whereClause string
-		sql += "ON CONFLICT (" + strings.ToLower(strings.Join(keyCols, ", ")) + ") DO UPDATE "
-		for _, col := range allCols {
+		sql = "ON CONFLICT (" + strings.ToLower(strings.Join(keyCols, ", ")) + ") DO UPDATE "
+		for _, col := range append(keyCols, nonKeyCols...) {
 			if firstStatement {
 				firstStatement = false
 				setClause = "SET "
@@ -151,12 +219,11 @@ func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, e
 			}
 
 			setClause += col + " = EXCLUDED." + col
-			whereClause += tableName + "." + col + " <> EXCLUDED." + col + " "
+			whereClause += table + "." + col + " <> EXCLUDED." + col + " "
 		}
 		sql += setClause + " " + whereClause
 	}
-
-	return sql, rows, nil
+	return sql
 }
 
 func (d *JsonToPGSQLConverter) deriveColType(rtype reflect.Type) (string, error) {
@@ -192,26 +259,16 @@ func (d *JsonToPGSQLConverter) deriveColType(rtype reflect.Type) (string, error)
 	return colType, err
 }
 
-func orderedFields(rtype reflect.Type) []string {
-	var keys []string
-	for idx := 0; idx < rtype.NumField(); idx++ {
-		keys = append(keys, rtype.Field(idx).Name)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func keyFields(rtype reflect.Type) []string {
-	var keys []string
+func keyFields(rtype reflect.Type) map[string]reflect.Type {
+	keyFields := make(map[string]reflect.Type)
 	for idx := 0; idx < rtype.NumField(); idx++ {
 		tags := rtype.Field(idx).Tag
 		dbTag, ok := tags.Lookup(TAG_DB)
 		if ok && dbTag == TAG_DB_PRIMARYKEY {
-			keys = append(keys, rtype.Field(idx).Name)
+			keyFields[strings.ToLower(rtype.Field(idx).Name)] = rtype.Field(idx).Type
 		}
 	}
-	sort.Strings(keys)
-	return keys
+	return keyFields
 }
 
 func NVL(val interface{}, defaultVal interface{}) interface{} {
