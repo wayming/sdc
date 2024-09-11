@@ -1,7 +1,6 @@
 package json2db
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -70,32 +69,45 @@ func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
 	})
 }
 
-func TestJsonToPGSQLConverter_ExtractSQLData(t *testing.T) {
+func TestJsonToPGSQLConverter_ExtractFieldData(t *testing.T) {
+	wantKeyCols := map[string]reflect.Type{
+		"Field1": reflect.TypeFor[string](),
+		"Field2": reflect.TypeFor[int](),
+	}
+	wantNonKeyCols := map[string]reflect.Type{
+		"Field3": reflect.TypeFor[float64](),
+		"Field4": reflect.TypeFor[bool](),
+		"Field5": reflect.TypeFor[NestedJsonEntityStruct](),
+		"Field6": reflect.TypeFor[Date](),
+	}
+	t.Run("ExtractFieldData", func(t *testing.T) {
+		gotKeyCols, gotNonKeyCols := NewJsonToPGSQLConverter().ExtractFieldData(reflect.TypeFor[JsonEntityStruct]())
+		if !reflect.DeepEqual(gotKeyCols, wantKeyCols) {
+			t.Errorf("JsonToPGSQLConverter.ExtractFieldData() got key colmns = %v, want %v", gotKeyCols, wantKeyCols)
+		}
+		if !reflect.DeepEqual(gotNonKeyCols, wantNonKeyCols) {
+			t.Errorf("JsonToPGSQLConverter.ExtractFieldData() got key colmns = %v, want %v", gotNonKeyCols, wantNonKeyCols)
+		}
+	})
+}
+
+func TestJsonToPGSQLConverter_ExtractValues(t *testing.T) {
 	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
 	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
 	date1 := Date{time1}
 	date2 := Date{time2}
-
-	wantAllCols := []string{"field1", "field2", "field3", "field4", "field5", "field6"}
-	wantKeys := []string{"field1", "field2"}
 	wantRows := [][]interface{}{
 		{"strVal", 10, 1.0, false, "strVal2", date1},
 		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
-	t.Run("ExtractSQLData", func(t *testing.T) {
-		gotAllCols, gotKeys, gotRows, err := NewJsonToPGSQLConverter().ExtractSQLData(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+	t.Run("ExtractValues", func(t *testing.T) {
+		gotRows, err := NewJsonToPGSQLConverter().ExtractValues(JSON_TEXT, reflect.TypeFor[JsonEntityStruct]())
 		if err != nil {
-			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() error = %v", err)
+			t.Errorf("JsonToPGSQLConverter.ExtractValues() error = %v", err)
 			return
 		}
-		if !reflect.DeepEqual(gotAllCols, wantAllCols) {
-			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() all columns got = %v, want %v", gotAllCols, wantAllCols)
-		}
-		if !reflect.DeepEqual(gotKeys, wantKeys) {
-			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() key columns got = %v, want %v", gotKeys, wantKeys)
-		}
 		if !reflect.DeepEqual(gotRows, wantRows) {
-			t.Errorf("JsonToPGSQLConverter.ExtractSQLData() all rows got = %v, want %v", gotRows, wantRows)
+			t.Errorf("JsonToPGSQLConverter.ExtractValues() all rows got = %v, want %v", gotRows, wantRows)
 		}
 	})
 }
@@ -106,18 +118,28 @@ func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
 	date1 := Date{time1}
 	date2 := Date{time2}
-	wantSQL := "INSERT INTO json2pg_test (field1, field2, field3, field4, field5, field6) " +
-		"VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (field1, field2) " +
-		"DO UPDATE SET field1 = EXCLUDED.field1, field2 = EXCLUDED.field2, field3 = EXCLUDED.field3, field4 = EXCLUDED.field4, field5 = EXCLUDED.field5, field6 = EXCLUDED.field6 " +
-		"WHERE json2pg_test.field1 <> EXCLUDED.field1 OR json2pg_test.field2 <> EXCLUDED.field2 OR json2pg_test.field3 <> EXCLUDED.field3 OR json2pg_test.field4 <> EXCLUDED.field4 OR json2pg_test.field5 <> EXCLUDED.field5 OR json2pg_test.field6 <> EXCLUDED.field6"
-	wantFieldValues := [][]interface{}{
+	wantSQL := `
+INSERT INTO json2pg_test (
+	field1, field2, field3, field4, field5, field6
+)
+VALUES (
+	$1, $2, $3, $4, $5, $6
+) ON CONFLICT (
+	field1, field2
+) DO UPDATE SET
+	field1 = EXCLUDED.field1,
+	field2 = EXCLUDED.field2,
+	field3 = EXCLUDED.field3,
+	field4 = EXCLUDED.field4,
+	field5 = EXCLUDED.field5,
+	field6 = EXCLUDED.field6
+`
+	wantRows := [][]interface{}{
 		{"strVal", 10, 1.0, false, "strVal2", date1},
 		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
 	t.Run("GenInsertSQL", func(t *testing.T) {
-		gotSQL, gotFieldValues, err := NewJsonToPGSQLConverter().GenInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
-		fmt.Println(wantSQL)
-		fmt.Println(gotSQL)
+		gotSQL, gotRows, err := NewJsonToPGSQLConverter().GenInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
 		if err != nil {
 			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() error = %v", err)
 			return
@@ -126,8 +148,38 @@ func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotSQL = %v, wantSQL %v", gotSQL, wantSQL)
 		}
 
-		if !reflect.DeepEqual(gotFieldValues, wantFieldValues) {
-			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotFieldValues = %v, wantFieldValues %v", gotFieldValues, wantFieldValues)
+		if !reflect.DeepEqual(gotRows, wantRows) {
+			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotRows = %v, wantRows %v", gotRows, wantRows)
+		}
+	})
+}
+
+func TestJsonToPGSQLConverter_GenBulkInsertSQL(t *testing.T) {
+	wantSQL := `
+INSERT INTO json2pg_test (
+	field1, field2, field3, field4, field5, field6
+)
+VALUES
+	('strVal', 10, 1, false, 'strVal2', '2015-10-31 00:00:00 +0000 UTC'),
+	('strVal3', 20, 2, true, 'strVal2', '2015-07-31 00:00:00 +0000 UTC')
+ON CONFLICT (
+	field1, field2
+) DO UPDATE SET
+	field1 = EXCLUDED.field1,
+	field2 = EXCLUDED.field2,
+	field3 = EXCLUDED.field3,
+	field4 = EXCLUDED.field4,
+	field5 = EXCLUDED.field5,
+	field6 = EXCLUDED.field6
+`
+	t.Run("GenBulkInsertSQL", func(t *testing.T) {
+		gotSQL, err := NewJsonToPGSQLConverter().GenBulkInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+		if err != nil {
+			t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQL() error = %v", err)
+			return
+		}
+		if strings.TrimSpace(gotSQL) != strings.TrimSpace(wantSQL) {
+			t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQL() gotSQL = %v, wantSQL %v", gotSQL, wantSQL)
 		}
 	})
 }

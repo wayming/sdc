@@ -36,34 +36,34 @@ func (d *JsonToPGSQLConverter) GenDropSchema(schema string) string {
 
 // Generate table creation SQL
 func (d *JsonToPGSQLConverter) GenCreateTable(tableName string, entityStructType reflect.Type) (string, error) {
-	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
+	keyFields, nonKeyFields := d.ExtractFieldData(entityStructType)
 	ddl := "CREATE TABLE IF NOT EXISTS " + tableName + " ("
 
 	// Columns for key fields
-	for _, name := range Keys(keyCols) {
-		colType, err := d.deriveColType(keyCols[name])
+	for _, name := range Keys(keyFields) {
+		colType, err := d.deriveColType(keyFields[name])
 		if err != nil {
 			err := fmt.Errorf(
-				"Failed to derive type for field %s, field type is %s. Error: %s"+name, keyCols[name].Name(), err.Error())
+				"Failed to derive type for field %s, field type is %s. Error: %s"+name, keyFields[name].Name(), err.Error())
 			return "", err
 		}
-		ddl += name + " " + colType + ", "
+		ddl += strings.ToLower(name) + " " + colType + ", "
 	}
 
 	// Columns for non-key fields
-	for _, name := range Keys(nonKeyCols) {
-		colType, err := d.deriveColType(keyCols[name])
+	for _, name := range Keys(nonKeyFields) {
+		colType, err := d.deriveColType(nonKeyFields[name])
 		if err != nil {
 			err := fmt.Errorf(
-				"Failed to derive type for field %s, field type is %s. Error: %s"+name, keyCols[name].Name(), err.Error())
+				"Failed to derive type for field %s, field type is %s. Error: %s"+name, nonKeyFields[name].Name(), err.Error())
 			return "", err
 		}
-		ddl += name + " " + colType + ", "
+		ddl += strings.ToLower(name) + " " + colType + ", "
 	}
 
 	// Primary clause
-	if len(Keys(keyCols)) > 0 {
-		ddl += "PRIMARY KEY (" + strings.Join(Keys(keyCols), ", ") + "));"
+	if len(Keys(keyFields)) > 0 {
+		ddl += "PRIMARY KEY (" + strings.ToLower(strings.Join(Keys(keyFields), ", ")) + "));"
 	} else {
 		ddl = ddl[:len(ddl)-2] + ");"
 	}
@@ -77,84 +77,87 @@ func (d *JsonToPGSQLConverter) GenInsertSQL(jsonText string, tableName string, e
 	var sql string
 	var rows [][]interface{}
 
-	allCols, keyCols := d.ExtractColData(entityStructType)
+	keyFields, nonKeyFields := d.ExtractFieldData(entityStructType)
+	allFields := append(Keys(keyFields), Keys(nonKeyFields)...)
 
 	// Generage SQL
-	sql = "INSERT INTO " + tableName + " (" + strings.Join(Keys(allCols), ", ") + ") "
-	sql += "VALUES ("
-	for index := range Keys(allCols) {
+	colLists := strings.ToLower(strings.Join(allFields, ", "))
+	var placeHolderList string
+	for index := range allFields {
 		if index > 0 {
-			sql += ", "
+			placeHolderList += ", "
 		}
-		sql += "$" + strconv.Itoa(index+1)
+		placeHolderList += "$" + strconv.Itoa(index+1)
 	}
-	sql += ") "
+	onConflitsClause := d.OnConflitsSQL(tableName, Keys(keyFields), Keys(nonKeyFields))
 
-	sql += d.OnConflitsSQL(tableName, Keys(allCols), Keys(keyCols))
+	sql = fmt.Sprintf("\nINSERT INTO %s (\n\t%s\n)\nVALUES (\n\t%s\n) %s",
+		tableName, colLists, placeHolderList, onConflitsClause)
+	rows, err := d.ExtractValues(jsonText, entityStructType)
+	if err != nil {
+		return sql, rows, err
+	}
+
 	return sql, rows, nil
 }
 
 func (d *JsonToPGSQLConverter) GenBulkInsertSQL(jsonText string, tableName string, entityStructType reflect.Type) (string, error) {
 	var sql string
 
-	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
-	allColNames := append(Keys(keyCols), Keys(nonKeyCols)...)
+	keyFields, nonKeyFields := d.ExtractFieldData(entityStructType)
+	allFields := append(Keys(keyFields), Keys(nonKeyFields)...)
 	rows, err := d.ExtractValues(jsonText, entityStructType)
 	if err != nil {
 		return sql, err
 	}
 
 	// Generage SQL
-	sql = "INSERT INTO " + tableName + " (" + strings.ToLower(strings.Join(allColNames, ", ")) + ") "
-	sql += "VALUES "
-
-	for idx, row := range rows {
-		sql += "("
-		for idx2, v := range row {
-			if idx2 >= len(allColNames) {
-				return sql, fmt.Errorf("Unexpected number of values for a row. %d values, %d colums.", idx2+1, len(allColNames))
+	var valuesOfRows []string
+	for _, row := range rows {
+		var values []string
+		for idx, v := range row {
+			if idx >= len(allFields) {
+				return sql, fmt.Errorf("unexpected number of values for a row. %d values, %d colums", idx+1, len(allFields))
 			}
 
-			var colType reflect.Type
-			if Exists(keyCols, allColNames[idx2]) {
-				colType = keyCols[allColNames[idx2]]
-			} else if Exists(nonKeyCols, allColNames[idx2]) {
-				colType = nonKeyCols[allColNames[idx2]]
+			var fieldType reflect.Type
+			if Exists(keyFields, allFields[idx]) {
+				fieldType = keyFields[allFields[idx]]
+			} else if Exists(nonKeyFields, allFields[idx]) {
+				fieldType = nonKeyFields[allFields[idx]]
 			}
 
-			if colType == nil {
-				return sql, fmt.Errorf("Failed to find data type for column %s", &allColNames[idx2])
+			if fieldType == nil {
+				return sql, fmt.Errorf("failed to find data type for column %s", allFields[idx])
 			}
 
-			if colType == reflect.TypeFor[string]() ||
-				colType == reflect.TypeFor[Date]() ||
-				colType == reflect.TypeFor[time.Time]() {
-				sql += fmt.Sprintf("'%s',", v)
+			if fieldType == reflect.TypeFor[string]() ||
+				fieldType == reflect.TypeFor[Date]() ||
+				fieldType == reflect.TypeFor[time.Time]() ||
+				fieldType.Kind() == reflect.Struct {
+				values = append(values, fmt.Sprintf("'%s'", v))
 			} else {
-				sql += fmt.Sprintf("%s,", v)
-			}
-
-			if idx2 < len(row)-1 {
-				sql += ","
+				values = append(values, fmt.Sprintf("%v", v))
 			}
 		}
-		sql += ")"
-		if idx < len(rows)-1 {
-			sql += ","
-		}
+		valuesOfRows = append(valuesOfRows, fmt.Sprintf("(%s)", strings.Join(values, ", ")))
 	}
+	colList := strings.ToLower(strings.Join(allFields, ", "))
+	valueList := strings.Join(valuesOfRows, ",\n\t")
+	onConflictClause := d.OnConflitsSQL(tableName, Keys(keyFields), Keys(nonKeyFields))
+	sql = fmt.Sprintf("\nINSERT INTO %s (\n\t%s\n)\nVALUES\n\t%s\n%s",
+		tableName, colList, valueList, onConflictClause)
 
-	sql += d.OnConflitsSQL(tableName, Keys(keyCols), Keys(nonKeyCols))
 	return sql, nil
 }
 
 // Unmarshals the specified JSON text that represents array of entities.
 // Returns a slice of column names and a slice of rows. These artifacts can be used as the input for the bulk insert interfaces.
-func (d *JsonToPGSQLConverter) ExtractColData(entityStructType reflect.Type) (map[string]reflect.Type, map[string]reflect.Type) {
+func (d *JsonToPGSQLConverter) ExtractFieldData(entityStructType reflect.Type) (map[string]reflect.Type, map[string]reflect.Type) {
 	keyFields := keyFields((entityStructType))
 	nonKeyFields := make(map[string]reflect.Type)
 	for idx := 0; idx < entityStructType.NumField(); idx++ {
-		fieldName := strings.ToLower(entityStructType.Field(idx).Name)
+		fieldName := entityStructType.Field(idx).Name
 		if !Exists(keyFields, fieldName) {
 			nonKeyFields[fieldName] = entityStructType.Field(idx).Type
 		}
@@ -175,10 +178,10 @@ func (d *JsonToPGSQLConverter) ExtractValues(jsonText string, entityStructType r
 	}
 
 	// Generate Bind Variables
-	keyCols, nonKeyCols := d.ExtractColData(entityStructType)
+	keyFields, nonKeyFields := d.ExtractFieldData(entityStructType)
 
 	// Key columms first and then non-key columns.
-	fieldNames := append(Keys(keyCols), Keys(nonKeyCols)...)
+	fieldNames := append(Keys(keyFields), Keys(nonKeyFields)...)
 	for idx := 0; idx < sliceVal.Len(); idx++ {
 		var row []interface{}
 		for _, fieldName := range fieldNames {
@@ -200,28 +203,23 @@ func (d *JsonToPGSQLConverter) ExtractValues(jsonText string, entityStructType r
 	return rows, nil
 }
 
-func (d *JsonToPGSQLConverter) OnConflitsSQL(table string, keyCols []string, nonKeyCols []string) string {
+func (d *JsonToPGSQLConverter) OnConflitsSQL(table string, keyFields []string, nonKeyFields []string) string {
 	var sql string
 	// Handle conflicts if has primary keys
-	if len(keyCols) > 0 {
-		firstStatement := true
-		var setClause string
-		var whereClause string
-		sql = "ON CONFLICT (" + strings.ToLower(strings.Join(keyCols, ", ")) + ") DO UPDATE "
-		for _, col := range append(keyCols, nonKeyCols...) {
-			if firstStatement {
-				firstStatement = false
-				setClause = "SET "
-				whereClause = "WHERE "
-			} else {
-				setClause += ", "
-				whereClause += "OR "
-			}
-
-			setClause += col + " = EXCLUDED." + col
-			whereClause += table + "." + col + " <> EXCLUDED." + col + " "
+	if len(keyFields) > 0 {
+		keyColList := strings.ToLower(strings.Join(keyFields, ", "))
+		var setConditions []string
+		// var whereConditions []string
+		for _, field := range append(keyFields, nonKeyFields...) {
+			colName := strings.ToLower(field)
+			setConditions = append(setConditions, colName+" = EXCLUDED."+colName)
+			// whereConditions = append(whereConditions, table+"."+colName+" <> EXCLUDED."+colName)
 		}
-		sql += setClause + " " + whereClause
+
+		// sql = fmt.Sprintf("ON CONFLICT (\n\t%s\n) DO UPDATE SET\n\t%s\nWHERE\n\t%s\n",
+		// 	keyColList, strings.Join(setConditions, ",\n\t"), strings.Join(whereConditions, " OR\n\t"))
+		sql = fmt.Sprintf("ON CONFLICT (\n\t%s\n) DO UPDATE SET\n\t%s\n",
+			keyColList, strings.Join(setConditions, ",\n\t"))
 	}
 	return sql
 }
@@ -265,7 +263,7 @@ func keyFields(rtype reflect.Type) map[string]reflect.Type {
 		tags := rtype.Field(idx).Tag
 		dbTag, ok := tags.Lookup(TAG_DB)
 		if ok && dbTag == TAG_DB_PRIMARYKEY {
-			keyFields[strings.ToLower(rtype.Field(idx).Name)] = rtype.Field(idx).Type
+			keyFields[rtype.Field(idx).Name] = rtype.Field(idx).Type
 		}
 	}
 	return keyFields
