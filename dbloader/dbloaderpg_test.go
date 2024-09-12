@@ -1,13 +1,8 @@
 package dbloader_test
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"os"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 
 	testcommon "github.com/wayming/sdc/testcommon"
@@ -146,92 +141,5 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 		if !reflect.DeepEqual(sort.StringSlice(symbols), sort.StringSlice(wantSymbols)) {
 			t.Errorf("PGLoader.RunQuery() = %v, want %v", sort.StringSlice(symbols), sort.StringSlice(wantSymbols))
 		}
-		fmt.Println(tickers)
 	})
-}
-
-func TestPGLoader_BulkInser(t *testing.T) {
-	// Test schema are dropped and recreated for every test case
-	testFixture := testcommon.NewPGTestFixture(t)
-	defer testFixture.Teardown(t)
-
-	// Connection string
-	connectionString := "host=" + os.Getenv("PGHOST")
-	connectionString += " port=" + os.Getenv("PGPORT")
-	connectionString += " user=" + os.Getenv("PGUSER")
-	connectionString += " password=" + os.Getenv("PGPASSWORD")
-	connectionString += " dbname=" + os.Getenv("PGDATABASE")
-	connectionString += " sslmode=disable"
-
-	// Open the database connection
-	db, err := sql.Open("postgres", connectionString)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	// Create a buffer with your CSV data
-	csvData := `employee_id,name,position,salary
-	1,John Doe,Software Engineer,70000
-	2,Jane Smith,Data Scientist,75000
-	3,Emily Davis,Product Manager,80000`
-	reader := strings.NewReader(csvData) // You could use any io.Reader here, such as an os.File or network stream
-
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal("Failed to begin transaction:", err)
-	}
-
-	// Create temporary table for bulk insert
-	_, err = tx.Exec(`
-			CREATE TEMP TABLE temp_employees (
-				employee_id INT PRIMARY KEY,
-				name TEXT,
-				position TEXT,
-				salary INT
-			)
-		`)
-	if err != nil {
-		tx.Rollback()
-		log.Fatal("Failed to create temporary table:", err)
-	}
-
-	// Perform the COPY operation with io.Reader
-	_, err = tx.CopyFrom(
-		reader,
-		"temp_employees",
-		[]string{"employee_id", "name", "position", "salary"},
-		"CSV",
-		"DELIMITER ','",
-		"HEADER",
-	)
-	if err != nil {
-		tx.Rollback()
-		log.Fatal("Failed to execute COPY command:", err)
-	}
-
-	// Upsert from temporary table into the main table
-	_, err = tx.Exec(`
-			INSERT INTO employees (employee_id, name, position, salary)
-			SELECT employee_id, name, position, salary
-			FROM temp_employees
-			ON CONFLICT (employee_id)
-			DO UPDATE SET
-				name = EXCLUDED.name,
-				position = EXCLUDED.position,
-				salary = EXCLUDED.salary
-		`)
-	if err != nil {
-		tx.Rollback()
-		log.Fatal("Failed to upsert data:", err)
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal("Failed to commit transaction:", err)
-	}
-
-	log.Println("Data successfully loaded and transaction committed.")
 }

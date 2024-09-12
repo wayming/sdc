@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/json2db"
@@ -182,8 +181,8 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Insert
-	columns, _, rows, err := converter.ExtractSQLData(jsonText, tableName, jsonStructType)
-	if err != nil || len(rows) == 0 {
+	sql, err := converter.GenBulkInsertSQL(jsonText, tableName, jsonStructType)
+	if err != nil {
 		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
 		return 0, err
 	}
@@ -195,70 +194,35 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}
 
-	// conflictResolution := " ON CONFLICT DO UPDATE SET "
-	// for idx, field := range columns {
-	// 	conflictResolution += field + " = EXCLUDED." + field
-	// 	if idx < len(columns)-1 {
-	// 		conflictResolution += ","
-	// 	}
-	// }
-
-	prepareSQL := pq.CopyIn(tableName, columns...)
-	stmt, err := tx.Prepare(prepareSQL)
+	loader.logger.Printf("Execute SQL %s", sql)
+	result, err := tx.Exec(sql)
 	if err != nil {
 		tx.Rollback()
-		return 0, fmt.Errorf("failed to prepare CopyIn statement. SQL: %s Error: %s", prepareSQL, err.Error())
+		return 0, fmt.Errorf("failed to execute sql %s. Error: %v", sql, err)
 	}
 
-	var flattened []interface{}
-	for _, row := range rows {
-		flattened = append(flattened, row...)
-	}
-
-	loader.logger.Printf("Execute INSERT: columns[%s], row[%s]", strings.Join(columns, ","), joinInterfaceSlice(flattened, ","))
-	result, err := stmt.Exec(flattened...)
-	if err != nil {
-		tx.Rollback()
-		return 0, errors.New("Failed to Exec row " + ". Error: " + err.Error())
-	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
 		return 0, fmt.Errorf("failed to get number of affected rows. Error: %v", err)
 	}
 
-	// Flush
-	_, err = stmt.Exec()
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to execute CopyIn statement. Error: %s", err.Error())
-		loader.logger.Printf(errMsg)
-		tx.Rollback()
-		return 0, errors.New(errMsg)
-
-	}
-
-	err = stmt.Close()
-	if err != nil {
-		loader.logger.Printf("Close error %s\n", err.Error())
-	}
-
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to commit CopyIn statement. Error: %s", err.Error())
-		loader.logger.Printf(errMsg)
-		return 0, errors.New(errMsg)
+
+		return 0, fmt.Errorf("failed to commit. Error: %s", err.Error())
 	}
 	return rowsAffected, nil
 }
 
-func joinInterfaceSlice(slice []interface{}, sep string) string {
-	// Convert each element to string and append to a slice of strings
-	var strSlice []string
-	for _, v := range slice {
-		strSlice = append(strSlice, fmt.Sprintf("%v", v))
-	}
+// func joinInterfaceSlice(slice []interface{}, sep string) string {
+// 	// Convert each element to string and append to a slice of strings
+// 	var strSlice []string
+// 	for _, v := range slice {
+// 		strSlice = append(strSlice, fmt.Sprintf("%v", v))
+// 	}
 
-	// Join the slice of strings with the separator
-	return strings.Join(strSlice, sep)
-}
+// 	// Join the slice of strings with the separator
+// 	return strings.Join(strSlice, sep)
+// }
