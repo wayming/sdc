@@ -206,49 +206,54 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 				continue
 			}
 
-			firstSibling := td.NextSibling
+			var firstSibling *html.Node
 			// For each td
 			idx := 0
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				text2 := firstTextNode(td2)
-				if text2 != nil {
-					p.logger.Printf("Read %s", text2.Data)
-					if !isValidValue(text2.Data) {
-						if IsKeyField(p.metricsFields[dataStructTypeName], normKey) {
-
-							// Ignore the invalid values of the first or last td
-							if td2 == firstSibling {
-								// The first value field does not contain a valid value for a key row.
-								// Skip this value field for all remaining tr(rows)
-								// This is to skip the "Current" column of the table.
-								skipFirstValue = true
-								p.logger.Printf("ignore value %s for key field %s", text2.Data, normKey)
-								continue
-							} else if td2.NextSibling == nil {
-								skipLastValue = true
-								p.logger.Printf("ignore value %s for key field %s", text2.Data, normKey)
-								continue
-							}
-						} else {
-							return dataPoints, fmt.Errorf("invalid value %s forfield %s", text2.Data, normKey)
-						}
-					}
-
-					p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
-					normVal, err := normaliseJSONValue(text2.Data, fieldType)
-					if err != nil {
-						return dataPoints, err
-					}
-					p.logger.Printf("Got %v", normVal)
-
-					if idx == len(dataPoints) {
-						// New data point
-						dataPoints = append(dataPoints, make(map[string]interface{}))
-					}
-					dataPoints[idx][normKey] = normVal
-					idx++
+				if text2 == nil {
 					continue
 				}
+
+				if firstSibling == nil {
+					// First td node with text data
+					firstSibling = td2
+				}
+
+				p.logger.Printf("Read %s", text2.Data)
+				if !isValidValue(text2.Data) {
+					// Ignore the invalid values of the first or last td
+					if td2 == firstSibling {
+						// The first value field does not contain a valid value for a key row.
+						// Skip this value field for all remaining tr(rows)
+						// This is to skip the "Current" column of the table.
+						skipFirstValue = true
+						p.logger.Printf("ignore value %s for key field %s skipFirstValue=true", text2.Data, normKey)
+						continue
+					} else if td2.NextSibling == nil {
+						skipLastValue = true
+						p.logger.Printf("ignore value %s for key field %s skipLastValue=true", text2.Data, normKey)
+						continue
+					} else {
+						return dataPoints, fmt.Errorf("invalid value %s for field %s", text2.Data, normKey)
+					}
+				}
+
+				p.logger.Println("Normalise " + text2.Data + " to " + fieldType.Name() + " value")
+				normVal, err := normaliseJSONValue(text2.Data, fieldType)
+				if err != nil {
+					return dataPoints, err
+				}
+				p.logger.Printf("Got %v", normVal)
+
+				if idx == len(dataPoints) {
+					// New data point
+					dataPoints = append(dataPoints, make(map[string]interface{}))
+				}
+				dataPoints[idx][normKey] = normVal
+				idx++
+				continue
+
 			}
 
 			p.logger.Printf("Collect %d data points for key %s", idx, normKey)
@@ -285,19 +290,23 @@ func (p *SAHTMLParser) decodeTimeSeriesTable(node *html.Node, dataStructTypeName
 
 			// For each remaining td(column)
 			var values []any
-			firstSibling := td.NextSibling
+			var firstSibling *html.Node
 			for td2 := td.NextSibling; td2 != nil; td2 = td2.NextSibling {
 				if td2.Type == html.ElementNode && td2.Data == "td" {
 					text2 := firstTextNode(td2)
 					if text2 != nil {
+						if firstSibling == nil {
+							// First td node with text data
+							firstSibling = td2
+						}
 
 						if td2 == firstSibling && skipFirstValue {
 							p.logger.Printf("skip first column %s for field %s", text2.Data, normKey)
-							break
+							continue
 						}
 						if td2.NextSibling == nil && skipLastValue {
 							p.logger.Printf("skip last column %s for field %s", text2.Data, normKey)
-							break
+							continue
 						}
 
 						p.logger.Printf("Read %s", text2.Data)
@@ -437,14 +446,13 @@ func stringToInt64(value string) (any, error) {
 
 func stringToDate(value string) (any, error) {
 	convertedValue, err := time.Parse("2006-01-02", value)
-
 	if err == nil {
-		return convertedValue, err
+		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
 	}
 
 	convertedValue, err = time.Parse("Jan 2, 2006", value)
 	if err == nil {
-		return convertedValue, err
+		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
 	}
 
 	format := "Jan '06"
@@ -456,31 +464,46 @@ func stringToDate(value string) (any, error) {
 		day := 1 // Defaulting to the first day of the month
 
 		// Construct a new time.Time object representing January 1, 2006
-		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, nil)
+		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
+	} else {
+		return "", err
 	}
-
-	return convertedValue, err
 }
 
-func convertFiscalToDate(value string) string {
+func addToYear(yearStr string, add int) (string, error) {
+	if year, err := strconv.Atoi(yearStr); err != nil {
+		return "", err
+	} else {
+		return strconv.Itoa(year + add), nil
+	}
+}
+func convertFiscalToDate(value string) (string, error) {
 	pattern := `([QH])(\d) (\d{4})`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindStringSubmatch(value)
 
 	if len(matches) > 0 {
 		var monthAndDay string
+		var err error
 		if matches[1] == "Q" {
 			switch matches[2] {
 			case "1":
-				monthAndDay = "03-31"
-			case "2":
-				monthAndDay = "06-30"
-			case "3":
 				monthAndDay = "09-30"
-			case "4":
+				if matches[3], err = addToYear(matches[3], -1); err != nil {
+					return "", err
+				}
+			case "2":
 				monthAndDay = "12-31"
+				if matches[3], err = addToYear(matches[3], -1); err != nil {
+					return "", err
+				}
+			case "3":
+				monthAndDay = "03-31"
+			case "4":
+				monthAndDay = "06-30"
 			default:
-				return value
+				return "", fmt.Errorf("unsupported date format, %s", value)
 			}
 		} else if matches[1] == "H" {
 			switch matches[2] {
@@ -489,12 +512,12 @@ func convertFiscalToDate(value string) string {
 			case "2":
 				monthAndDay = "12-31"
 			default:
-				return value
+				return "", fmt.Errorf("unsupported date format, %s", value)
 			}
 		}
-		return matches[3] + "-" + monthAndDay
+		return matches[3] + "-" + monthAndDay, nil
 	} else {
-		return value
+		return "", fmt.Errorf("unsupported date format, %s", value)
 	}
 }
 func isValidDate(value string) bool {
@@ -633,7 +656,9 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 
 	if vType == reflect.TypeFor[time.Time]() {
 		if isFiscalDate((value)) {
-			value = convertFiscalToDate(value)
+			if value, err = convertFiscalToDate(value); err != nil {
+				return nil, err
+			}
 			if convertedValue, err = stringToDate(value); err != nil {
 				return convertedValue, err
 			}
