@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wayming/sdc/json2db"
 	"golang.org/x/net/html"
 )
 
@@ -654,7 +655,8 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 		convertedValue = value
 	}
 
-	if vType == reflect.TypeFor[time.Time]() {
+	if vType == reflect.TypeFor[time.Time]() ||
+		vType == reflect.TypeFor[json2db.Date]() {
 		if isFiscalDate((value)) {
 			if value, err = convertFiscalToDate(value); err != nil {
 				return nil, err

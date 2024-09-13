@@ -75,7 +75,7 @@ func Test_convertFiscalDate_Invalid(t *testing.T) {
 
 func Test_stringToDate(t *testing.T) {
 
-	want := "2024-06-30 00:00:00"
+	want := "2024-06-30"
 	t.Run("stringToDate", func(t *testing.T) {
 		got, err := stringToDate("2024-06-30")
 		if err != nil {
