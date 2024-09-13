@@ -1,10 +1,13 @@
 package dbloader_test
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
+	"github.com/wayming/sdc/json2db"
 	testcommon "github.com/wayming/sdc/testcommon"
 
 	_ "github.com/lib/pq"
@@ -60,6 +63,7 @@ const JSON_TEXT2 = `[
 	  "has_intraday": false,
 	  "has_eod": true,
 	  "country": null,
+	  "date": "2024-03-31",
 	  "stock_exchange": {
 		"name": "NASDAQ Stock Exchange",
 		"acronym": "NASDAQ",
@@ -76,6 +80,7 @@ const JSON_TEXT2 = `[
 	  "has_intraday": false,
 	  "has_eod": true,
 	  "country": null,
+	  "date": "2024-06-30",
 	  "stock_exchange": {
 		"name": "NASDAQ Stock Exchange",
 		"acronym": "NASDAQ",
@@ -89,11 +94,12 @@ const JSON_TEXT2 = `[
   ]`
 
 type Tickers struct {
-	Name          string `json:"name"`
-	Symbol        string `json:"symbol"`
-	HasIntraday   bool   `json:"has_intraday"`
-	HasEod        bool   `json:"has_eod"`
-	Country       string `json:"country"`
+	Name          string       `json:"name"`
+	Symbol        string       `json:"symbol"`
+	HasIntraday   bool         `json:"has_intraday"`
+	HasEod        bool         `json:"has_eod"`
+	Country       string       `json:"country"`
+	Date          json2db.Date `json:"date"`
 	StockExchange struct {
 		Name string `json:"name"`
 	} `json:"stock_exchange"`
@@ -110,6 +116,8 @@ func TestPGLoader_LoadByJsonText(t *testing.T) {
 	if err := testFixture.Loader().CreateTableByJsonStruct(TEST_TABLE, reflect.TypeFor[Tickers]()); err != nil {
 		t.Errorf("Failed to create table %s. Error: %v", TEST_TABLE, err)
 	}
+
+	fmt.Printf("%s\n", time.Now())
 
 	wantInserts := int64(2)
 	wantSymbols := []string{"MSFT", "AAPL"}

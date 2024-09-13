@@ -131,14 +131,29 @@ func (d *JsonToPGSQLConverter) GenBulkInsertSQL(jsonText string, tableName strin
 				return sql, fmt.Errorf("failed to find data type for column %s", allFields[idx])
 			}
 
-			if fieldType == reflect.TypeFor[string]() ||
-				fieldType == reflect.TypeFor[Date]() ||
-				fieldType == reflect.TypeFor[time.Time]() ||
-				fieldType.Kind() == reflect.Struct {
-				values = append(values, fmt.Sprintf("'%s'", v))
+			var colValue string
+			if len(fmt.Sprintf("%v", v)) == 0 {
+				colValue = "NULL"
+
 			} else {
-				values = append(values, fmt.Sprintf("%v", v))
+				if fieldType.Kind() == reflect.Struct {
+					if fieldType == reflect.TypeFor[Date]() {
+						d, _ := v.(Date)
+						colValue = fmt.Sprintf("'%v'", d.Format(time.RFC3339))
+					} else if fieldType == reflect.TypeFor[time.Time]() {
+						t, _ := v.(time.Time)
+						colValue = fmt.Sprintf("'%v'", t.Format(time.RFC3339))
+					} else { // Name of the nested struct
+						colValue = fmt.Sprintf("'%v'", v)
+					}
+				} else if fieldType.Kind() == reflect.String {
+					colValue = fmt.Sprintf("'%v'", v)
+				} else {
+					colValue = fmt.Sprintf("%v", v)
+				}
 			}
+			values = append(values, colValue)
+
 		}
 		valuesOfRows = append(valuesOfRows, fmt.Sprintf("(%s)", strings.Join(values, ", ")))
 	}

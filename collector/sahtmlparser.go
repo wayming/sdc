@@ -447,12 +447,12 @@ func stringToInt64(value string) (any, error) {
 func stringToDate(value string) (any, error) {
 	convertedValue, err := time.Parse("2006-01-02", value)
 	if err == nil {
-		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
+		return convertedValue.Format("2006-01-02"), nil
 	}
 
 	convertedValue, err = time.Parse("Jan 2, 2006", value)
 	if err == nil {
-		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
+		return convertedValue.Format("2006-01-02"), nil
 	}
 
 	format := "Jan '06"
@@ -465,7 +465,7 @@ func stringToDate(value string) (any, error) {
 
 		// Construct a new time.Time object representing January 1, 2006
 		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, nil)
-		return convertedValue.Format("2006-01-02T15:04:05-07:00"), nil
+		return convertedValue.Format("2006-01-02"), nil
 	} else {
 		return "", err
 	}
