@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -55,7 +54,11 @@ func (c *YFCollector) Tickers() error {
 		return err
 	}
 
-	if err := c.exporters.Export(YF_TICKERS, strings.ToLower(YFDataTables[YF_TICKERS]), dataText); err != nil {
+	if err := c.db.CreateTableByJsonStruct(YFDataTables[YF_TICKERS], YFDataTypes[YF_TICKERS]); err != nil {
+		return err
+	}
+
+	if err := c.exporters.Export(YFDataTypes[YF_TICKERS], strings.ToLower(YFDataTables[YF_TICKERS]), dataText, ""); err != nil {
 		return err
 	}
 
@@ -103,7 +106,11 @@ func (c *YFCollector) EODForSymbol(symbol string) error {
 
 	if len(dataText) > 0 {
 		tableName := strings.ToLower(YFDataTables[YF_EOD] + "_" + symbol)
-		if err := c.exporters.Export(YF_EOD, tableName, dataText); err != nil {
+		if err := c.db.CreateTableByJsonStruct(tableName, YFDataTypes[YF_EOD]); err != nil {
+			return err
+		}
+
+		if err := c.exporters.Export(YFDataTypes[YF_EOD], tableName, dataText, symbol); err != nil {
 			return err
 		}
 		c.logger.Printf("Successfully loaded EOD rows to %s", tableName)
@@ -197,43 +204,43 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 		os.Getenv("PGDATABASE"))
 
 	reader := NewHttpReader(NewLocalClient())
+	var yfExporters DataExporters
+	yfExporters.AddExporter(NewDBExporter(db, config.SchemaName))
 
-	var exporters YFDataExporters
-	exporters.AddExporter(NewDBExporter(db, config.SchemaName))
-	exporters.AddExporter(NewYFFileExporter())
+	if loadTickers && len(fileJSON) > 0 {
 
-	cl := NewYFCollector(reader, &exporters, db, sdclogger.SDCLoggerInstance.Logger)
-
-	if loadTickers {
-		if len(fileJSON) > 0 {
-			reader, err := os.OpenFile(fileJSON, os.O_RDONLY, 0666)
-			if err != nil {
-				return errors.New("Failed to open file " + fileJSON)
-			}
-
-			// Read in all tickers
-			text, err := io.ReadAll(reader)
-			if err != nil {
-				return errors.New("Failed to read file " + fileJSON)
-			}
-
-			// Filter symbol variations
-			textFiltered, err := FilterSymbolVariations(string(text))
-			if err != nil {
-				return fmt.Errorf("failed filter symbol variations, error %v", err)
-			}
-
-			table := strings.TrimSuffix(filepath.Base(fileJSON), filepath.Ext(fileJSON))
-			if err := exporters.Export(YF_TICKERS, table, textFiltered); err != nil {
-				return err
-			}
-		} else {
-			if err := cl.Tickers(); err != nil {
-				return err
-			}
+		fileReader, err := os.OpenFile(fileJSON, os.O_RDONLY, 0666)
+		if err != nil {
+			return errors.New("Failed to open file " + fileJSON)
 		}
+
+		// Read in all tickers
+		text, err := io.ReadAll(fileReader)
+		if err != nil {
+			return errors.New("Failed to read file " + fileJSON)
+		}
+
+		// Filter symbol variations
+		textFiltered, err := FilterSymbolVariations(string(text))
+		if err != nil {
+			return fmt.Errorf("failed filter symbol variations, error %v", err)
+		}
+
+		db.CreateTableByJsonStruct(YFDataTables[YF_TICKERS], YFDataTypes[YF_TICKERS])
+		if err := yfExporters.Export(YFDataTypes[YF_TICKERS], YFDataTables[YF_TICKERS], textFiltered, ""); err != nil {
+			return err
+		}
+		return nil
 	}
 
+	cl := NewYFCollector(reader, &yfExporters, db, sdclogger.SDCLoggerInstance.Logger)
+	yfExporters.AddExporter(NewYFFileExporter())
+	if loadTickers {
+		if err := cl.Tickers(); err != nil {
+			return err
+		}
+
+	}
 	if loadEOD {
 		if err := cl.EOD(); err != nil {
 			return err

@@ -13,7 +13,7 @@ import (
 type SAWorker struct {
 	db        dbloader.DBLoader
 	reader    IHttpReader
-	exporter  IDataExporter
+	exporters IDataExporter
 	cache     cache.ICacheManager
 	collector *SACollector
 	logger    *log.Logger
@@ -25,7 +25,7 @@ type SAWorkerBuilder struct {
 
 func (w *SAWorker) Init() error {
 	// Collector
-	w.collector = NewSACollector(w.reader, w.exporter, w.db, w.logger)
+	w.collector = NewSACollector(w.reader, w.exporters, w.db, w.logger)
 	// if err := w.collector.CreateTables(); err != nil {
 	// 	return err
 	// }
@@ -67,8 +67,11 @@ func (b *SAWorkerBuilder) Default() error {
 			os.Getenv("PGDATABASE"))
 	}
 
-	if b.exporter == nil {
-		b.exporter = NewDBExporter(b.db, config.SchemaName)
+	if b.exporters == nil {
+		var saExporters DataExporters
+		saExporters.AddExporter(NewDBExporter(b.db, config.SchemaName))
+		saExporters.AddExporter(NewSAFileExporter())
+		b.exporters = &saExporters
 	}
 
 	if b.reader == nil {
@@ -90,7 +93,7 @@ func (b *SAWorkerBuilder) Prepare() error {
 	b.Default()
 
 	// Prepare tables
-	c := NewSACollector(b.reader, b.exporter, b.db, b.logger)
+	c := NewSACollector(b.reader, b.exporters, b.db, b.logger)
 	if err := c.CreateTables(); err != nil {
 		return err
 	}
@@ -101,11 +104,11 @@ func (b *SAWorkerBuilder) Prepare() error {
 
 func (b *SAWorkerBuilder) Build() IWorker {
 	return &SAWorker{
-		db:       b.db,
-		reader:   b.reader,
-		exporter: b.exporter,
-		cache:    b.cache,
-		logger:   b.logger,
+		db:        b.db,
+		reader:    b.reader,
+		exporters: b.exporters,
+		cache:     b.cache,
+		logger:    b.logger,
 	}
 }
 

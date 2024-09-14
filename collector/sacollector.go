@@ -20,6 +20,7 @@ import (
 type SACollector struct {
 	loader        dbloader.DBLoader
 	reader        IHttpReader
+	exporter      IDataExporter
 	logger        *log.Logger
 	htmlParser    *SAHTMLParser
 	metricsFields map[string]map[string]JsonFieldMetadata
@@ -34,6 +35,7 @@ func NewSACollector(httpReader IHttpReader, exporters IDataExporter, db dbloader
 	collector := SACollector{
 		loader:        db,
 		reader:        httpReader,
+		exporter:      exporters,
 		logger:        logger,
 		htmlParser:    NewSAHTMLParser(logger),
 		metricsFields: AllSAMetricsFields(),
@@ -234,11 +236,10 @@ func (c *SACollector) collectFinancialDetailsCommon(url string, dataStructType r
 	// Write the the retrieved data to database
 	rowCount := int64(0)
 	if len(jsonText) > 0 {
-		rowCount, err = c.loader.LoadByJsonText(jsonText, dbTableName, dataStructType)
+		err := c.exporter.Export(dataStructType, dbTableName, jsonText, c.thisSymbol)
 		if err != nil {
 			return 0, errors.New("Failed to load data into table " + dbTableName + ". Error: " + err.Error())
 		}
-		c.logger.Println(rowCount, "rows have been loaded into", dbTableName)
 
 	} else {
 		c.logger.Printf("No data got from %s", url)
@@ -658,11 +659,11 @@ func CollectFinancialsForSymbol(symbol string) error {
 	httpReader := NewHttpReader(NewLocalClient())
 
 	// Exporters
-	var exporter MSDataExporters
-	exporter.AddExporter(NewDBExporter(dbLoader, config.SchemaName))
-	exporter.AddExporter(NewMSFileExporter())
+	var saExporter DataExporters
+	saExporter.AddExporter(NewDBExporter(dbLoader, config.SchemaName))
+	saExporter.AddExporter(NewSAFileExporter())
 
-	c := NewSACollector(httpReader, &exporter, dbLoader, sdclogger.SDCLoggerInstance.Logger)
+	c := NewSACollector(httpReader, &saExporter, dbLoader, sdclogger.SDCLoggerInstance.Logger)
 
 	if err := c.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)

@@ -3,13 +3,14 @@ package collector
 import (
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
 
 type IDataExporter interface {
-	Export(entity string, table string, data string) error
+	Export(entityType reflect.Type, table string, data string, symbol string) error
 }
 
 type FileExporter struct {
@@ -32,8 +33,24 @@ func NewMSFileExporter() *FileExporter {
 	return &FileExporter{path: dir}
 }
 
-func (e FileExporter) Export(entity string, table string, data string) error {
-	fileName := e.path + "/" + table + ".json"
+func NewSAFileExporter() *FileExporter {
+	dir := os.Getenv("SDC_HOME") + "/data/SA"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", dir, err)
+	}
+	return &FileExporter{path: dir}
+}
+
+func (e FileExporter) Export(entityType reflect.Type, table string, data string, symbol string) error {
+	dir := e.path + "/"
+	if len(symbol) > 0 {
+		dir += symbol
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	fileName := dir + "/" + table + ".json"
 	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to write to file %s: %v", fileName, err)
 	}
@@ -53,12 +70,8 @@ func NewDBExporter(db dbloader.DBLoader, schema string) *DBExporter {
 		schema: schema}
 }
 
-func (e DBExporter) Export(entity string, table string, data string) error {
-	if err := e.db.CreateTableByJsonStruct(table, YFDataTypes[entity]); err != nil {
-		return err
-	}
-
-	numOfRows, err := e.db.LoadByJsonText(data, table, YFDataTypes[entity])
+func (e DBExporter) Export(entityType reflect.Type, table string, data string, symbol string) error {
+	numOfRows, err := e.db.LoadByJsonText(data, table, entityType)
 	if err != nil {
 		return fmt.Errorf("failed to load json text to table %s: %v", table, err)
 	}
@@ -66,26 +79,18 @@ func (e DBExporter) Export(entity string, table string, data string) error {
 	return nil
 }
 
-type CommonDataExporters struct {
+type DataExporters struct {
 	exporters []IDataExporter
 }
 
-func (e *CommonDataExporters) AddExporter(exp IDataExporter) {
+func (e *DataExporters) AddExporter(exp IDataExporter) {
 	e.exporters = append(e.exporters, exp)
 }
-func (e *CommonDataExporters) Export(entity string, table string, data string) error {
+func (e *DataExporters) Export(entityType reflect.Type, table string, data string, symbol string) error {
 	for _, exporter := range e.exporters {
-		if err := exporter.Export(entity, table, data); err != nil {
+		if err := exporter.Export(entityType, table, data, symbol); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-type YFDataExporters struct {
-	CommonDataExporters
-}
-
-type MSDataExporters struct {
-	CommonDataExporters
 }

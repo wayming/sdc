@@ -147,7 +147,8 @@ func (d *JsonToPGSQLConverter) GenBulkInsertSQL(jsonText string, tableName strin
 						colValue = fmt.Sprintf("'%v'", v)
 					}
 				} else if fieldType.Kind() == reflect.String {
-					colValue = fmt.Sprintf("'%v'", v)
+					s, _ := v.(string)
+					colValue = fmt.Sprintf("'%v'", strings.ReplaceAll(s, "'", "''"))
 				} else {
 					colValue = fmt.Sprintf("%v", v)
 				}

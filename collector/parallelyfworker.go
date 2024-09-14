@@ -13,7 +13,7 @@ import (
 type YFEODWorker struct {
 	db        dbloader.DBLoader
 	reader    IHttpReader
-	exporter  IDataExporter
+	exporters IDataExporter
 	cache     cache.ICacheManager
 	collector *YFCollector
 	logger    *log.Logger
@@ -25,7 +25,7 @@ type YFWorkerBuilder struct {
 
 func (w *YFEODWorker) Init() error {
 	// Collector
-	w.collector = NewYFCollector(w.reader, w.exporter, w.db, w.logger)
+	w.collector = NewYFCollector(w.reader, w.exporters, w.db, w.logger)
 	return nil
 }
 func (w *YFEODWorker) Do(symbol string) error {
@@ -52,8 +52,11 @@ func (b *YFWorkerBuilder) Default() error {
 			os.Getenv("PGDATABASE"))
 	}
 
-	if b.exporter == nil {
-		b.exporter = NewDBExporter(b.db, config.SchemaName)
+	if b.exporters == nil {
+		var yfExporters DataExporters
+		yfExporters.AddExporter(NewDBExporter(b.db, config.SchemaName))
+		yfExporters.AddExporter(NewYFFileExporter())
+		b.exporters = &yfExporters
 	}
 
 	if b.reader == nil {
@@ -72,11 +75,11 @@ func (b *YFWorkerBuilder) Default() error {
 
 func (b *YFWorkerBuilder) Build() IWorker {
 	return &YFEODWorker{
-		db:       b.db,
-		reader:   b.reader,
-		exporter: b.exporter,
-		cache:    b.cache,
-		logger:   b.logger,
+		db:        b.db,
+		reader:    b.reader,
+		exporters: b.exporters,
+		cache:     b.cache,
+		logger:    b.logger,
 	}
 }
 

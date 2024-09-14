@@ -84,7 +84,7 @@ func TestYFCollector_EOD(t *testing.T) {
 	// teardownYFTest()
 }
 
-func TestExtractData(t *testing.T) {
+func TestExtractDataTickers(t *testing.T) {
 	inpuJSONText := `[
 		{
 			"symbol": "A",
@@ -100,6 +100,84 @@ func TestExtractData(t *testing.T) {
 			"nasdaq_symbol": "A",
 			"next_shares": "N"
 		}
+	]`
+	textJSON :=
+		`{
+		"results": ` + inpuJSONText + `,
+		"provider": "nasdaq",
+		"warnings": [
+			{
+				"category": "OpenBBWarning",
+				"message": "Parameter 'limit' is not supported by nasdaq. Available for: intrinio."
+			},
+			{
+				"category": "FutureWarning",
+				"message": "Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set "
+			}
+		],
+		"chart": null,
+		"extra": {
+			"metadata": {
+				"arguments": {
+					"provider_choices": {
+						"provider": "nasdaq"
+					},
+					"standard_params": {
+						"query": "",
+						"is_symbol": false,
+						"use_cache": true
+					},
+					"extra_params": {
+						"active": true,
+						"limit": 100000,
+						"is_etf": null,
+						"is_fund": false
+					}
+				},
+				"duration": 4196819148,
+				"route": "/equity/search",
+				"timestamp": "2024-07-30T12:56:09.154604"
+			}
+		}
+	}`
+
+	var tickers []YFTickers
+	json.Unmarshal([]byte(inpuJSONText), &tickers)
+	expectedJSONText, _ := (json.Marshal(tickers))
+
+	t.Run("TestExtractData", func(t *testing.T) {
+		got, err := ExtractData(textJSON, reflect.TypeFor[YFTickersResponse]())
+		if err != nil {
+			t.Errorf("ExtractData() error = %v", err)
+		}
+		if got != string(expectedJSONText) {
+			t.Errorf("ExtractData() = %v, want %v", got, expectedJSONText)
+		}
+	})
+}
+
+func TestExtractDataEODs(t *testing.T) {
+	inpuJSONText := `[
+	{
+        "date": "2022-02-01",
+        "open": 9.890000343322754,
+        "high": 9.899999618530273,
+        "low": 9.859999656677246,
+        "close": 9.859999656677246,
+        "volume": 225100.0,
+        "split_ratio": 0.0,
+        "dividend": 0.0
+	},
+	{
+        "date": "2022-02-02",
+        "open": 9.859999656677246,
+        "high": 9.859999656677246,
+        "low": 9.859999656677246,
+        "close": 9.859999656677246,
+        "volume": 0.0,
+        "split_ratio": 0.0,
+        "dividend": 0.0
+	}
 	]`
 	textJSON :=
 		`{

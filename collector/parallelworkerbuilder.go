@@ -33,12 +33,12 @@ type IWorkerBuilder interface {
 }
 
 type CommonWorkerBuilder struct {
-	db       dbloader.DBLoader
-	reader   IHttpReader
-	exporter IDataExporter
-	cache    cache.ICacheManager
-	logger   *log.Logger
-	Params   *PCParams
+	db        dbloader.DBLoader
+	reader    IHttpReader
+	exporters IDataExporter
+	cache     cache.ICacheManager
+	logger    *log.Logger
+	Params    *PCParams
 }
 
 func (b *CommonWorkerBuilder) WithLogger(l *log.Logger) {
@@ -48,7 +48,7 @@ func (b *CommonWorkerBuilder) WithDB(db dbloader.DBLoader) {
 	b.db = db
 }
 func (b *CommonWorkerBuilder) WithExporter(exp IDataExporter) {
-	b.exporter = exp
+	b.exporters = exp
 }
 func (b *CommonWorkerBuilder) WithReader(r IHttpReader) {
 	b.reader = r
