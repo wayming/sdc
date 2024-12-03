@@ -9,7 +9,7 @@ import (
 	"github.com/wayming/sdc/sdclogger"
 )
 
-func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int, error) {
+func LoadProxies(cm ICacheManager, key string, proxyFile string) (int, error) {
 	content, err := os.ReadFile(proxyFile)
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Println("Failed to get proxies from file " + proxyFile + ". Error: " + err.Error())
@@ -19,7 +19,7 @@ func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int,
 	added := 0
 
 	for _, proxy := range validProxies {
-		if err := cacheManager.AddToSet(key, proxy); err != nil {
+		if err := cm.AddToSet(key, proxy); err != nil {
 			sdclogger.SDCLoggerInstance.Println(err.Error())
 		} else {
 			added++
@@ -32,9 +32,12 @@ func LoadProxies(cacheManager *CacheManager, key string, proxyFile string) (int,
 
 func isProxyValid(proxy string) bool {
 	parts := strings.Split(proxy, ":")
+	proxyURL := parts[0] + ":" + parts[1]
+	proxyUser := parts[2]
+	proxyPassword := parts[3]
 	cmd := exec.Command("nc", "-w", "5", "-zv", parts[0], parts[1])
 	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxy+". Error: ", err.Error())
+		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxyURL+". Error: ", err.Error())
 		return false
 	}
 	if cmd.ProcessState.ExitCode() != 0 {
@@ -43,13 +46,16 @@ func isProxyValid(proxy string) bool {
 
 	cmd = exec.Command("wget",
 		"--timeout", "2",
+		"--tries", "1",
 		"-e", "use_proxy=yes",
-		"-e", "http_proxy="+proxy,
+		"-e", "http_proxy="+proxyURL,
+		"--proxy-user", proxyUser,
+		"--proxy-password", proxyPassword,
 		"-O", "logs/proxy_test.html",
 		"-a", "logs/proxy_test.log",
-		"https://stockanalysis.com/")
+		"http://example.com")
 	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxy+". Error: ", err.Error())
+		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxyURL+". Error: ", err.Error())
 		return false
 	}
 	if cmd.ProcessState.ExitCode() != 0 {

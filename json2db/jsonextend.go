@@ -1,6 +1,7 @@
 package json2db
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -16,4 +17,12 @@ func (ct *Date) UnmarshalJSON(b []byte) error {
 	}
 	ct.Time = t
 	return nil
+}
+
+// MarshalJSON converts the Date to a JSON-encoded date string
+func (d Date) MarshalJSON() ([]byte, error) {
+	// Format the date as a string
+	dateStr := d.Format("2006-01-02")
+	// Return the JSON-encoded string
+	return json.Marshal(dateStr)
 }

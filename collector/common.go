@@ -3,12 +3,13 @@ package collector
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
+	"regexp"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
 )
 
 const LOG_FILE = "logs/sdc.log"
@@ -17,15 +18,9 @@ const CACHE_KEY_PROXY = "PROXIES"
 const CACHE_KEY_SYMBOL = "SYMBOLS"
 const CACHE_KEY_SYMBOL_ERROR = "SYMBOLS_ERROR"
 const CACHE_KEY_SYMBOL_INVALID = "SYMBOLS_INVALID"
+const CACHE_KEY_SYMBOL_NODATA = "SYMBOLS_NODATA"
 const CACHE_KEY_SYMBOL_REDIRECTED = "SYMBOLS_REDIRECTED"
 
-const TABLE_SA_OVERVIEW = "sa_overview"
-const TABLE_SA_FINANCIALS_INCOME = "sa_financials_income"
-const TABLE_SA_FINANCIALS_BALANCE_SHEET = "sa_financials_balance_sheet"
-const TABLE_SA_FINANCIALS_CASH_FLOW = "sa_financials_cash_flow"
-const TABLE_SA_FINANCIALS_RATIOS = "sa_financials_ratios"
-const TABLE_SA_ANALYST_RATINGS = "sa_analyst_ratings"
-const TABLE_SA_SYMBOL_REDIRECT = "sa_symbol_redirect"
 const TABLE_MS_TICKERS = "ms_tickers"
 
 func concatMaps(maps ...map[string]interface{}) (map[string]interface{}, error) {
@@ -70,43 +65,76 @@ func ClearCache() error {
 	return nil
 }
 func DropSchema(schema string) error {
-	file, _ := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	logger := log.New(file, "sdc: ", log.Ldate|log.Ltime)
-	defer file.Close()
-
-	dbLoader := dbloader.NewPGLoader(schema, logger)
+	dbLoader := dbloader.NewPGLoader(schema, sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	dbLoader.DropSchema(schema)
-	return nil
+	return dbLoader.DropSchema(schema)
 }
 
 type JsonFieldMetadata struct {
-	FieldName    string
-	FieldType    reflect.Type
-	FieldJsonTag string
+	FieldName string
+	FieldType reflect.Type
+	FieldTags map[string]string
 }
 
 func GetJsonStructMetadata(jsonStructType reflect.Type) map[string]JsonFieldMetadata {
 	fieldTypeMap := make(map[string]JsonFieldMetadata)
 	for idx := 0; idx < jsonStructType.NumField(); idx++ {
 		field := jsonStructType.Field(idx)
-		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, field.Tag.Get("json")}
+		tagsMap := make(map[string]string, 0)
+		for _, tagKey := range [2]string{"json", "db"} {
+			t, ok := field.Tag.Lookup(tagKey)
+			if ok {
+				tagsMap[tagKey] = t
+			}
+		}
+
+		fieldTypeMap[field.Name] = JsonFieldMetadata{field.Name, field.Type, tagsMap}
 	}
 	return fieldTypeMap
 }
 
 func GetFieldTypeByTag(fieldsMetadata map[string]JsonFieldMetadata, tag string) reflect.Type {
 	for _, v := range fieldsMetadata {
-		if v.FieldJsonTag == tag {
+		if v.FieldTags["json"] == tag {
 			return v.FieldType
 		}
 	}
 
 	return nil
+}
+
+func GetPrimaryKeyFiledNames(fieldsMetadata map[string]JsonFieldMetadata) []string {
+	var names []string
+	for k, v := range fieldsMetadata {
+		if v.FieldTags["db"] == "PrimaryKey" {
+			names = append(names, k)
+		}
+	}
+	return names
+}
+
+func IsKeyField(fieldsMetadata map[string]JsonFieldMetadata, jsonTagValue string) bool {
+	for _, v := range fieldsMetadata {
+		jsonTag, ok := v.FieldTags["json"]
+		if !ok {
+			continue
+		}
+
+		dbTag, ok := v.FieldTags["db"]
+		if !ok {
+			continue
+		}
+
+		if jsonTag == jsonTagValue && dbTag == "PrimaryKey" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func CacheCleanup() {
@@ -118,4 +146,14 @@ func CacheCleanup() {
 	cm.DeleteSet(CACHE_KEY_SYMBOL_REDIRECTED)
 	cm.DeleteSet(CACHE_KEY_SYMBOL_INVALID)
 	cm.Disconnect()
+}
+
+func CountMatches(text string, pattern string) (int, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return 0, err
+	}
+	matches := re.FindAllString(text, -1)
+	fmt.Printf("%v", matches)
+	return len(re.FindAllString(text, -1)), nil
 }

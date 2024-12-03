@@ -14,13 +14,13 @@ import (
 
 type MSCollector struct {
 	dbLoader    dbloader.DBLoader
-	reader      HttpReader
+	reader      IHttpReader
 	logger      *log.Logger
 	dbSchema    string
 	msAccessKey string
 }
 
-func NewMSCollector(loader dbloader.DBLoader, httpReader HttpReader, logger *log.Logger, schema string) *MSCollector {
+func NewMSCollector(loader dbloader.DBLoader, httpReader IHttpReader, logger *log.Logger, schema string) *MSCollector {
 	loader.CreateSchema(schema)
 	loader.Exec("SET search_path TO " + schema)
 	collector := MSCollector{
@@ -117,31 +117,31 @@ func (collector *MSCollector) CollectEOD() error {
 }
 
 // Entry Function
-func CollectTickers(schemaName string, csvFile string) (int64, error) {
-	dbLoader := dbloader.NewPGLoader(schemaName, &sdclogger.SDCLoggerInstance.Logger)
+func CollectTickers(schemaName string, fileJSON string) (int64, error) {
+	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance.Logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-	reader := NewHttpDirectReader()
-	collector := NewMSCollector(dbLoader, reader, &sdclogger.SDCLoggerInstance.Logger, schemaName)
-	if len(csvFile) > 0 {
-		reader, err := os.OpenFile(csvFile, os.O_RDONLY, 0666)
+	reader := NewHttpReader(NewLocalClient())
+	collector := NewMSCollector(dbLoader, reader, sdclogger.SDCLoggerInstance.Logger, schemaName)
+	if len(fileJSON) > 0 {
+		reader, err := os.OpenFile(fileJSON, os.O_RDONLY, 0666)
 		if err != nil {
-			return 0, errors.New("Failed to open file " + csvFile)
+			return 0, errors.New("Failed to open file " + fileJSON)
 		}
 
-		csv, err := io.ReadAll(reader)
+		textJSON, err := io.ReadAll(reader)
 		if err != nil {
-			return 0, errors.New("Failed to read file " + csvFile)
+			return 0, errors.New("Failed to read file " + fileJSON)
 		}
 
 		if err := collector.dbLoader.CreateTableByJsonStruct(TABLE_MS_TICKERS, reflect.TypeFor[Tickers]()); err != nil {
 			return 0, err
 		}
 
-		return collector.LoadTickers(string(csv))
+		return collector.dbLoader.LoadByJsonText(string(textJSON), TABLE_MS_TICKERS, reflect.TypeFor[Tickers]())
 	} else {
 		return collector.CollectTickers()
 	}

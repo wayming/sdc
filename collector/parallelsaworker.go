@@ -1,0 +1,118 @@
+package collector
+
+import (
+	"log"
+	"os"
+
+	"github.com/wayming/sdc/cache"
+	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/dbloader"
+	"github.com/wayming/sdc/sdclogger"
+)
+
+type SAWorker struct {
+	db        dbloader.DBLoader
+	reader    IHttpReader
+	exporters IDataExporter
+	cache     cache.ICacheManager
+	collector *SACollector
+	logger    *log.Logger
+}
+
+type SAWorkerBuilder struct {
+	CommonWorkerBuilder
+}
+
+func (w *SAWorker) Init() error {
+	// Collector
+	w.collector = NewSACollector(w.reader, w.exporters, w.db, w.logger)
+	// if err := w.collector.CreateTables(); err != nil {
+	// 	return err
+	// }
+	return nil
+}
+func (w *SAWorker) Do(symbol string) error {
+	redirectedSymbol, err := w.collector.MapRedirectedSymbol(symbol)
+	if err != nil {
+		return err
+	}
+
+	if len(redirectedSymbol) > 0 {
+		symbol = redirectedSymbol
+	}
+
+	if _, err := w.collector.CollectFinancialOverview(symbol); err != nil {
+		return err
+	}
+
+	if err := w.collector.CollectFinancialDetails(symbol); err != nil {
+		return err
+	}
+	return nil
+}
+func (w *SAWorker) Done() error {
+	return nil
+}
+func (b *SAWorkerBuilder) Default() error {
+	if b.logger == nil {
+		b.logger = sdclogger.SDCLoggerInstance.Logger
+	}
+
+	if b.db == nil {
+		b.db = dbloader.NewPGLoader(config.SchemaName, b.logger)
+		b.db.Connect(os.Getenv("PGHOST"),
+			os.Getenv("PGPORT"),
+			os.Getenv("PGUSER"),
+			os.Getenv("PGPASSWORD"),
+			os.Getenv("PGDATABASE"))
+	}
+
+	if b.exporters == nil {
+		var saExporters DataExporters
+		saExporters.AddExporter(NewDBExporter(b.db, config.SchemaName))
+		saExporters.AddExporter(NewSAFileExporter())
+		b.exporters = &saExporters
+	}
+
+	if b.reader == nil {
+		b.reader = NewHttpReader(NewLocalClient())
+	}
+
+	if b.cache == nil {
+		b.cache = cache.NewCacheManager()
+		b.cache.Connect()
+	}
+
+	// b.TickersJson defaults to nil. Load from database by default.
+
+	return nil
+}
+
+func (b *SAWorkerBuilder) Prepare() error {
+
+	b.Default()
+
+	// Prepare tables
+	c := NewSACollector(b.reader, b.exporters, b.db, b.logger)
+	if err := c.CreateTables(); err != nil {
+		return err
+	}
+
+	b.CommonWorkerBuilder.Prepare()
+	return nil
+}
+
+func (b *SAWorkerBuilder) Build() IWorker {
+	return &SAWorker{
+		db:        b.db,
+		reader:    b.reader,
+		exporters: b.exporters,
+		cache:     b.cache,
+		logger:    b.logger,
+	}
+}
+
+func NewSAWorkerBuilder() IWorkerBuilder {
+	b := SAWorkerBuilder{}
+	return &b
+}

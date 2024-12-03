@@ -1,12 +1,14 @@
-package dbloader
+package dbloader_test
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
+
+	"github.com/wayming/sdc/json2db"
+	testcommon "github.com/wayming/sdc/testcommon"
 
 	_ "github.com/lib/pq"
 )
@@ -61,6 +63,7 @@ const JSON_TEXT2 = `[
 	  "has_intraday": false,
 	  "has_eod": true,
 	  "country": null,
+	  "date": "2024-03-31",
 	  "stock_exchange": {
 		"name": "NASDAQ Stock Exchange",
 		"acronym": "NASDAQ",
@@ -77,6 +80,7 @@ const JSON_TEXT2 = `[
 	  "has_intraday": false,
 	  "has_eod": true,
 	  "country": null,
+	  "date": "2024-06-30",
 	  "stock_exchange": {
 		"name": "NASDAQ Stock Exchange",
 		"acronym": "NASDAQ",
@@ -90,109 +94,60 @@ const JSON_TEXT2 = `[
   ]`
 
 type Tickers struct {
-	Name          string `json:"name"`
-	Symbol        string `json:"symbol"`
-	HasIntraday   bool   `json:"has_intraday"`
-	HasEod        bool   `json:"has_eod"`
-	Country       string `json:"country"`
+	Name          string       `json:"name"`
+	Symbol        string       `json:"symbol"`
+	HasIntraday   bool         `json:"has_intraday"`
+	HasEod        bool         `json:"has_eod"`
+	Country       string       `json:"country"`
+	Date          json2db.Date `json:"date"`
 	StockExchange struct {
 		Name string `json:"name"`
 	} `json:"stock_exchange"`
 }
 
-const SCHEMA_NAME = "sdc_test"
-const LOG_FILE = "logs/dbloaderpg_test.log"
-
-var logger *log.Logger
-var loader *PGLoader
-
-func setup() {
-
-	file, err := os.OpenFile(LOG_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		log.Fatal("Failed to open log file ", LOG_FILE, ". Error: ", err)
-	}
-	logger = log.New(file, "sdctest: ", log.Ldate|log.Ltime)
-	logger.Println("Recreate test schema", SCHEMA_NAME)
-
-	loader = NewPGLoader(SCHEMA_NAME, logger)
-	loader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	loader.DropSchema(SCHEMA_NAME)
-	loader.CreateSchema(SCHEMA_NAME)
-}
-
-func teardown() {
-	defer loader.Disconnect()
-	logger.Println("Drop schema", SCHEMA_NAME, "if exists")
-	loader.DropSchema(SCHEMA_NAME)
-}
-
-func TestMain(m *testing.M) {
-	setup()
-	code := m.Run()
-	teardown()
-	os.Exit(code)
-}
+const TEST_TABLE = "test_tickers"
 
 func TestPGLoader_LoadByJsonText(t *testing.T) {
-	type args struct {
-		jsonText       string
-		tableName      string
-		jsonStructType reflect.Type
-	}
-	tests := []struct {
-		name        string
-		args        args
-		want        int64
-		wantErr     bool
-		wantSymbols []string
-	}{
-		{
-			name: "LoadByJsonText",
-			args: args{
-				jsonText:       JSON_TEXT2,
-				tableName:      "ms_tickers",
-				jsonStructType: reflect.TypeFor[Tickers](),
-			},
-			want:        2,
-			wantErr:     false,
-			wantSymbols: []string{"MSFT", "AAPL1"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := loader.LoadByJsonText(tt.args.jsonText, tt.args.tableName, tt.args.jsonStructType)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PGLoader.LoadByJsonText() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("PGLoader.LoadByJsonText() = %v, want %v", got, tt.want)
-			}
-			results, err := loader.RunQuery("SELECT symbol FROM ms_tickers", tt.args.jsonStructType)
-			if err != nil {
-				t.Errorf("PGLoader.RunQuery() error = %v", err)
-				return
-			}
 
-			tickers, ok := results.([]Tickers)
-			if !ok {
-				t.Errorf("PGLoader.RunQuery() does not return slice of Tickers")
-				return
-			}
+	// Test schema are dropped and recreated for every test case
+	testFixture := testcommon.NewPGTestFixture(t)
+	defer testFixture.Teardown(t)
 
-			var symbols []string
-			for _, ticker := range tickers {
-				symbols = append(symbols, ticker.Symbol)
-			}
-			if !reflect.DeepEqual(sort.StringSlice(symbols), sort.StringSlice(tt.wantSymbols)) {
-				t.Errorf("PGLoader.RunQuery() = %v, want %v", sort.StringSlice(symbols), sort.StringSlice(tt.wantSymbols))
-			}
-			fmt.Println(tickers)
-		})
+	if err := testFixture.Loader().CreateTableByJsonStruct(TEST_TABLE, reflect.TypeFor[Tickers]()); err != nil {
+		t.Errorf("Failed to create table %s. Error: %v", TEST_TABLE, err)
 	}
+
+	fmt.Printf("%s\n", time.Now())
+
+	wantInserts := int64(2)
+	wantSymbols := []string{"MSFT", "AAPL"}
+	t.Run("LoadByJsonText", func(t *testing.T) {
+		got, err := testFixture.Loader().LoadByJsonText(JSON_TEXT2, TEST_TABLE, reflect.TypeFor[Tickers]())
+		if err != nil {
+			t.Errorf("PGLoader.LoadByJsonText() error = %v", err)
+			return
+		}
+		if got != wantInserts {
+			t.Errorf("PGLoader.LoadByJsonText() = %v, want %v", got, wantInserts)
+		}
+		results, err := testFixture.Loader().RunQuery("SELECT symbol FROM test_tickers", reflect.TypeFor[Tickers]())
+		if err != nil {
+			t.Errorf("PGLoader.RunQuery() error = %v", err)
+			return
+		}
+
+		tickers, ok := results.([]Tickers)
+		if !ok {
+			t.Errorf("PGLoader.RunQuery() does not return slice of Tickers")
+			return
+		}
+
+		var symbols []string
+		for _, ticker := range tickers {
+			symbols = append(symbols, ticker.Symbol)
+		}
+		if !reflect.DeepEqual(sort.StringSlice(symbols), sort.StringSlice(wantSymbols)) {
+			t.Errorf("PGLoader.RunQuery() = %v, want %v", sort.StringSlice(symbols), sort.StringSlice(wantSymbols))
+		}
+	})
 }

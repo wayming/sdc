@@ -2,6 +2,7 @@ package json2db
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -44,136 +45,141 @@ type JsonEntityStruct struct {
 	Field6 Date                   `json:"field6"`
 }
 
-const TEST_SCHEMA = "sdc_test"
 const TEST_TABLE = "json2pg_test"
 
 func TestJsonToPGSQLConverter_CreateTableSQL(t *testing.T) {
-	type args struct {
-		tableName  string
-		entityType reflect.Type
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantSql string
-	}{
-		{
-			name: "CreateTableSQL",
-			args: args{tableName: TEST_TABLE, entityType: reflect.TypeFor[JsonEntityStruct]()},
-			wantSql: `CREATE TABLE IF NOT EXISTS json2pg_test ` +
-				`(field1 varchar(1024), field2 integer, field3 numeric(24, 2), field4 boolean, field5 varchar(1024), field6 timestamp, PRIMARY KEY (field1, field2));`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &JsonToPGSQLConverter{}
-			got, err := d.GenCreateTable(tt.args.tableName, tt.args.entityType)
-			if err != nil {
-				t.Errorf("GenCreateTable returns error %s", err.Error())
-			}
-			if got != tt.wantSql {
-				t.Errorf("JsonToPGSQLConverter.GenCreateTable() = %v, wantSql %v", got, tt.wantSql)
-			}
-		})
-	}
+	wantSql :=
+		`CREATE TABLE IF NOT EXISTS json2pg_test ` +
+			"(field1 varchar(1024), " +
+			"field2 integer, " +
+			"field3 numeric(24, 2), " +
+			"field4 boolean, " +
+			"field5 varchar(1024), " +
+			"field6 timestamp, " +
+			"PRIMARY KEY (field1, field2));"
+
+	t.Run("CreateTableSQL", func(t *testing.T) {
+		got, err := NewJsonToPGSQLConverter().GenCreateTable(TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+		if err != nil {
+			t.Errorf("GenCreateTable returns error %s", err.Error())
+		}
+		if got != wantSql {
+			t.Errorf("JsonToPGSQLConverter.GenCreateTable() = %v, wantSql %v", got, wantSql)
+		}
+	})
 }
 
-func TestJsonToPGSQLConverter_GenBulkInsert(t *testing.T) {
-	type args struct {
-		jsonText         string
-		tableName        string
-		entityStructType reflect.Type
+func TestJsonToPGSQLConverter_ExtractFieldData(t *testing.T) {
+	wantKeyCols := map[string]reflect.Type{
+		"Field1": reflect.TypeFor[string](),
+		"Field2": reflect.TypeFor[int](),
 	}
+	wantNonKeyCols := map[string]reflect.Type{
+		"Field3": reflect.TypeFor[float64](),
+		"Field4": reflect.TypeFor[bool](),
+		"Field5": reflect.TypeFor[NestedJsonEntityStruct](),
+		"Field6": reflect.TypeFor[Date](),
+	}
+	t.Run("ExtractFieldData", func(t *testing.T) {
+		gotKeyCols, gotNonKeyCols := NewJsonToPGSQLConverter().ExtractFieldData(reflect.TypeFor[JsonEntityStruct]())
+		if !reflect.DeepEqual(gotKeyCols, wantKeyCols) {
+			t.Errorf("JsonToPGSQLConverter.ExtractFieldData() got key colmns = %v, want %v", gotKeyCols, wantKeyCols)
+		}
+		if !reflect.DeepEqual(gotNonKeyCols, wantNonKeyCols) {
+			t.Errorf("JsonToPGSQLConverter.ExtractFieldData() got key colmns = %v, want %v", gotNonKeyCols, wantNonKeyCols)
+		}
+	})
+}
+
+func TestJsonToPGSQLConverter_ExtractValues(t *testing.T) {
 	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
 	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
 	date1 := Date{time1}
 	date2 := Date{time2}
-	tests := []struct {
-		name       string
-		d          *JsonToPGSQLConverter
-		args       args
-		wantFields []string
-		wantValues [][]interface{}
-		wantErr    bool
-	}{
-		{
-			name: "GenBulkInsert",
-			d:    NewJsonToPGSQLConverter(),
-			args: args{
-				jsonText:         JSON_TEXT,
-				tableName:        TEST_TABLE,
-				entityStructType: reflect.TypeFor[JsonEntityStruct](),
-			},
-			wantFields: []string{"field1", "field2", "field3", "field4", "field5", "field6"},
-			wantValues: [][]interface{}{
-				{"strVal", 10, 1.0, false, "strVal2", date1},
-				{"strVal3", 20, 2.0, true, "strVal2", date2},
-			},
-		},
+	wantRows := [][]interface{}{
+		{"strVal", 10, 1.0, false, "strVal2", date1},
+		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &JsonToPGSQLConverter{}
-			gotFields, gotValues, err := d.GenBulkInsert(tt.args.jsonText, tt.args.tableName, tt.args.entityStructType)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotFields, tt.wantFields) {
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotFields, tt.wantFields)
-			}
-			if !reflect.DeepEqual(gotValues, tt.wantValues) {
-				t.Errorf("JsonToPGSQLConverter.GenBulkInsert() got = %v, want %v", gotValues, tt.wantValues)
-			}
-		})
-	}
+	t.Run("ExtractValues", func(t *testing.T) {
+		gotRows, err := NewJsonToPGSQLConverter().ExtractValues(JSON_TEXT, reflect.TypeFor[JsonEntityStruct]())
+		if err != nil {
+			t.Errorf("JsonToPGSQLConverter.ExtractValues() error = %v", err)
+			return
+		}
+		if !reflect.DeepEqual(gotRows, wantRows) {
+			t.Errorf("JsonToPGSQLConverter.ExtractValues() all rows got = %v, want %v", gotRows, wantRows)
+		}
+	})
 }
 
-func TestJsonToPGSQLConverter_GenInsert(t *testing.T) {
-	type args struct {
-		jsonText         string
-		tableName        string
-		entityStructType reflect.Type
-	}
-	tests := []struct {
-		name            string
-		d               *JsonToPGSQLConverter
-		args            args
-		wantSQL         string
-		wantFieldValues [][]interface{}
-		wantErr         bool
-	}{
-		{
-			name: "GenInsert",
-			d:    NewJsonToPGSQLConverter(),
-			args: args{
-				jsonText:         JSON_TEXT,
-				tableName:        TEST_TABLE,
-				entityStructType: reflect.TypeFor[JsonEntityStruct](),
-			},
-			wantSQL: "INSERT INTO json2pg_test (field1, field2, field3, field4, field5) " +
-				"VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
-			wantFieldValues: [][]interface{}{
-				{"strVal", 10, 1.0, false, "strVal2"},
-				{"strVal3", 20, 2.0, true, "strVal2"},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &JsonToPGSQLConverter{}
-			got, got1, err := d.GenInsert(tt.args.jsonText, tt.args.tableName, tt.args.entityStructType)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("JsonToPGSQLConverter.GenInsert() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.wantSQL {
-				t.Errorf("JsonToPGSQLConverter.GenInsert() got = %v, wantSQL %v", got, tt.wantSQL)
-			}
+func TestJsonToPGSQLConverter_GenInsertSQL(t *testing.T) {
 
-			if !reflect.DeepEqual(got1, tt.wantFieldValues) {
-				t.Errorf("JsonToPGSQLConverter.GenInsert() got1 = %v, wantFieldValues %v", got1, tt.wantFieldValues)
-			}
-		})
+	time1, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-10-31 00:00:00 +0000 UTC")
+	time2, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2015-07-31 00:00:00 +0000 UTC")
+	date1 := Date{time1}
+	date2 := Date{time2}
+	wantSQL := `
+INSERT INTO json2pg_test (
+	field1, field2, field3, field4, field5, field6
+)
+VALUES (
+	$1, $2, $3, $4, $5, $6
+) ON CONFLICT (
+	field1, field2
+) DO UPDATE SET
+	field1 = EXCLUDED.field1,
+	field2 = EXCLUDED.field2,
+	field3 = EXCLUDED.field3,
+	field4 = EXCLUDED.field4,
+	field5 = EXCLUDED.field5,
+	field6 = EXCLUDED.field6
+`
+	wantRows := [][]interface{}{
+		{"strVal", 10, 1.0, false, "strVal2", date1},
+		{"strVal3", 20, 2.0, true, "strVal2", date2},
 	}
+	t.Run("GenInsertSQL", func(t *testing.T) {
+		gotSQL, gotRows, err := NewJsonToPGSQLConverter().GenInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+		if err != nil {
+			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() error = %v", err)
+			return
+		}
+		if strings.TrimSpace(gotSQL) != strings.TrimSpace(wantSQL) {
+			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotSQL = %v, wantSQL %v", gotSQL, wantSQL)
+		}
+
+		if !reflect.DeepEqual(gotRows, wantRows) {
+			t.Errorf("JsonToPGSQLConverter.GenInsertSQL() gotRows = %v, wantRows %v", gotRows, wantRows)
+		}
+	})
+}
+
+func TestJsonToPGSQLConverter_GenBulkInsertSQL(t *testing.T) {
+	wantSQL := `
+INSERT INTO json2pg_test (
+	field1, field2, field3, field4, field5, field6
+)
+VALUES
+	('strVal', 10, 1, false, 'strVal2', '2015-10-31 00:00:00 +0000 UTC'),
+	('strVal3', 20, 2, true, 'strVal2', '2015-07-31 00:00:00 +0000 UTC')
+ON CONFLICT (
+	field1, field2
+) DO UPDATE SET
+	field1 = EXCLUDED.field1,
+	field2 = EXCLUDED.field2,
+	field3 = EXCLUDED.field3,
+	field4 = EXCLUDED.field4,
+	field5 = EXCLUDED.field5,
+	field6 = EXCLUDED.field6
+`
+	t.Run("GenBulkInsertSQL", func(t *testing.T) {
+		gotSQL, err := NewJsonToPGSQLConverter().GenBulkInsertSQL(JSON_TEXT, TEST_TABLE, reflect.TypeFor[JsonEntityStruct]())
+		if err != nil {
+			t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQL() error = %v", err)
+			return
+		}
+		if strings.TrimSpace(gotSQL) != strings.TrimSpace(wantSQL) {
+			t.Errorf("JsonToPGSQLConverter.GenBulkInsertSQL() gotSQL = %v, wantSQL %v", gotSQL, wantSQL)
+		}
+	})
 }

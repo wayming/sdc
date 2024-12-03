@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/json2db"
 )
 
@@ -61,23 +61,15 @@ func (loader *PGLoader) CreateSchema(schema string) {
 	loader.Exec("SET search_path TO " + schema)
 }
 
-func (loader *PGLoader) DropSchema(schema string) {
+func (loader *PGLoader) DropSchema(schema string) error {
 	loader.schema = schema
 	DropSchemaSQL := loader.sqlConverter.GenDropSchema(schema)
-	if _, err := loader.db.Exec(DropSchemaSQL); err != nil {
-		loader.logger.Fatal("Failed to execute SQL ", DropSchemaSQL, ". Error ", err)
-	} else {
-		loader.logger.Println("Execute SQL: ", DropSchemaSQL)
+	_, err := loader.db.Exec(DropSchemaSQL)
+	if err != nil {
+		loader.logger.Printf("Failed to execute SQL %s. Error %v", DropSchemaSQL, err)
 	}
-}
-
-func ExistsInSlice(s []string, e string) bool {
-	for _, one := range s {
-		if e == one {
-			return true
-		}
-	}
-	return false
+	loader.logger.Println("Execute SQL: ", DropSchemaSQL)
+	return err
 }
 
 func (loader *PGLoader) Exec(sql string) error {
@@ -113,7 +105,7 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 			rowValue := reflect.New(structType).Elem()
 			fields := make([]interface{}, 0)
 			for i := 0; i < structType.NumField(); i++ {
-				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+				if common.Contains(columns, strings.ToLower(structType.Field(i).Name)) {
 					fields = append(fields, rowValue.Field(i).Addr().Interface())
 				}
 			}
@@ -135,7 +127,7 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 			rowValue := reflect.New(structType).Elem()
 			fields := make([]interface{}, 0)
 			for i := 0; i < structType.NumField(); i++ {
-				if ExistsInSlice(columns, strings.ToLower(structType.Field(i).Name)) {
+				if common.Contains(columns, strings.ToLower(structType.Field(i).Name)) {
 					fields = append(fields, rowValue.Field(i).Addr().Interface())
 				}
 			}
@@ -150,17 +142,6 @@ func (loader *PGLoader) RunQuery(sql string, structType reflect.Type, args ...an
 	return sliceValue.Interface(), nil
 }
 
-func joinInterfaceSlice(slice []interface{}, sep string) string {
-	// Convert each element to string and append to a slice of strings
-	var strSlice []string
-	for _, v := range slice {
-		strSlice = append(strSlice, fmt.Sprintf("%v", v))
-	}
-
-	// Join the slice of strings with the separator
-	return strings.Join(strSlice, sep)
-}
-
 func (loader *PGLoader) CreateTableByJsonStruct(tableName string, jsonStructType reflect.Type) error {
 	converter := json2db.NewJsonToPGSQLConverter()
 
@@ -173,6 +154,7 @@ func (loader *PGLoader) CreateTableByJsonStruct(tableName string, jsonStructType
 
 	tx, _ := loader.db.Begin()
 	if _, err := tx.Exec(tableCreateSQL); err != nil {
+		tx.Rollback()
 		return errors.New("Failed to execute SQL " + tableCreateSQL + ". Error: " + err.Error())
 	} else {
 		loader.logger.Println("Execute SQL: ", tableCreateSQL)
@@ -188,66 +170,59 @@ func (loader *PGLoader) LoadByJsonText(jsonText string, tableName string, jsonSt
 		loader.logger.Fatal("Schema must be created first")
 	}
 
+	// Query to get the current search_path
+	var searchPath string
+	err := loader.db.QueryRow("SHOW search_path").Scan(&searchPath)
+	if err != nil {
+		loader.logger.Fatalf("database QueryRow failed: %v", err)
+	}
+	loader.logger.Printf("Current search_path: %s, loader database schema: %s\n", searchPath, loader.schema)
+
 	converter := json2db.NewJsonToPGSQLConverter()
 
 	// Insert
-	fields, rows, err := converter.GenBulkInsert(jsonText, tableName, jsonStructType)
-	if err != nil || len(rows) == 0 {
+	sql, err := converter.GenBulkInsertSQL(jsonText, tableName, jsonStructType)
+	if err != nil {
 		loader.logger.Println("Failed to generate bulk insert SQL. Error: " + err.Error())
-
 		return 0, err
 	}
 
 	// Start a transaction
 	tx, err := loader.db.Begin()
 	if err != nil {
+		tx.Rollback()
 		return 0, errors.New("Failed to start transaction . Error: " + err.Error())
 	}
 
-	// conflictResolution := " ON CONFLICT DO UPDATE SET "
-	// for idx, field := range fields {
-	// 	conflictResolution += field + " = EXCLUDED." + field
-	// 	if idx < len(fields)-1 {
-	// 		conflictResolution += ","
-	// 	}
-	// }
-
-	prepareSQL := pq.CopyIn(tableName, fields...)
-	stmt, err := tx.Prepare(prepareSQL)
+	loader.logger.Printf("Execute SQL %s", sql)
+	result, err := tx.Exec(sql)
 	if err != nil {
 		tx.Rollback()
-		return 0, fmt.Errorf("failed to prepare CopyIn statement. SQL: %s Error: %s", prepareSQL, err.Error())
+		return 0, fmt.Errorf("failed to execute sql %s. Error: %v", sql, err)
 	}
 
-	for _, row := range rows {
-		loader.logger.Printf("Execute INSERT: fields[%s], row[%s]", strings.Join(fields, ","), joinInterfaceSlice(row, ","))
-		_, err := stmt.Exec(row...)
-		if err != nil {
-			tx.Rollback()
-			return 0, errors.New("Failed to Exec row " + ". Error: " + err.Error())
-		}
-	}
-
-	// Flush
-	_, err = stmt.Exec()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to execute CopyIn statement. Error: %s", err.Error())
-		loader.logger.Printf(errMsg)
-		return 0, errors.New(errMsg)
-
-	}
-
-	err = stmt.Close()
-	if err != nil {
-		loader.logger.Printf("Close error %s\n", err.Error())
+		tx.Rollback()
+		return 0, fmt.Errorf("failed to get number of affected rows. Error: %v", err)
 	}
 
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to commit CopyIn statement. Error: %s", err.Error())
-		loader.logger.Printf(errMsg)
-		return 0, errors.New(errMsg)
+
+		return 0, fmt.Errorf("failed to commit. Error: %s", err.Error())
 	}
-	return int64(len(rows)), nil
+	return rowsAffected, nil
 }
+
+// func joinInterfaceSlice(slice []interface{}, sep string) string {
+// 	// Convert each element to string and append to a slice of strings
+// 	var strSlice []string
+// 	for _, v := range slice {
+// 		strSlice = append(strSlice, fmt.Sprintf("%v", v))
+// 	}
+
+// 	// Join the slice of strings with the separator
+// 	return strings.Join(strSlice, sep)
+// }
