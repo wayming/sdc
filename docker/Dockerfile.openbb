@@ -1,4 +1,5 @@
-FROM python:3.10-slim-bookworm
+#FROM python:3.10-slim-bookworm
+FROM ubuntu/python:3.12-24.04_stable
 
 WORKDIR /app
 
@@ -7,4 +8,4 @@ RUN pip install openbb-platform-api
 
 EXPOSE 6900
 
-ENTRYPOINT ["openbb-api", "--host", "0.0.0.0", "--login"]
+ENTRYPOINT ["openbb-api", "--host", "0.0.0.0", "--port", "6900"]

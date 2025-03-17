@@ -16,7 +16,7 @@ import (
 
 type IWorker interface {
 	Init() error
-	Do(symbol string) error
+	Do(IWorkItem) error
 	Done() error
 }
 
@@ -30,6 +30,7 @@ type IWorkerBuilder interface {
 	Default() error
 	Prepare() error
 	Build() IWorker
+	NewWorker() (IWorker, error)
 }
 
 type CommonWorkerBuilder struct {
