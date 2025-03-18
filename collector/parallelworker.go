@@ -17,14 +17,14 @@ type ParallelWorker struct {
 }
 
 type IWorkItem interface {
-	str() string
+	ToString() string
 }
 
 type IWorkItemManager interface {
 	Next() (IWorkItem, error)
-	Remove(IWorkItem) error
 	Size() int
-	HandleError(error)
+	OnProcessError(IWorkItem, error) error
+	OnProcessSuccess(IWorkItem) error
 	Summary() string
 }
 type Request struct {
@@ -149,7 +149,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 		nProcessed++
 		if resp.err != nil {
 			sdclogger.SDCLoggerInstance.Printf("Failed to process work item %s. Error %s", resp.wi.str(), resp.err)
-			pw.wim.HandleError(resp.err)
+			pw.wim.OnProcessError(resp.wi, resp.err)
 		} else {
 			nSucceeded++
 		}
