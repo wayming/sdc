@@ -83,8 +83,7 @@ func (pc *ParallelCollector) workerRoutine(
 
 		// Build worker
 		builder.WithLogger(logger)
-		builder.Default()
-		worker := builder.Build()
+		worker, _ := builder.NewWorker()
 
 		if err := worker.Init(); err != nil {
 			logMessage(err.Error())

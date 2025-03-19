@@ -20,6 +20,12 @@ type IWorker interface {
 	Done() error
 }
 
+type PCParams struct {
+	IsContinue  bool
+	TickersJSON string
+	ProxyFile   string
+}
+
 type IWorkerBuilder interface {
 	WithLogger(l *log.Logger)
 	WithDB(db dbloader.DBLoader)
@@ -27,9 +33,7 @@ type IWorkerBuilder interface {
 	WithReader(r IHttpReader)
 	WithParams(p *PCParams)
 	WithCache(cm cache.ICacheManager)
-	Default() error
 	Prepare() error
-	Build() IWorker
 	NewWorker() (IWorker, error)
 }
 

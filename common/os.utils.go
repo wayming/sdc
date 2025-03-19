@@ -9,4 +9,5 @@ func CreateDirIfNotExists(dir string) error {
 			return err
 		}
 	}
+	return nil
 }

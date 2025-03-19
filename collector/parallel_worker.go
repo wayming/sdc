@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/sdclogger"
 )
 
@@ -22,7 +23,7 @@ type IWorkItem interface {
 
 type IWorkItemManager interface {
 	Next() (IWorkItem, error)
-	Size() int
+	Size() (int64, error)
 	OnProcessError(IWorkItem, error) error
 	OnProcessSuccess(IWorkItem) error
 	Summary() string
@@ -69,7 +70,7 @@ func (pw *ParallelWorker) workerRoutine(
 			var r Request
 			select {
 			case r = <-inChan:
-				logMessage("Begin processing [" + r.wi.str() + "]")
+				logMessage("Begin processing [" + r.wi.ToString() + "]")
 			default:
 				logMessage("All work items are processed")
 				complete = true
@@ -82,11 +83,11 @@ func (pw *ParallelWorker) workerRoutine(
 			if err := worker.Do(r.wi); err != nil {
 				logMessage(err.Error())
 				outChan <- Response{r.wi, err}
-				logMessage("End processing [" + r.wi.str() + "].")
+				logMessage("End processing [" + r.wi.ToString() + "].")
 				break
 			} else {
 				outChan <- Response{r.wi, nil}
-				logMessage("End processing [" + r.wi.str() + "]. Succeeded.")
+				logMessage("End processing [" + r.wi.ToString() + "]. Succeeded.")
 				continue
 			}
 		}
@@ -108,7 +109,7 @@ func (pw *ParallelWorker) workerRoutine(
 }
 func (pw *ParallelWorker) Execute(parallel int) error {
 
-	nAll := pw.wim.Size()
+	nAll, _ := pw.wim.Size()
 	summary := "\nResults Summary:\n"
 
 	var wg sync.WaitGroup
@@ -123,7 +124,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 				break // Exit on error
 			}
 
-			sdclogger.SDCLoggerInstance.Printf("Push %s into [input] channel.", wi.str())
+			sdclogger.SDCLoggerInstance.Printf("Push %s into [input] channel.", wi.ToString())
 			inChan <- Request{wi}
 		}
 	}()
@@ -148,7 +149,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 	for resp := range outChan {
 		nProcessed++
 		if resp.err != nil {
-			sdclogger.SDCLoggerInstance.Printf("Failed to process work item %s. Error %s", resp.wi.str(), resp.err)
+			sdclogger.SDCLoggerInstance.Printf("Failed to process work item %s. Error %s", resp.wi.ToString(), resp.err)
 			pw.wim.OnProcessError(resp.wi, resp.err)
 		} else {
 			nSucceeded++
@@ -161,4 +162,13 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 	sdclogger.SDCLoggerInstance.Println(pw.wim.Summary())
 
 	return nil
+}
+
+func NewParallelSAPageExporter() ParallelWorker {
+
+	return ParallelWorker{
+		wb:       &SAPageWorkBuilder{},
+		wim:      &SAPageWorkItemManager{cache: cache.NewCacheManager()},
+		nThreads: 2,
+	}
 }
