@@ -107,7 +107,7 @@ func (se *SAPageDownloader) Do(wi IWorkItem) error {
 	url := "https://stockanalysis.com/stocks/" + strings.ToLower(swi.symbol) + "/financials/?p=quarterly"
 	file := dir + "/" + "financial_income.html"
 	if err := se.ExportSAPage(url, file); err != nil {
-		return fmt.Errorf("Failed to download page %s, error %v", url, err)
+		return fmt.Errorf("failed to download page %s, error %v", url, err)
 	}
 	return nil
 }

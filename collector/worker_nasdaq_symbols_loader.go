@@ -1,8 +1,12 @@
 // Load the downloaded file of https://www.nasdaq.com/market-activity/stocks/screener
+// CSV Formats:
+// Symbol || Name || Last Sale || Net Change % Change || Market Cap || Country || IPO Year || Volume || Sector || Industry
+
 // Remove the duplicate stocks
 package collector
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -16,10 +20,12 @@ import (
 type NDSymbolsLoaderWorkItem struct {
 	symbol    string
 	tickerRow string
+	keys      []string
 }
 
 type NDSymbolsLoaderWorkItemManager struct {
 	tickers    map[string]string
+	keys       []string
 	nProcessed int
 	nSucceeded int
 	nFailed    int
@@ -68,8 +74,14 @@ func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
 		return nil, fmt.Errorf("failed to read file %s. Error: %v", fname, err)
 	}
 	rows := strings.Split(string(data), "\n")
-	tickers, _ := RemoveDuplicateRows(rows)
-	return &NDSymbolsLoaderWorkItemManager{tickers: tickers}, nil
+	// head line
+	var keys []string
+	fieldNames := strings.Split(rows[0], ",")
+	for _, fieldName := range fieldNames {
+		keys = append(keys, strings.TrimSpace(fieldName))
+	}
+	tickers, _ := RemoveDuplicateRows(rows[1:])
+	return &NDSymbolsLoaderWorkItemManager{tickers: tickers, keys: keys}, nil
 }
 
 func (wi NDSymbolsLoaderWorkItem) ToString() string {
@@ -83,7 +95,7 @@ func (wim *NDSymbolsLoaderWorkItemManager) Next() (IWorkItem, error) {
 
 	for symbol, row := range wim.tickers {
 		wim.nProcessed++
-		return &NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row}, nil
+		return &NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row, keys: wim.keys}, nil
 	}
 
 	return nil, fmt.Errorf("no ticker to return")
@@ -127,11 +139,30 @@ func (sl *NDSymbolsLoader) Init() error {
 }
 
 func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
-	_, ok := wi.(NDSymbolsLoaderWorkItem)
+	ndwi, ok := wi.(NDSymbolsLoaderWorkItem)
 	if !ok {
 		return fmt.Errorf("failed to convert the work item to NDSymbolsLoader work item")
 	}
 
+	fields := strings.Split(ndwi.tickerRow, ",")
+	if len(fields) != len(ndwi.keys) {
+		return fmt.Errorf("inconsistent keys and values found from %s. Expected keys %v", ndwi.symbol, ndwi.keys)
+	}
+
+	extractedData := make(map[string]string)
+	structType := NDSymDataTypes[ND_TICKERS]
+	for idx, key := range ndwi.keys {
+		_, ok := structType.FieldByName(key)
+		if ok {
+			extractedData[key] = fields[idx]
+		}
+	}
+	jsonText, err := json.Marshal(extractedData)
+	if err != nil {
+		return err
+	}
+
+	sl.exporter.Export(NDSymDataTypes[ND_TICKERS], NDSymDataTables[ND_TICKERS], string(jsonText), ndwi.symbol)
 	return nil
 }
 
