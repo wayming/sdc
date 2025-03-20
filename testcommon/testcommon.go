@@ -11,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/collector"
+	"github.com/wayming/sdc/collector/mocks"
 	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
@@ -78,18 +79,54 @@ func (f *PGTestFixture) Loader() dbloader.DBLoader {
 
 // Text fixture with db and cache mock
 type MockTestFixture struct {
-	mockCtl   *gomock.Controller
-	dbMock    *dbloader.MockDBLoader
-	cacheMock *cache.MockICacheManager
-	logger    *log.Logger
-	reader    collector.IHttpReader
-	exporter  collector.IDataExporter
+	mockCtl *gomock.Controller
+	test    *testing.T
+
+	dbMock       *dbloader.MockDBLoader
+	cacheMock    *cache.MockICacheManager
+	exporterMock *mocks.MockIDataExporter
+	logger       *log.Logger
+	reader       collector.IHttpReader
 }
 
 func NewMockTestFixture(t *testing.T) *MockTestFixture {
 	var f MockTestFixture
-	f.Setup(t)
+	f.mockCtl = gomock.NewController(t)
+	f.test = t
 	return &f
+}
+
+func (f *MockTestFixture) WithLogger() *MockTestFixture {
+	f.logger = TestLogger(f.test.Name())
+	f.logger.Printf("setup test %s", f.test.Name())
+	return f
+}
+
+func (f *MockTestFixture) WithDBMock() *MockTestFixture {
+	f.dbMock = dbloader.NewMockDBLoader(f.mockCtl)
+	f.dbMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
+	f.dbMock.EXPECT().
+		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName))).
+		AnyTimes()
+	f.dbMock.EXPECT().Disconnect().AnyTimes()
+	return f
+}
+
+func (f *MockTestFixture) WithCacheMock() *MockTestFixture {
+	f.cacheMock = cache.NewMockICacheManager(f.mockCtl)
+	f.cacheMock.EXPECT().Connect().AnyTimes()
+	f.cacheMock.EXPECT().Disconnect().AnyTimes()
+	return f
+}
+
+func (f *MockTestFixture) WithHttpReader() *MockTestFixture {
+	f.reader = collector.NewHttpReader(collector.NewLocalClient())
+	return f
+}
+
+func (f *MockTestFixture) WithExportMock() *MockTestFixture {
+	f.exporterMock = mocks.NewMockIDataExporter(f.mockCtl)
+	return f
 }
 
 func (f *MockTestFixture) Setup(t *testing.T) {
@@ -109,8 +146,6 @@ func (f *MockTestFixture) Setup(t *testing.T) {
 	f.cacheMock.EXPECT().Disconnect().AnyTimes()
 
 	f.reader = collector.NewHttpReader(collector.NewLocalClient())
-
-	f.exporter = collector.NewDBExporter(f.dbMock, config.SchemaName)
 }
 func (f *MockTestFixture) Teardown(t *testing.T) {
 	f.logger.Printf("teardown test %s", t.Name())
@@ -128,14 +163,14 @@ func (m *MockTestFixture) DBMock() *dbloader.MockDBLoader {
 func (m *MockTestFixture) CacheMock() *cache.MockICacheManager {
 	return m.cacheMock
 }
+func (m *MockTestFixture) ExporterMock() *mocks.MockIDataExporter {
+	return m.exporterMock
+}
 func (m *MockTestFixture) Logger() *log.Logger {
 	return m.logger
 }
 func (m *MockTestFixture) Reader() collector.IHttpReader {
 	return m.reader
-}
-func (m *MockTestFixture) Exporter() collector.IDataExporter {
-	return m.exporter
 }
 
 func SetupTest(testName string) {

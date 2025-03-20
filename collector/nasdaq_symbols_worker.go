@@ -170,3 +170,26 @@ func (sl *NDSymbolsLoader) Done() error {
 	// Do nothing
 	return nil
 }
+
+// NewNDSymbolsLoaderWorkItem creates and returns a new NDSymbolsLoaderWorkItem instance.
+func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) *NDSymbolsLoaderWorkItem {
+	return &NDSymbolsLoaderWorkItem{
+		symbol:    symbol,
+		tickerRow: tickerRow,
+		keys:      keys,
+	}
+}
+
+// NewNDSymbolsLoader creates and returns a new NDSymbolsLoader instance.
+func NewNDSymbolsLoader(exporter IDataExporter, logger *log.Logger, exportDir string) *NDSymbolsLoader {
+	return &NDSymbolsLoader{
+		exporter:  exporter,
+		logger:    logger,
+		exportDir: exportDir,
+	}
+}
+
+// NewNDSymbolsLoaderBuilder creates and returns a new NDSymbolsLoaderBuilder instance.
+func NewNDSymbolsLoaderBuilder() *NDSymbolsLoaderBuilder {
+	return &NDSymbolsLoaderBuilder{}
+}

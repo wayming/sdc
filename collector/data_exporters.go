@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"time"
 
-	"github.com/wayming/sdc/common"
-	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
@@ -42,16 +39,6 @@ func NewSAFileExporter() *FileExporter {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 	return &FileExporter{path: dir}
-}
-
-func NewSymbolsFileExporter() *FileExporter {
-	dateStr := time.Now().Format("20060102")
-	exportPath := config.DataDir + "/" + dateStr + "/tickers"
-
-	if err := common.CreateDirIfNotExists(exportPath); err != nil {
-		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", exportPath, err)
-	}
-	return &FileExporter{path: exportPath}
 }
 
 func (e FileExporter) Export(entityType reflect.Type, table string, data string, symbol string) error {
