@@ -38,7 +38,7 @@ type NDSymbolsLoader struct {
 }
 
 type NDSymbolsLoaderBuilder struct {
-	CommonWorkerBuilder
+	BaseWorkerBuilder
 }
 
 func RemoveDuplicateRows(inData []string) (map[string]string, error) {
@@ -80,7 +80,10 @@ func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
 	for _, fieldName := range fieldNames {
 		keys = append(keys, strings.TrimSpace(fieldName))
 	}
-	tickers, _ := RemoveDuplicateRows(rows[1:])
+	tickers, err := RemoveDuplicateRows(rows[1:])
+	if err != nil {
+		return nil, err
+	}
 	return &NDSymbolsLoaderWorkItemManager{tickers: tickers, keys: keys}, nil
 }
 
@@ -192,4 +195,8 @@ func NewNDSymbolsLoader(exporter IDataExporter, logger *log.Logger, exportDir st
 // NewNDSymbolsLoaderBuilder creates and returns a new NDSymbolsLoaderBuilder instance.
 func NewNDSymbolsLoaderBuilder() *NDSymbolsLoaderBuilder {
 	return &NDSymbolsLoaderBuilder{}
+}
+
+func NewParallelNDSymbolsLoader(wb IWorkerBuilder, wim IWorkItemManager) *ParallelWorker {
+	return &ParallelWorker{wb: wb, wim: wim}
 }

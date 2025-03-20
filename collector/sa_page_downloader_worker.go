@@ -29,7 +29,7 @@ type SAPageDownloader struct {
 }
 
 type SAPageWorkBuilder struct {
-	CommonWorkerBuilder
+	BaseWorkerBuilder
 }
 
 func (swi SAPageWorkItem) ToString() string {

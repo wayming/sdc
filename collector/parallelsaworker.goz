@@ -20,7 +20,7 @@ type SAWorker struct {
 }
 
 type SAWorkerBuilder struct {
-	CommonWorkerBuilder
+	BaseWorkerBuilder
 }
 
 func (w *SAWorker) Init() error {
@@ -98,7 +98,7 @@ func (b *SAWorkerBuilder) Prepare() error {
 		return err
 	}
 
-	b.CommonWorkerBuilder.Prepare()
+	b.BaseWorkerBuilder.Prepare()
 	return nil
 }
 

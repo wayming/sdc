@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/wayming/sdc/collector"
+	"github.com/wayming/sdc/common"
 	testcommon "github.com/wayming/sdc/testcommon"
 )
 
@@ -79,6 +80,41 @@ func TestNDSymbolsLoader_Do(t *testing.T) {
 		if err := sl.Do(*wi); err != nil {
 			t.Errorf("NDSymbolsLoader.Do() error = %v", err)
 		}
+	})
+
+}
+
+func TestParallelNDSymbolsLoader(t *testing.T) {
+	t.Run("TestNDSymbolsLoader_Do", func(t *testing.T) {
+		fixture := testcommon.NewMockTestFixture(t).WithExportMock()
+
+		// Generate CSV file
+		lines := []string{
+			`Symbol,Name,Last Sale,Net Change,% Change,Market Cap,Country,IPO Year,Volume,Sector,Industry`,
+			`A,Agilent Technologies Inc. Common Stock,$117.33,-2.52,-2.103%,33451101786.00,United States,1999,1984761,Industrials,Biotechnology: Laboratory Analytical Instruments`,
+			`AA,Alcoa Corporation Common Stock ,$32.31,-0.94,-2.827%,8364552928.00,United States,2016,5503468,Industrials,Aluminum`,
+		}
+		csvFile := "tests/TestParallelNDSymbolsLoader.csv"
+		if err := common.WriteLinesToFile(lines, csvFile); err != nil {
+			t.Errorf("Failed to write file %s. Error: %v", csvFile, err)
+		}
+
+		wb := collector.NewNDSymbolsLoaderBuilder()
+		wb.WithLogger(fixture.Logger()).WithExporter(fixture.ExporterMock())
+
+		wim, err := collector.NewNDSymbolsLoaderWorkItemManager(csvFile)
+		if err != nil {
+			t.Errorf("Failed to create work item manager. Error: %v", err)
+		}
+
+		parallelLoader := collector.NewParallelNDSymbolsLoader(wb, wim)
+		expectJson := `{"Country":"United States","IPOYear":"2002","Industry":"Investment Managers","Name":"Federated Hermes Premier Municipal Income Fund","Sector":"Finance","Symbol":"FMN"}`
+		fixture.ExporterMock().EXPECT().Export(
+			collector.NDSymDataTypes[collector.ND_TICKERS],
+			collector.NDSymDataTables[collector.ND_TICKERS],
+			expectJson, "FMN")
+
+		parallelLoader.Execute(1)
 	})
 
 }

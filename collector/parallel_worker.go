@@ -12,9 +12,8 @@ import (
 )
 
 type ParallelWorker struct {
-	wb       IWorkerBuilder
-	wim      IWorkItemManager
-	nThreads int
+	wb  IWorkerBuilder
+	wim IWorkItemManager
 }
 
 type IWorkItem interface {
@@ -167,8 +166,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 func NewParallelSAPageExporter() ParallelWorker {
 
 	return ParallelWorker{
-		wb:       &SAPageWorkBuilder{},
-		wim:      &SAPageWorkItemManager{cache: cache.NewCacheManager()},
-		nThreads: 2,
+		wb:  &SAPageWorkBuilder{},
+		wim: &SAPageWorkItemManager{cache: cache.NewCacheManager()},
 	}
 }

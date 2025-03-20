@@ -27,17 +27,17 @@ type PCParams struct {
 }
 
 type IWorkerBuilder interface {
-	WithLogger(l *log.Logger)
-	WithDB(db dbloader.DBLoader)
-	WithExporter(exp IDataExporter)
-	WithReader(r IHttpReader)
-	WithParams(p *PCParams)
-	WithCache(cm cache.ICacheManager)
+	WithLogger(l *log.Logger) IWorkerBuilder
+	WithDB(db dbloader.DBLoader) IWorkerBuilder
+	WithExporter(exp IDataExporter) IWorkerBuilder
+	WithReader(r IHttpReader) IWorkerBuilder
+	WithParams(p *PCParams) IWorkerBuilder
+	WithCache(cm cache.ICacheManager) IWorkerBuilder
 	Prepare() error
 	NewWorker() (IWorker, error)
 }
 
-type CommonWorkerBuilder struct {
+type BaseWorkerBuilder struct {
 	db        dbloader.DBLoader
 	reader    IHttpReader
 	exporters IDataExporter
@@ -46,26 +46,36 @@ type CommonWorkerBuilder struct {
 	Params    *PCParams
 }
 
-func (b *CommonWorkerBuilder) WithLogger(l *log.Logger) {
+func (b *BaseWorkerBuilder) WithLogger(l *log.Logger) IWorkerBuilder {
 	b.logger = l
+	return b
 }
-func (b *CommonWorkerBuilder) WithDB(db dbloader.DBLoader) {
+func (b *BaseWorkerBuilder) WithDB(db dbloader.DBLoader) IWorkerBuilder {
 	b.db = db
+	return b
 }
-func (b *CommonWorkerBuilder) WithExporter(exp IDataExporter) {
+func (b *BaseWorkerBuilder) WithExporter(exp IDataExporter) IWorkerBuilder {
 	b.exporters = exp
+	return b
 }
-func (b *CommonWorkerBuilder) WithReader(r IHttpReader) {
+func (b *BaseWorkerBuilder) WithReader(r IHttpReader) IWorkerBuilder {
 	b.reader = r
+	return b
 }
-func (b *CommonWorkerBuilder) WithParams(p *PCParams) {
+func (b *BaseWorkerBuilder) WithParams(p *PCParams) IWorkerBuilder {
 	b.Params = p
+	return b
 }
-func (b *CommonWorkerBuilder) WithCache(cm cache.ICacheManager) {
+func (b *BaseWorkerBuilder) WithCache(cm cache.ICacheManager) IWorkerBuilder {
 	b.cache = cm
+	return b
+}
+func (b *BaseWorkerBuilder) NewWorker() (IWorker, error) {
+	log.Panic("BaseWorkerBuilder::NewWorker() should never be called")
+	return nil, nil
 }
 
-func (b *CommonWorkerBuilder) loadSymFromFile(f string) error {
+func (b *BaseWorkerBuilder) loadSymFromFile(f string) error {
 	reader, err := os.OpenFile(f, os.O_RDONLY, 0666)
 	if err != nil {
 		return err
@@ -113,7 +123,7 @@ func (b *CommonWorkerBuilder) loadSymFromFile(f string) error {
 	return nil
 }
 
-func (b *CommonWorkerBuilder) loadSymFromDB(tableName string) error {
+func (b *BaseWorkerBuilder) loadSymFromDB(tableName string) error {
 
 	type queryResult struct {
 		Symbol string
@@ -143,14 +153,14 @@ func (b *CommonWorkerBuilder) loadSymFromDB(tableName string) error {
 	return nil
 }
 
-func (b *CommonWorkerBuilder) loadSymFromCache(setName string) error {
+func (b *BaseWorkerBuilder) loadSymFromCache(setName string) error {
 	if err := b.cache.MoveSet(setName, CACHE_KEY_SYMBOL); err != nil {
 		return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
 	}
 	return nil
 }
 
-func (b *CommonWorkerBuilder) loadProxyFromFile(fname string) error {
+func (b *BaseWorkerBuilder) loadProxyFromFile(fname string) error {
 	num, err := cache.LoadProxies(b.cache, CACHE_KEY_PROXY, fname)
 
 	if err != nil {
@@ -160,7 +170,7 @@ func (b *CommonWorkerBuilder) loadProxyFromFile(fname string) error {
 		return nil
 	}
 }
-func (b *CommonWorkerBuilder) Prepare() error {
+func (b *BaseWorkerBuilder) Prepare() error {
 
 	if len(b.Params.TickersJSON) > 0 {
 		if err := b.loadSymFromFile(b.Params.TickersJSON); err != nil {

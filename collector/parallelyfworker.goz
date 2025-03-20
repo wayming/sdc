@@ -20,7 +20,7 @@ type YFEODWorker struct {
 }
 
 type YFWorkerBuilder struct {
-	CommonWorkerBuilder
+	BaseWorkerBuilder
 }
 
 func (w *YFEODWorker) Init() error {
