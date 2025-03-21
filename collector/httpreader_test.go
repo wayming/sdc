@@ -29,7 +29,7 @@ func TestHttpReader_Read_Proxy(t *testing.T) {
 func TestHttpReader_RedirectedUrl(t *testing.T) {
 	fixture := testcommon.NewTestFixture(t)
 	defer fixture.Teardown(t)
-	sdclogger.SDCLoggerInstance.Logger = fixture.Logger()
+	sdclogger.SDCLoggerInstance = fixture.Logger()
 
 	r := NewHttpReader(NewLocalClient())
 

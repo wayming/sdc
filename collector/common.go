@@ -65,7 +65,7 @@ func ClearCache() error {
 	return nil
 }
 func DropSchema(schema string) error {
-	dbLoader := dbloader.NewPGLoader(schema, sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(schema, sdclogger.SDCLoggerInstance)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),

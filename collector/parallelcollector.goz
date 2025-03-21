@@ -312,13 +312,13 @@ func (w *RedirectSymbolWorker) Init(cm cache.ICacheManager, logger *log.Logger) 
 		if err := ClearCache(); err != nil {
 			return err
 		}
-		allSymbols, err := cache.LoadSymbols(cm, CACHE_KEY_SYMBOL, config.SchemaName)
+		allSymbols, err := cache.LoadSymbols(cm, CACHE_KEY_SYMBOL, config.SCHEMA_NAME)
 		if err != nil {
 			return errors.New("Failed to load symbols to cache. Error: " + err.Error())
 		}
 		sdclogger.SDCLoggerInstance.Printf("Loaded %d symbols to cache", allSymbols)
 
-		allProxies, err := cache.LoadProxies(cm, CACHE_KEY_PROXY, config.ProxyFile)
+		allProxies, err := cache.LoadProxies(cm, CACHE_KEY_PROXY, config.PROXY_FILE)
 		if err != nil {
 			return errors.New("Failed to load proxies to cache. Error: " + err.Error())
 		}
@@ -326,14 +326,14 @@ func (w *RedirectSymbolWorker) Init(cm cache.ICacheManager, logger *log.Logger) 
 	}
 
 	// Create tables
-	dbLoader := dbloader.NewPGLoader(config.SchemaName, logger)
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 	// TODO
-	// w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
+	// w.collector = NewSACollector(dbLoader, nil, logger, config.SCHEMA_NAME)
 	// if err := w.collector.CreateTables(); err != nil {
 	// 	sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 	// 	return err
@@ -371,14 +371,14 @@ func (w *FinancialOverviewWorker) Init(cm cache.ICacheManager, logger *log.Logge
 	}
 
 	// Create tables
-	dbLoader := dbloader.NewPGLoader(config.SchemaName, logger)
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, logger)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 	// TODO
-	// w.collector = NewSACollector(dbLoader, nil, logger, config.SchemaName)
+	// w.collector = NewSACollector(dbLoader, nil, logger, config.SCHEMA_NAME)
 	// if err := w.collector.CreateTables(); err != nil {
 	// 	sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 	// 	return err

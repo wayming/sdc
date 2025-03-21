@@ -118,14 +118,14 @@ func (collector *MSCollector) CollectEOD() error {
 
 // Entry Function
 func CollectTickers(schemaName string, fileJSON string) (int64, error) {
-	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
 	reader := NewHttpReader(NewLocalClient())
-	collector := NewMSCollector(dbLoader, reader, sdclogger.SDCLoggerInstance.Logger, schemaName)
+	collector := NewMSCollector(dbLoader, reader, sdclogger.SDCLoggerInstance, schemaName)
 	if len(fileJSON) > 0 {
 		reader, err := os.OpenFile(fileJSON, os.O_RDONLY, 0666)
 		if err != nil {

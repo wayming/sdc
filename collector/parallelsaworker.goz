@@ -55,11 +55,11 @@ func (w *SAWorker) Done() error {
 }
 func (b *SAWorkerBuilder) Default() error {
 	if b.logger == nil {
-		b.logger = sdclogger.SDCLoggerInstance.Logger
+		b.logger = sdclogger.SDCLoggerInstance
 	}
 
 	if b.db == nil {
-		b.db = dbloader.NewPGLoader(config.SchemaName, b.logger)
+		b.db = dbloader.NewPGLoader(config.SCHEMA_NAME, b.logger)
 		b.db.Connect(os.Getenv("PGHOST"),
 			os.Getenv("PGPORT"),
 			os.Getenv("PGUSER"),
@@ -69,7 +69,7 @@ func (b *SAWorkerBuilder) Default() error {
 
 	if b.exporters == nil {
 		var saExporters DataExporters
-		saExporters.AddExporter(NewDBExporter(b.db, config.SchemaName))
+		saExporters.AddExporter(NewDBExporter(b.db, config.SCHEMA_NAME))
 		saExporters.AddExporter(NewSAFileExporter())
 		b.exporters = &saExporters
 	}

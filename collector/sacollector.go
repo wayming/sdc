@@ -30,7 +30,7 @@ type SACollector struct {
 func NewSACollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader, l *log.Logger) *SACollector {
 	logger := l
 	if logger == nil {
-		logger = sdclogger.SDCLoggerInstance.Logger
+		logger = sdclogger.SDCLoggerInstance
 	}
 	collector := SACollector{
 		loader:        db,
@@ -450,14 +450,14 @@ func (c *SACollector) redirectdSymbol(symbol string) (string, error) {
 // 	}
 
 // 	// Create tables
-// 	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance.Logger)
+// 	dbLoader := dbloader.NewPGLoader(schemaName, sdclogger.SDCLoggerInstance)
 // 	dbLoader.Connect(os.Getenv("PGHOST"),
 // 		os.Getenv("PGPORT"),
 // 		os.Getenv("PGUSER"),
 // 		os.Getenv("PGPASSWORD"),
 // 		os.Getenv("PGDATABASE"))
 // 	defer dbLoader.Disconnect()
-// 	collector := NewSACollector(dbLoader, nil, sdclogger.SDCLoggerInstance.Logger, schemaName)
+// 	collector := NewSACollector(dbLoader, nil, sdclogger.SDCLoggerInstance, schemaName)
 // 	if err := c.CreateTables(); err != nil {
 // 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)
 // 		return err
@@ -647,7 +647,7 @@ func searchText(node *html.Node, text string) *html.Node {
 // Entry function
 func CollectFinancialsForSymbol(symbol string) error {
 	// dbloader
-	dbLoader := dbloader.NewPGLoader(config.SchemaName, sdclogger.SDCLoggerInstance.Logger)
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sdclogger.SDCLoggerInstance)
 	dbLoader.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -660,10 +660,10 @@ func CollectFinancialsForSymbol(symbol string) error {
 
 	// Exporters
 	var saExporter DataExporters
-	saExporter.AddExporter(NewDBExporter(dbLoader, config.SchemaName))
+	saExporter.AddExporter(NewDBExporter(dbLoader, config.SCHEMA_NAME))
 	saExporter.AddExporter(NewSAFileExporter())
 
-	c := NewSACollector(httpReader, &saExporter, dbLoader, sdclogger.SDCLoggerInstance.Logger)
+	c := NewSACollector(httpReader, &saExporter, dbLoader, sdclogger.SDCLoggerInstance)
 
 	if err := c.CreateTables(); err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to create tables. Error: %s", err)

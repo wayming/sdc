@@ -7,21 +7,14 @@ import (
 
 const LOG_FILE = "logs/sdc.log"
 
-type SDCLogger struct {
-	*log.Logger
-}
-
-func NewSDCLoggerByLogName(logFile string) *SDCLogger {
+func NewLoggerByLogName(logFile string) *log.Logger {
 	file, _ := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	return &SDCLogger{
-		Logger: log.New(file, "SDC", log.Ldate|log.Ltime), // Initializing log.Logger directly
-	}
+	return log.New(file, "SDC", log.Ldate|log.Ltime)
 }
 
-func NewSDCLoggerByFile(file *os.File) *SDCLogger {
-	return &SDCLogger{
-		Logger: log.New(file, "SDC", log.Ldate|log.Ltime), // Initializing log.Logger directly
-	}
+func NewLoggerByFile(file *os.File) *log.Logger {
+	return log.New(file, "SDC", log.Ldate|log.Ltime)
 }
 
-var SDCLoggerInstance *SDCLogger = NewSDCLoggerByLogName(LOG_FILE)
+// Global logger
+var SDCLoggerInstance *log.Logger = NewLoggerByLogName(LOG_FILE)

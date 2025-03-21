@@ -26,7 +26,7 @@ func NewHttpReader(c *http.Client) *HttpReader {
 // Get redirected url. Return empty string if the specified url is not redirected.
 func (r *HttpReader) RedirectedUrl(url string) (string, error) {
 	resp, err := r.client.Get(url)
-	sdclogger.SDCLoggerInstance.Logger.Printf("resp.Request: %v, resp.StatusCode: %v", resp.Request.URL.String(), resp.StatusCode)
+	sdclogger.SDCLoggerInstance.Printf("resp.Request: %v, resp.StatusCode: %v", resp.Request.URL.String(), resp.StatusCode)
 	if err != nil {
 		return "", fmt.Errorf("failed to perform request for %s: %v", url, err)
 	} else {

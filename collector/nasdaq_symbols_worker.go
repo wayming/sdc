@@ -99,7 +99,7 @@ func (wim *NDSymbolsLoaderWorkItemManager) Next() (IWorkItem, error) {
 	var wi IWorkItem
 	for symbol, row := range wim.tickers {
 		wim.nProcessed++
-		wi = &NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row, keys: wim.keys}
+		wi = NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row, keys: wim.keys}
 		delete(wim.tickers, symbol)
 		break
 	}
@@ -136,7 +136,7 @@ func (swb *NDSymbolsLoaderBuilder) NewWorker() (IWorker, error) {
 
 func (sl *NDSymbolsLoader) Init() error {
 	dateStr := time.Now().Format("20060102")
-	sl.exportDir = config.DataDir + "/" + dateStr + "/tickers"
+	sl.exportDir = config.DATA_DIR + "/" + dateStr + "/tickers"
 
 	if err := common.CreateDirIfNotExists(sl.exportDir); err != nil {
 		return err
@@ -145,7 +145,7 @@ func (sl *NDSymbolsLoader) Init() error {
 }
 
 func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
-	ndwi, ok := wi.(*NDSymbolsLoaderWorkItem)
+	ndwi, ok := wi.(NDSymbolsLoaderWorkItem)
 	if !ok {
 		return fmt.Errorf("failed to convert the work item to NDSymbolsLoader work item")
 	}
@@ -178,8 +178,8 @@ func (sl *NDSymbolsLoader) Done() error {
 }
 
 // NewNDSymbolsLoaderWorkItem creates and returns a new NDSymbolsLoaderWorkItem instance.
-func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) *NDSymbolsLoaderWorkItem {
-	return &NDSymbolsLoaderWorkItem{
+func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) NDSymbolsLoaderWorkItem {
+	return NDSymbolsLoaderWorkItem{
 		symbol:    symbol,
 		tickerRow: tickerRow,
 		keys:      keys,

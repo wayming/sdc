@@ -36,10 +36,10 @@ func main() {
 	}
 	var err error
 	if *resetDBOpt {
-		if err := collector.DropSchema(config.SchemaName); err != nil {
+		if err := collector.DropSchema(config.SCHEMA_NAME); err != nil {
 			fmt.Println(err.Error())
 		} else {
-			fmt.Println("Drop schema " + config.SchemaName + " done.")
+			fmt.Println("Drop schema " + config.SCHEMA_NAME + " done.")
 		}
 	}
 	if *resetCacheOpt {

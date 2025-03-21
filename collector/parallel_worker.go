@@ -160,7 +160,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 			nSucceeded++
 		}
 
-		fmt.Printf("Total %d, Processed %d, succeeded %d\n", nAll, nProcessed, nSucceeded)
+		fmt.Printf("Total %d, Processed %d, Succeeded %d\n", nAll, nProcessed, nSucceeded)
 	}
 
 	sdclogger.SDCLoggerInstance.Println(summary)

@@ -1,19 +1,46 @@
 package collector
 
 import (
+	"log"
+	"reflect"
 	"time"
 
+	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
 
+type NDSymbolsCacheExporter struct {
+	cache cache.CacheManager
+}
+
+func NewNDSymbollCacheExporter() *NDSymbolsCacheExporter {
+	return &NDSymbolsCacheExporter{cache: *cache.NewCacheManager()}
+}
+
+func (e NDSymbolsCacheExporter) Export(entityType reflect.Type, table string, data string, symbol string) error {
+	return e.cache.AddToSet(config.CACHE_KEY_SYMBOLS, symbol)
+}
+
 func NewNDSymbolsFileExporter() *FileExporter {
 	dateStr := time.Now().Format("20060102")
-	exportPath := config.DataDir + "/" + dateStr + "/tickers"
+	exportPath := config.DATA_DIR + "/" + dateStr + "/tickers"
 
 	if err := common.CreateDirIfNotExists(exportPath); err != nil {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", exportPath, err)
 	}
 	return &FileExporter{path: exportPath}
+}
+
+func NewNDSymbolsExporters(l *log.Logger) *DataExporters {
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, l)
+	dbExporter := NewDBExporter(dbLoader, config.SCHEMA_NAME)
+	var e DataExporters
+	e.AddExporter(NewNDSymbollCacheExporter()).
+		AddExporter(NewNDSymbolsFileExporter()).
+		AddExporter(dbExporter)
+
+	return &e
 }

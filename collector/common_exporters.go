@@ -83,9 +83,11 @@ type DataExporters struct {
 	exporters []IDataExporter
 }
 
-func (e *DataExporters) AddExporter(exp IDataExporter) {
+func (e *DataExporters) AddExporter(exp IDataExporter) *DataExporters {
 	e.exporters = append(e.exporters, exp)
+	return e
 }
+
 func (e *DataExporters) Export(entityType reflect.Type, table string, data string, symbol string) error {
 	for _, exporter := range e.exporters {
 		if err := exporter.Export(entityType, table, data, symbol); err != nil {

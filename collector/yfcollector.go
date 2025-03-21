@@ -27,7 +27,7 @@ type YFCollector struct {
 func NewYFCollector(httpReader IHttpReader, exporters IDataExporter, db dbloader.DBLoader, l *log.Logger) *YFCollector {
 	logger := l
 	if logger == nil {
-		logger = sdclogger.SDCLoggerInstance.Logger
+		logger = sdclogger.SDCLoggerInstance
 	}
 	return &YFCollector{
 		reader:    httpReader,
@@ -197,7 +197,7 @@ func FilterSymbolVariations(textJSON string) (string, error) {
 
 // Entry Function
 func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
-	db := dbloader.NewPGLoader(config.SchemaName, sdclogger.SDCLoggerInstance.Logger)
+	db := dbloader.NewPGLoader(config.SCHEMA_NAME, sdclogger.SDCLoggerInstance)
 	db.Connect(os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
@@ -206,7 +206,7 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 
 	reader := NewHttpReader(NewLocalClient())
 	var yfExporters DataExporters
-	yfExporters.AddExporter(NewDBExporter(db, config.SchemaName))
+	yfExporters.AddExporter(NewDBExporter(db, config.SCHEMA_NAME))
 
 	if loadTickers && len(fileJSON) > 0 {
 
@@ -234,7 +234,7 @@ func YFCollect(fileJSON string, loadTickers bool, loadEOD bool) error {
 		return nil
 	}
 
-	cl := NewYFCollector(reader, &yfExporters, db, sdclogger.SDCLoggerInstance.Logger)
+	cl := NewYFCollector(reader, &yfExporters, db, sdclogger.SDCLoggerInstance)
 	yfExporters.AddExporter(NewYFFileExporter())
 	if loadTickers {
 		if err := cl.Tickers(); err != nil {

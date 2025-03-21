@@ -77,7 +77,7 @@ func TestNDSymbolsLoader_Do(t *testing.T) {
 			collector.NDSymDataTables[collector.ND_TICKERS],
 			expectJson, "FMN")
 
-		if err := sl.Do(*wi); err != nil {
+		if err := sl.Do(wi); err != nil {
 			t.Errorf("NDSymbolsLoader.Do() error = %v", err)
 		}
 	})

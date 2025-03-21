@@ -37,7 +37,7 @@ func (swi SAPageWorkItem) ToString() string {
 }
 
 func (swim *SAPageWorkItemManager) Next() (IWorkItem, error) {
-	symbol, err := swim.cache.PopFromSet(config.CacheKeySymbols)
+	symbol, err := swim.cache.PopFromSet(config.CACHE_KEY_SYMBOLS)
 	if err != nil {
 		return nil, err
 	} else {
@@ -46,7 +46,7 @@ func (swim *SAPageWorkItemManager) Next() (IWorkItem, error) {
 }
 
 func (swim *SAPageWorkItemManager) Size() int64 {
-	size, _ := swim.cache.GetLength(config.CacheKeySymbols)
+	size, _ := swim.cache.GetLength(config.CACHE_KEY_SYMBOLS)
 	return size
 }
 
@@ -55,10 +55,10 @@ func (swim *SAPageWorkItemManager) OnProcessError(wi IWorkItem, err error) error
 
 	swi, ok := wi.(SAPageWorkItem)
 	if !ok {
-		return fmt.Errorf("Failed to convert the work item to SAPageDownloader work item")
+		return fmt.Errorf("failed to convert the work item to SAPageDownloader work item")
 	}
 
-	if err := swim.cache.AddToSet(config.CacheKeySymbolsError, swi.symbol); err != nil {
+	if err := swim.cache.AddToSet(config.CACHE_KEY_SYMBOLS_ERROR, swi.symbol); err != nil {
 		return err
 	}
 	return nil
@@ -72,8 +72,8 @@ func (swim *SAPageWorkItemManager) OnProcessSuccess(wi IWorkItem) error {
 }
 
 func (swim *SAPageWorkItemManager) Summary() string {
-	nLeft, _ := swim.cache.GetLength(config.CacheKeySymbols)
-	nError, _ := swim.cache.GetLength(config.CacheKeySymbolsError)
+	nLeft, _ := swim.cache.GetLength(config.CACHE_KEY_SYMBOLS)
+	nError, _ := swim.cache.GetLength(config.CACHE_KEY_SYMBOLS_ERROR)
 
 	summary := fmt.Sprintf("Processed: %d, Left: %d, Error: %d", swim.nProcessed, nLeft, nError)
 	return summary
@@ -86,7 +86,7 @@ func (swb *SAPageWorkBuilder) NewWorker() (IWorker, error) {
 
 func (se *SAPageDownloader) Init() error {
 	dateStr := time.Now().Format("20060102")
-	se.downloadDir = config.DataDir + "/" + dateStr
+	se.downloadDir = config.DATA_DIR + "/" + dateStr
 
 	if err := common.CreateDirIfNotExists(se.downloadDir); err != nil {
 		return err

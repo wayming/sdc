@@ -104,9 +104,9 @@ func (f *MockTestFixture) WithLogger() *MockTestFixture {
 
 func (f *MockTestFixture) WithDBMock() *MockTestFixture {
 	f.dbMock = dbloader.NewMockDBLoader(f.mockCtl)
-	f.dbMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
+	f.dbMock.EXPECT().CreateSchema(config.SCHEMA_NAME).AnyTimes()
 	f.dbMock.EXPECT().
-		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName))).
+		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SCHEMA_NAME))).
 		AnyTimes()
 	f.dbMock.EXPECT().Disconnect().AnyTimes()
 	return f
@@ -135,9 +135,9 @@ func (f *MockTestFixture) Setup(t *testing.T) {
 	f.mockCtl = gomock.NewController(t)
 	f.dbMock = dbloader.NewMockDBLoader(f.mockCtl)
 
-	f.dbMock.EXPECT().CreateSchema(config.SchemaName).AnyTimes()
+	f.dbMock.EXPECT().CreateSchema(config.SCHEMA_NAME).AnyTimes()
 	f.dbMock.EXPECT().
-		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SchemaName))).
+		Exec(NewStringPatternMatcher(strings.ToLower("SET search_path TO " + config.SCHEMA_NAME))).
 		AnyTimes()
 	f.dbMock.EXPECT().Disconnect().AnyTimes()
 
@@ -187,7 +187,7 @@ func TestLogger(testName string) *log.Logger {
 	// Redirect stdout and stderr to log file
 	os.Stdout = file
 	os.Stderr = file
-	sdclogger.SDCLoggerInstance = sdclogger.NewSDCLoggerByFile(file)
+	sdclogger.SDCLoggerInstance = sdclogger.NewLoggerByFile(file)
 	return testLogger
 }
 
