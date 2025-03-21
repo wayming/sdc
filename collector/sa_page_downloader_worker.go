@@ -45,8 +45,9 @@ func (swim *SAPageWorkItemManager) Next() (IWorkItem, error) {
 	}
 }
 
-func (swim *SAPageWorkItemManager) Size() (int64, error) {
-	return swim.cache.GetLength(config.CacheKeySymbols)
+func (swim *SAPageWorkItemManager) Size() int64 {
+	size, _ := swim.cache.GetLength(config.CacheKeySymbols)
+	return size
 }
 
 func (swim *SAPageWorkItemManager) OnProcessError(wi IWorkItem, err error) error {

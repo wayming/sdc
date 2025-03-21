@@ -108,13 +108,17 @@ func TestParallelNDSymbolsLoader(t *testing.T) {
 		}
 
 		parallelLoader := collector.NewParallelNDSymbolsLoader(wb, wim)
-		expectJson := `{"Country":"United States","IPOYear":"2002","Industry":"Investment Managers","Name":"Federated Hermes Premier Municipal Income Fund","Sector":"Finance","Symbol":"FMN"}`
+		expectJson := `{"Country":"United States","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}`
 		fixture.ExporterMock().EXPECT().Export(
 			collector.NDSymDataTypes[collector.ND_TICKERS],
 			collector.NDSymDataTables[collector.ND_TICKERS],
-			expectJson, "FMN")
-
-		parallelLoader.Execute(1)
+			expectJson, "A").Times(1)
+		expectJson = `{"Country":"United States","Industry":"Aluminum","Name":"Alcoa Corporation Common Stock ","Sector":"Industrials","Symbol":"AA"}`
+		fixture.ExporterMock().EXPECT().Export(
+			collector.NDSymDataTypes[collector.ND_TICKERS],
+			collector.NDSymDataTables[collector.ND_TICKERS],
+			expectJson, "AA").Times(1)
+		parallelLoader.Execute(2)
 	})
 
 }

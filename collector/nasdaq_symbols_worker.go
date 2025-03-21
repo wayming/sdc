@@ -96,16 +96,19 @@ func (wim *NDSymbolsLoaderWorkItemManager) Next() (IWorkItem, error) {
 		return nil, nil
 	}
 
+	var wi IWorkItem
 	for symbol, row := range wim.tickers {
 		wim.nProcessed++
-		return &NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row, keys: wim.keys}, nil
+		wi = &NDSymbolsLoaderWorkItem{symbol: symbol, tickerRow: row, keys: wim.keys}
+		delete(wim.tickers, symbol)
+		break
 	}
 
-	return nil, fmt.Errorf("no ticker to return")
+	return wi, nil
 }
 
-func (wim *NDSymbolsLoaderWorkItemManager) Size() (int64, error) {
-	return int64(len(wim.tickers)), nil
+func (wim *NDSymbolsLoaderWorkItemManager) Size() int64 {
+	return int64(len(wim.tickers))
 }
 
 func (wim *NDSymbolsLoaderWorkItemManager) OnProcessError(wi IWorkItem, err error) error {
@@ -142,7 +145,7 @@ func (sl *NDSymbolsLoader) Init() error {
 }
 
 func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
-	ndwi, ok := wi.(NDSymbolsLoaderWorkItem)
+	ndwi, ok := wi.(*NDSymbolsLoaderWorkItem)
 	if !ok {
 		return fmt.Errorf("failed to convert the work item to NDSymbolsLoader work item")
 	}

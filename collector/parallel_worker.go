@@ -22,7 +22,7 @@ type IWorkItem interface {
 
 type IWorkItemManager interface {
 	Next() (IWorkItem, error)
-	Size() (int64, error)
+	Size() int64
 	OnProcessError(IWorkItem, error) error
 	OnProcessSuccess(IWorkItem) error
 	Summary() string
@@ -83,11 +83,9 @@ func (pw *ParallelWorker) workerRoutine(
 				logMessage(err.Error())
 				outChan <- Response{r.wi, err}
 				logMessage("End processing [" + r.wi.ToString() + "].")
-				break
 			} else {
 				outChan <- Response{r.wi, nil}
 				logMessage("End processing [" + r.wi.ToString() + "]. Succeeded.")
-				continue
 			}
 		}
 
@@ -108,21 +106,28 @@ func (pw *ParallelWorker) workerRoutine(
 }
 func (pw *ParallelWorker) Execute(parallel int) error {
 
-	nAll, _ := pw.wim.Size()
+	nAll := pw.wim.Size()
 	summary := "\nResults Summary:\n"
 
 	var wg sync.WaitGroup
 	inChan := make(chan Request, 1000*1000)
 	outChan := make(chan Response, 1000*1000)
 
+	sdclogger.SDCLoggerInstance.Printf(
+		"Parallel works begin, process %d work items with %d threads", pw.wim.Size(), parallel)
+
 	// Push workitem to channel
 	go func() {
 		for {
 			wi, err := pw.wim.Next()
-			if err != nil {
-				break // Exit on error
+			if wi == nil {
+				if err == nil {
+					sdclogger.SDCLoggerInstance.Printf("Sent all work items to [input] channel.")
+				} else {
+					sdclogger.SDCLoggerInstance.Printf("Failed to get the next work item. Error: %v.", err)
+				}
+				break
 			}
-
 			sdclogger.SDCLoggerInstance.Printf("Push %s into [input] channel.", wi.ToString())
 			inChan <- Request{wi}
 		}
@@ -139,6 +144,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 	// Cleanup
 	go func() {
 		wg.Wait()
+		sdclogger.SDCLoggerInstance.Printf("Close [output] channel")
 		close(outChan)
 	}()
 
