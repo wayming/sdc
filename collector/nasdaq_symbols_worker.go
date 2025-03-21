@@ -68,25 +68,6 @@ func RemoveDuplicateRows(inData []string) (map[string]string, error) {
 	return outData, nil
 }
 
-func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
-	data, err := os.ReadFile(fname)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s. Error: %v", fname, err)
-	}
-	rows := strings.Split(string(data), "\n")
-	// head line
-	var keys []string
-	fieldNames := strings.Split(rows[0], ",")
-	for _, fieldName := range fieldNames {
-		keys = append(keys, strings.TrimSpace(fieldName))
-	}
-	tickers, err := RemoveDuplicateRows(rows[1:])
-	if err != nil {
-		return nil, err
-	}
-	return &NDSymbolsLoaderWorkItemManager{tickers: tickers, keys: keys}, nil
-}
-
 func (wi NDSymbolsLoaderWorkItem) ToString() string {
 	return wi.tickerRow
 }
@@ -187,17 +168,35 @@ func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) NDSymbo
 }
 
 // NewNDSymbolsLoader creates and returns a new NDSymbolsLoader instance.
-func NewNDSymbolsLoader(exporter IDataExporter, logger *log.Logger, exportDir string) *NDSymbolsLoader {
+func NewNDSymbolsLoader(exporter IDataExporter, logger *log.Logger) *NDSymbolsLoader {
 	return &NDSymbolsLoader{
-		exporter:  exporter,
-		logger:    logger,
-		exportDir: exportDir,
+		exporter: exporter,
+		logger:   logger,
 	}
 }
 
 // NewNDSymbolsLoaderBuilder creates and returns a new NDSymbolsLoaderBuilder instance.
 func NewNDSymbolsLoaderBuilder() *NDSymbolsLoaderBuilder {
 	return &NDSymbolsLoaderBuilder{}
+}
+
+func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s. Error: %v", fname, err)
+	}
+	rows := strings.Split(string(data), "\n")
+	// head line
+	var keys []string
+	fieldNames := strings.Split(rows[0], ",")
+	for _, fieldName := range fieldNames {
+		keys = append(keys, strings.TrimSpace(fieldName))
+	}
+	tickers, err := RemoveDuplicateRows(rows[1:])
+	if err != nil {
+		return nil, err
+	}
+	return &NDSymbolsLoaderWorkItemManager{tickers: tickers, keys: keys}, nil
 }
 
 func NewParallelNDSymbolsLoader(wb IWorkerBuilder, wim IWorkItemManager) *ParallelWorker {

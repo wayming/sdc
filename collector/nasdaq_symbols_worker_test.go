@@ -54,7 +54,7 @@ func TestRemoveDuplicateRowsShortSymbolBack(t *testing.T) {
 func TestNDSymbolsLoader_Do(t *testing.T) {
 	t.Run("TestNDSymbolsLoader_Do", func(t *testing.T) {
 		fixture := testcommon.NewMockTestFixture(t).WithExportMock()
-		sl := collector.NewNDSymbolsLoader(fixture.ExporterMock(), fixture.Logger(), "")
+		sl := collector.NewNDSymbolsLoader(fixture.ExporterMock(), fixture.Logger())
 		wi := collector.NewNDSymbolsLoaderWorkItem(
 			"FMN",
 			"FMN,Federated Hermes Premier Municipal Income Fund,$10.93,-0.04,-0.365%,942765511.00,United States,2002,112147,Finance,Investment Managers",

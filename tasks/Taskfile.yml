@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  run-function1:
+    desc: Run Function1
+    cmds:
+      - go test -run TestFunction1
+
+  run-function2:
+    desc: Run Function2
+    cmds:
+      - go test -run TestFunction2
+
+  run-function3:
+    desc: Run Function3
+    cmds:
+      - go test -run TestFunction3
