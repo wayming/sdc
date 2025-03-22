@@ -1,6 +1,6 @@
 #/bin/bash
 
-pgpass=`cat $PGPASSFILE | awk -F ":" '{print $5}'`
+pgpass=`cat $PGPASSFILE`
 echo "export PGPASSWORD=$pgpass" > ~/.profile
 
 msaccesskey=`cat $MSACCESSKEYFILE`

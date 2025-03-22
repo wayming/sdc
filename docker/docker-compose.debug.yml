@@ -53,9 +53,6 @@ services:
 
   postgres:
     image: postgres_sdc
-    # build:
-    #   context: .
-      # dockerfile: ./Dockerfile.pg
     restart: always
     environment:
       - POSTGRES_USER=appuser
@@ -85,10 +82,10 @@ services:
       - PGADMIN_DEFAULT_PASSWORD_FILE=/run/secrets/pgadmin_pass_file
       - PGADMIN_DEFAULT_EMAIL=wayming.z@gmail.com
       #- PGADMIN_DEFAULT_PASSWORD=appuser
-      - PGADMIN_LISTEN_ADDRESS=0.0.0.0
+      - PGADMIN_LISTEN_ADDRESS=[::]
       - PGADMIN_DEFAULT_SERVER=postgres
       - PGADMIN_DEFAULT_SERVER_GROUP=Servers
-
+      - PGADMIN_DATA_DIR=/home/
     depends_on:
       - postgres
     deploy:

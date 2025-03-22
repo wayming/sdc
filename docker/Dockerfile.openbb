@@ -1,5 +1,5 @@
-#FROM python:3.10-slim-bookworm
-FROM ubuntu/python:3.12-24.04_stable
+FROM python:3.10-slim-bookworm
+#FROM ubuntu/python:3.12-24.04_stable
 
 WORKDIR /app
 

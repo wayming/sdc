@@ -2,6 +2,7 @@ package collector
 
 import (
 	"log"
+	"os"
 	"reflect"
 	"time"
 
@@ -36,6 +37,11 @@ func NewNDSymbolsFileExporter() *FileExporter {
 
 func NewNDSymbolsExporters(l *log.Logger) *DataExporters {
 	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, l)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
 	dbExporter := NewDBExporter(dbLoader, config.SCHEMA_NAME)
 	var e DataExporters
 	e.AddExporter(NewNDSymbollCacheExporter()).
