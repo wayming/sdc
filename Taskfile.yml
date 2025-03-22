@@ -1,0 +1,7 @@
+version: '3'
+
+tasks:
+  load_nasdaq_tickers:
+    desc: Load tickers that are downloaded from https://www.nasdaq.com/market-activity/stocks/screener 
+    cmds:
+      - go run tasks/task_runner.go load_nasdaq_tickers data/nasdaq_screener_1742045443432.csv 2
