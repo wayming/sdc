@@ -187,7 +187,7 @@ func (d *JsonToPGSQLConverter) ExtractValues(jsonText string, entityStructType r
 	// Unmarshal the JSON text.
 	sliceType := reflect.SliceOf(entityStructType)
 	slicePtr := reflect.New(sliceType)
-	err := json.Unmarshal([]byte(jsonText), slicePtr.Interface())
+	err := json.Unmarshal([]byte(jsonText), slciePtr.Interface())
 	sliceVal := slicePtr.Elem()
 	if err != nil || sliceVal.Len() == 0 {
 		return nil, errors.New("Failed to parse json string " + jsonText + ", error " + err.Error())

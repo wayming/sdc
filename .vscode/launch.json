@@ -9,8 +9,10 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
+            "cwd": "${workspaceFolder}",
             "program": "${fileDirname}",
-            "args": ["-test.v", "--", "-load", "financials", "-trunk_size", "50"]
+            "env": {},
+            "args": ["load_nasdaq_tickers", "data/nasdaq_screener_1742045443432.csv", "2"]
         }
     ]
 }

@@ -7,12 +7,12 @@ import (
 const ND_TICKERS = "NDTicker"
 
 type NDTickers struct {
-	Symbol   string `json:"symbol"`
-	Name     string `json:"name"`
-	Country  string `json:"country"`
-	IPOYear  string `json:"ipo_year"`
-	Sector   string `json:"sector"`
-	Industry string `json:"industry"`
+	Symbol   string `json:"Symbol"`
+	Name     string `json:"Name"`
+	Country  string `json:"Country"`
+	IPOYear  string `json:"IPOYear"`
+	Sector   string `json:"Sector"`
+	Industry string `json:"Industry"`
 }
 
 var NDSymDataTables = map[string]string{

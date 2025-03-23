@@ -18,7 +18,9 @@ type NDSymbolsCacheExporter struct {
 }
 
 func NewNDSymbollCacheExporter() *NDSymbolsCacheExporter {
-	return &NDSymbolsCacheExporter{cache: *cache.NewCacheManager()}
+	c := cache.NewCacheManager()
+	c.Connect()
+	return &NDSymbolsCacheExporter{cache: *c}
 }
 
 func (e NDSymbolsCacheExporter) Export(entityType reflect.Type, table string, data string, symbol string) error {

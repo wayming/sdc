@@ -15,6 +15,7 @@ import (
 
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/sdclogger"
 )
 
 type NDSymbolsLoaderWorkItem struct {
@@ -45,6 +46,10 @@ func RemoveDuplicateRows(inData []string) (map[string]string, error) {
 	outData := make(map[string]string)
 	shortNameToSym := make(map[string]string)
 	for _, row := range inData {
+		if len(row) == 0 {
+			continue
+		}
+
 		fields := strings.Split(row, ",")
 		if len(fields) < 2 {
 			return nil, fmt.Errorf("invalid number of columns in row %s", row)
@@ -65,6 +70,7 @@ func RemoveDuplicateRows(inData []string) (map[string]string, error) {
 			outData[fields[0]] = row
 		}
 	}
+	sdclogger.SDCLoggerInstance.Printf("Number of total rows is %d. Number of rows after removing duplication is %d", len(inData), len(outData))
 	return outData, nil
 }
 
@@ -136,15 +142,19 @@ func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
 		return fmt.Errorf("inconsistent keys and values found from %s. Expected keys %v", ndwi.symbol, ndwi.keys)
 	}
 
+	var extractedDataArray []map[string]string
 	extractedData := make(map[string]string)
 	structType := NDSymDataTypes[ND_TICKERS]
 	for idx, key := range ndwi.keys {
 		_, ok := structType.FieldByName(key)
 		if ok {
-			extractedData[key] = fields[idx]
+			extractedData[key] = common.RemoveCarriageReturn(fields[idx])
 		}
 	}
-	jsonText, err := json.Marshal(extractedData)
+
+	// Single line
+	extractedDataArray = append(extractedDataArray, extractedData)
+	jsonText, err := json.Marshal(extractedDataArray)
 	if err != nil {
 		return err
 	}
@@ -190,7 +200,7 @@ func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
 	var keys []string
 	fieldNames := strings.Split(rows[0], ",")
 	for _, fieldName := range fieldNames {
-		keys = append(keys, strings.TrimSpace(fieldName))
+		keys = append(keys, common.RemoveAllWhitespace(fieldName))
 	}
 	tickers, err := RemoveDuplicateRows(rows[1:])
 	if err != nil {
