@@ -20,6 +20,7 @@ type IWorkItem interface {
 }
 
 type IWorkItemManager interface {
+	Prepare() error
 	Next() (IWorkItem, error)
 	Size() int64
 	OnProcessError(IWorkItem, error) error
@@ -80,6 +81,10 @@ func (pw *ParallelWorker) workerRoutine(
 
 			if err := worker.Do(r.wi); err != nil {
 				logMessage(err.Error())
+				if worker.Retry(err) {
+					logMessage("Re-processing [" + r.wi.ToString() + "].")
+					continue
+				}
 				outChan <- Response{r.wi, err}
 				logMessage("End processing [" + r.wi.ToString() + "].")
 			} else {
@@ -104,6 +109,10 @@ func (pw *ParallelWorker) workerRoutine(
 	logMessage("Finish")
 }
 func (pw *ParallelWorker) Execute(parallel int) error {
+
+	if err := pw.wim.Prepare(); err != nil {
+		sdclogger.SDCLoggerInstance.Printf("Failed to prepare work items. Error: %v", err)
+	}
 
 	nAll := pw.wim.Size()
 	summary := "\nResults Summary:\n"

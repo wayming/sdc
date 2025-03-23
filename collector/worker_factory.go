@@ -2,12 +2,10 @@ package collector
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"reflect"
 	"regexp"
 
 	"github.com/wayming/sdc/cache"
@@ -17,6 +15,7 @@ import (
 type IWorker interface {
 	Init() error
 	Do(IWorkItem) error
+	Retry(error) bool
 	Done() error
 }
 
@@ -122,77 +121,6 @@ func (b *BaseWorkerBuilder) loadSymFromFile(f string) error {
 			}
 		} else {
 			b.logger.Printf("Ignore the empty symbol.")
-		}
-	}
-	return nil
-}
-
-func (b *BaseWorkerBuilder) loadSymFromDB(tableName string) error {
-
-	type queryResult struct {
-		Symbol string
-	}
-
-	sql := "SELECT symbol FROM " + tableName
-	results, err := b.db.RunQuery(sql, reflect.TypeFor[queryResult]())
-	if err != nil {
-		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
-	}
-	queryResults, ok := results.([]queryResult)
-	if !ok {
-		return errors.New("failed to assert the slice of queryResults")
-	} else {
-		b.logger.Printf("%d symbols retrieved from table %s", len(queryResults), tableName)
-	}
-
-	for _, row := range queryResults {
-		if row.Symbol == "" {
-			b.logger.Printf("Ignore the empty symbol.")
-			continue
-		}
-		if err := b.cache.AddToSet(CACHE_KEY_SYMBOL, row.Symbol); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *BaseWorkerBuilder) loadSymFromCache(setName string) error {
-	if err := b.cache.MoveSet(setName, CACHE_KEY_SYMBOL); err != nil {
-		return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
-	}
-	return nil
-}
-
-func (b *BaseWorkerBuilder) loadProxyFromFile(fname string) error {
-	num, err := cache.LoadProxies(b.cache, CACHE_KEY_PROXY, fname)
-
-	if err != nil {
-		return err
-	} else {
-		b.logger.Printf("%d proxies loaded to cache", num)
-		return nil
-	}
-}
-func (b *BaseWorkerBuilder) Prepare() error {
-
-	if len(b.Params.TickersJSON) > 0 {
-		if err := b.loadSymFromFile(b.Params.TickersJSON); err != nil {
-			return err
-		}
-	} else if b.Params.IsContinue {
-		if err := b.loadSymFromCache(CACHE_KEY_SYMBOL_ERROR); err != nil {
-			return err
-		}
-	} else {
-		if err := b.loadSymFromDB(YFDataTables[YF_TICKERS]); err != nil {
-			return err
-		}
-	}
-
-	if len(b.Params.ProxyFile) > 0 {
-		if err := b.loadProxyFromFile(b.Params.ProxyFile); err != nil {
-			return err
 		}
 	}
 	return nil
