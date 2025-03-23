@@ -20,10 +20,8 @@ type IWorker interface {
 	Done() error
 }
 
-type PCParams struct {
-	IsContinue  bool
-	TickersJSON string
-	ProxyFile   string
+type IWorkerFactory interface {
+	MakeWorker(*log.Logger) IWorker
 }
 
 type IWorkerBuilder interface {
@@ -35,6 +33,12 @@ type IWorkerBuilder interface {
 	WithCache(cm cache.ICacheManager) IWorkerBuilder
 	Prepare() error
 	NewWorker() (IWorker, error)
+}
+
+type PCParams struct {
+	IsContinue  bool
+	TickersJSON string
+	ProxyFile   string
 }
 
 type BaseWorkerBuilder struct {

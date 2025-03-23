@@ -82,11 +82,13 @@ type MockTestFixture struct {
 	mockCtl *gomock.Controller
 	test    *testing.T
 
-	dbMock       *dbloader.MockDBLoader
-	cacheMock    *cache.MockICacheManager
-	exporterMock *mocks.MockIDataExporter
-	logger       *log.Logger
-	reader       collector.IHttpReader
+	dbMock            *dbloader.MockDBLoader
+	cacheMock         *cache.MockICacheManager
+	exporterMock      *mocks.MockIDataExporter
+	logger            *log.Logger
+	reader            collector.IHttpReader
+	workerFactoryMock *mocks.MockIWorkerFactory
+	workerMock        *mocks.MockIWorker
 }
 
 func NewMockTestFixture(t *testing.T) *MockTestFixture {
@@ -146,6 +148,9 @@ func (f *MockTestFixture) Setup(t *testing.T) {
 	f.cacheMock.EXPECT().Disconnect().AnyTimes()
 
 	f.reader = collector.NewHttpReader(collector.NewLocalClient())
+
+	f.workerFactoryMock = mocks.NewMockIWorkerFactory(f.mockCtl)
+	f.workerMock = mocks.NewMockIWorker(f.mockCtl)
 }
 func (f *MockTestFixture) Teardown(t *testing.T) {
 	f.logger.Printf("teardown test %s", t.Name())
@@ -156,6 +161,12 @@ func (f *MockTestFixture) DBExpect() *dbloader.MockDBLoaderMockRecorder {
 }
 func (f *MockTestFixture) CacheExpect() *cache.MockICacheManagerMockRecorder {
 	return f.cacheMock.EXPECT()
+}
+func (f *MockTestFixture) WorkerFactoryExpect() *mocks.MockIWorkerFactoryMockRecorder {
+	return f.workerFactoryMock.EXPECT()
+}
+func (f *MockTestFixture) WorkerExpect() *mocks.MockIWorkerMockRecorder {
+	return f.workerMock.EXPECT()
 }
 func (m *MockTestFixture) DBMock() *dbloader.MockDBLoader {
 	return m.dbMock
@@ -171,6 +182,12 @@ func (m *MockTestFixture) Logger() *log.Logger {
 }
 func (m *MockTestFixture) Reader() collector.IHttpReader {
 	return m.reader
+}
+func (m *MockTestFixture) WorkerFactoryMock() *mocks.MockIWorkerFactory {
+	return m.workerFactoryMock
+}
+func (m *MockTestFixture) WorkerMock() *mocks.MockIWorker {
+	return m.workerMock
 }
 
 func SetupTest(testName string) {

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/wayming/sdc/collector"
 	"github.com/wayming/sdc/common"
 	testcommon "github.com/wayming/sdc/testcommon"
@@ -87,6 +88,8 @@ func TestNDSymbolsLoader_Do(t *testing.T) {
 func TestParallelNDSymbolsLoader(t *testing.T) {
 	t.Run("TestNDSymbolsLoader_Do", func(t *testing.T) {
 		fixture := testcommon.NewMockTestFixture(t).WithExportMock()
+		fixture.Setup(t)
+		defer fixture.Teardown(t)
 
 		// Generate CSV file
 		lines := []string{
@@ -99,23 +102,29 @@ func TestParallelNDSymbolsLoader(t *testing.T) {
 			t.Errorf("Failed to write file %s. Error: %v", csvFile, err)
 		}
 
-		fac := &collector.NDSSymbolWorkerFactory{}
+		fac := fixture.WorkerFactoryMock()
+		worker := fixture.WorkerMock()
+		fac.EXPECT().MakeWorker(gomock.Any()).Return(worker).Times(2)
+		worker.EXPECT().Init().Times(2)
+		worker.EXPECT().Do(gomock.Any()).Times(2)
+		worker.EXPECT().Done().Times(2)
+
 		wim, err := collector.NewNDSymbolsLoaderWorkItemManager(csvFile)
 		if err != nil {
 			t.Errorf("Failed to create work item manager. Error: %v", err)
 		}
 
 		parallelLoader := collector.NewParallelNDSymbolsLoader(fac, wim)
-		expectJson := `[{"Country":"United States","IPOYear":"1999","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}]`
-		fixture.ExporterMock().EXPECT().Export(
-			collector.NDSymDataTypes[collector.ND_TICKERS],
-			collector.NDSymDataTables[collector.ND_TICKERS],
-			expectJson, "A").Times(1)
-		expectJson = `[{"Country":"United States","IPOYear":"2016","Industry":"Aluminum","Name":"Alcoa Corporation Common Stock ","Sector":"Industrials","Symbol":"AA"}]`
-		fixture.ExporterMock().EXPECT().Export(
-			collector.NDSymDataTypes[collector.ND_TICKERS],
-			collector.NDSymDataTables[collector.ND_TICKERS],
-			expectJson, "AA").Times(1)
+		// expectJson := `[{"Country":"United States","IPOYear":"1999","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}]`
+		// fixture.ExporterMock().EXPECT().Export(
+		// 	collector.NDSymDataTypes[collector.ND_TICKERS],
+		// 	collector.NDSymDataTables[collector.ND_TICKERS],
+		// 	expectJson, "A").Times(1)
+		// expectJson = `[{"Country":"United States","IPOYear":"2016","Industry":"Aluminum","Name":"Alcoa Corporation Common Stock ","Sector":"Industrials","Symbol":"AA"}]`
+		// fixture.ExporterMock().EXPECT().Export(
+		// 	collector.NDSymDataTypes[collector.ND_TICKERS],
+		// 	collector.NDSymDataTables[collector.ND_TICKERS],
+		// 	expectJson, "AA").Times(1)
 		parallelLoader.Execute(2)
 	})
 

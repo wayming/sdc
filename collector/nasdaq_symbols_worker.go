@@ -202,7 +202,6 @@ func (f *NDSSymbolWorkerFactory) MakeWorker(l *log.Logger) IWorker {
 	e.AddExporter(NewNDSymbollCacheExporter()).
 		AddExporter(NewNDSymbolsFileExporter()).
 		AddExporter(dbExporter)
-
 	return NewNDSymbolsLoader(&e, dbLoader, l)
 }
 

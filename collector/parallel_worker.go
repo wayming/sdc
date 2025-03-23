@@ -27,10 +27,6 @@ type IWorkItemManager interface {
 	Summary() string
 }
 
-type IWorkerFactory interface {
-	MakeWorker(*log.Logger) IWorker
-}
-
 type Request struct {
 	wi IWorkItem
 }
