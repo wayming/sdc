@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/wayming/sdc/collector"
+	"github.com/wayming/sdc/config"
 )
 
 func Greet(name int) {
@@ -15,8 +16,9 @@ func Greet(name int) {
 }
 
 var FUNCTIONS_MAAP = map[string]interface{}{
-	"Greet":               Greet,
 	"load_nasdaq_tickers": load_nasdaq_tickers,
+	"clear_db":            clear_db,
+	"clear_cache":         clear_cache,
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
@@ -25,6 +27,22 @@ func load_nasdaq_tickers(filePath string, nThreads int) {
 		log.Panicf("Failed to create symbols loader. Error: %v", err)
 	}
 	collector.NewParallelNDSymbolsLoader(&collector.NDSSymbolWorkerFactory{}, wiManager).Execute(nThreads)
+}
+
+func clear_db() {
+	if err := collector.DropSchema(config.SCHEMA_NAME); err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println("Drop schema " + config.SCHEMA_NAME + " done.")
+	}
+}
+
+func clear_cache() {
+	if err := collector.ClearCache(); err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println("Reset cache done.")
+	}
 }
 
 func main() {

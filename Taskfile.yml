@@ -5,4 +5,21 @@ tasks:
     desc: Load tickers that are downloaded from https://www.nasdaq.com/market-activity/stocks/screener 
     cmds:
       - go run tasks/task_runner.go load_nasdaq_tickers data/nasdaq_screener_1742045443432.csv 20
+  
+  clear_db:
+    desc: drop database schema
+    cmds:
+      - go run tasks/task_runner.go clear_db
+
+
+  clear_cache:
+    desc: clear cache
+    cmds:
+      - go run tasks/task_runner.go clear_cache
+
+  reset:
+    desc: clear database and cache
+    depends_on:
+      - clear_db
+      - clear_cache
       
