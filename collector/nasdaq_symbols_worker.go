@@ -15,6 +15,7 @@ import (
 
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
 
@@ -128,6 +129,23 @@ func (sl *NDSymbolsLoader) Init() error {
 	if err := common.CreateDirIfNotExists(sl.exportDir); err != nil {
 		return err
 	}
+
+	// Create tables
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sl.logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+	if err := dbLoader.CreateTableByJsonStruct(NDSymDataTables[ND_TICKERS], NDSymDataTypes[ND_TICKERS]); err != nil {
+		return err
+	}
+
+	// Exporters can be mocked by tests
+	if sl.exporter == nil {
+		sl.exporter = NewNDSymbolsExporters(sl.logger)
+	}
 	return nil
 }
 
@@ -159,8 +177,7 @@ func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
 		return err
 	}
 
-	sl.exporter.Export(NDSymDataTypes[ND_TICKERS], NDSymDataTables[ND_TICKERS], string(jsonText), ndwi.symbol)
-	return nil
+	return sl.exporter.Export(NDSymDataTypes[ND_TICKERS], NDSymDataTables[ND_TICKERS], string(jsonText), ndwi.symbol)
 }
 
 func (sl *NDSymbolsLoader) Done() error {

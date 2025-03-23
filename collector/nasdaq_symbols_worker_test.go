@@ -71,7 +71,7 @@ func TestNDSymbolsLoader_Do(t *testing.T) {
 				"Sector",
 				"Industry",
 			})
-		expectJson := `{"Country":"United States","IPOYear":"2002","Industry":"Investment Managers","Name":"Federated Hermes Premier Municipal Income Fund","Sector":"Finance","Symbol":"FMN"}`
+		expectJson := `[{"Country":"United States","IPOYear":"2002","Industry":"Investment Managers","Name":"Federated Hermes Premier Municipal Income Fund","Sector":"Finance","Symbol":"FMN"}]`
 		fixture.ExporterMock().EXPECT().Export(
 			collector.NDSymDataTypes[collector.ND_TICKERS],
 			collector.NDSymDataTables[collector.ND_TICKERS],
@@ -108,12 +108,12 @@ func TestParallelNDSymbolsLoader(t *testing.T) {
 		}
 
 		parallelLoader := collector.NewParallelNDSymbolsLoader(wb, wim)
-		expectJson := `{"Country":"United States","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}`
+		expectJson := `[{"Country":"United States","IPOYear":"1999","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}]`
 		fixture.ExporterMock().EXPECT().Export(
 			collector.NDSymDataTypes[collector.ND_TICKERS],
 			collector.NDSymDataTables[collector.ND_TICKERS],
 			expectJson, "A").Times(1)
-		expectJson = `{"Country":"United States","Industry":"Aluminum","Name":"Alcoa Corporation Common Stock ","Sector":"Industrials","Symbol":"AA"}`
+		expectJson = `[{"Country":"United States","IPOYear":"2016","Industry":"Aluminum","Name":"Alcoa Corporation Common Stock ","Sector":"Industrials","Symbol":"AA"}]`
 		fixture.ExporterMock().EXPECT().Export(
 			collector.NDSymDataTypes[collector.ND_TICKERS],
 			collector.NDSymDataTables[collector.ND_TICKERS],

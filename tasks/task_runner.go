@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/wayming/sdc/collector"
-	"github.com/wayming/sdc/sdclogger"
 )
 
 func Greet(name int) {
@@ -21,13 +20,11 @@ var FUNCTIONS_MAAP = map[string]interface{}{
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
-	builder := collector.NewNDSymbolsLoaderBuilder()
-	builder.WithExporter(collector.NewNDSymbolsExporters(sdclogger.SDCLoggerInstance))
 	wiManager, err := collector.NewNDSymbolsLoaderWorkItemManager(filePath)
 	if err != nil {
 		log.Panicf("Failed to create symbols loader. Error: %v", err)
 	}
-	collector.NewParallelNDSymbolsLoader(builder, wiManager).Execute(nThreads)
+	collector.NewParallelNDSymbolsLoader(collector.NewNDSymbolsLoaderBuilder(), wiManager).Execute(nThreads)
 }
 
 func main() {
