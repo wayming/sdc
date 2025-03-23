@@ -24,7 +24,7 @@ func load_nasdaq_tickers(filePath string, nThreads int) {
 	if err != nil {
 		log.Panicf("Failed to create symbols loader. Error: %v", err)
 	}
-	collector.NewParallelNDSymbolsLoader(collector.NewNDSymbolsLoaderBuilder(), wiManager).Execute(nThreads)
+	collector.NewParallelNDSymbolsLoader(&collector.NDSSymbolWorkerFactory{}, wiManager).Execute(nThreads)
 }
 
 func main() {

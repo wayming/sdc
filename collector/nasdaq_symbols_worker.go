@@ -35,6 +35,7 @@ type NDSymbolsLoaderWorkItemManager struct {
 
 type NDSymbolsLoader struct {
 	exporter  IDataExporter
+	db        dbloader.DBLoader
 	logger    *log.Logger
 	exportDir string
 }
@@ -42,6 +43,13 @@ type NDSymbolsLoader struct {
 type NDSymbolsLoaderBuilder struct {
 	BaseWorkerBuilder
 }
+
+type NDSSymbolWorkerFactory struct {
+}
+
+//
+// Work Item Methods
+//
 
 func RemoveDuplicateRows(inData []string) (map[string]string, error) {
 	outData := make(map[string]string)
@@ -78,6 +86,10 @@ func RemoveDuplicateRows(inData []string) (map[string]string, error) {
 func (wi NDSymbolsLoaderWorkItem) ToString() string {
 	return wi.tickerRow
 }
+
+//
+// Work Item Manager Methods
+//
 
 func (wim *NDSymbolsLoaderWorkItemManager) Next() (IWorkItem, error) {
 	if len(wim.tickers) == 0 {
@@ -118,9 +130,9 @@ func (wim *NDSymbolsLoaderWorkItemManager) Summary() string {
 	return summary
 }
 
-func (swb *NDSymbolsLoaderBuilder) NewWorker() (IWorker, error) {
-	return &NDSymbolsLoader{logger: swb.logger, exporter: swb.exporters}, nil
-}
+//
+// Worker Methods
+//
 
 func (sl *NDSymbolsLoader) Init() error {
 	dateStr := time.Now().Format("20060102")
@@ -131,21 +143,10 @@ func (sl *NDSymbolsLoader) Init() error {
 	}
 
 	// Create tables
-	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sl.logger)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	defer dbLoader.Disconnect()
-	if err := dbLoader.CreateTableByJsonStruct(NDSymDataTables[ND_TICKERS], NDSymDataTypes[ND_TICKERS]); err != nil {
+	if err := sl.db.CreateTableByJsonStruct(NDSymDataTables[ND_TICKERS], NDSymDataTypes[ND_TICKERS]); err != nil {
 		return err
 	}
 
-	// Exporters can be mocked by tests
-	if sl.exporter == nil {
-		sl.exporter = NewNDSymbolsExporters(sl.logger)
-	}
 	return nil
 }
 
@@ -185,6 +186,30 @@ func (sl *NDSymbolsLoader) Done() error {
 	return nil
 }
 
+//
+// Worker Factory Methods
+//
+
+func (f *NDSSymbolWorkerFactory) MakeWorker(l *log.Logger) IWorker {
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, l)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	dbExporter := NewDBExporter(dbLoader, config.SCHEMA_NAME)
+	var e DataExporters
+	e.AddExporter(NewNDSymbollCacheExporter()).
+		AddExporter(NewNDSymbolsFileExporter()).
+		AddExporter(dbExporter)
+
+	return NewNDSymbolsLoader(&e, dbLoader, l)
+}
+
+//
+// Creators
+//
+
 // NewNDSymbolsLoaderWorkItem creates and returns a new NDSymbolsLoaderWorkItem instance.
 func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) NDSymbolsLoaderWorkItem {
 	return NDSymbolsLoaderWorkItem{
@@ -195,16 +220,12 @@ func NewNDSymbolsLoaderWorkItem(symbol, tickerRow string, keys []string) NDSymbo
 }
 
 // NewNDSymbolsLoader creates and returns a new NDSymbolsLoader instance.
-func NewNDSymbolsLoader(exporter IDataExporter, logger *log.Logger) *NDSymbolsLoader {
+func NewNDSymbolsLoader(exporter IDataExporter, db dbloader.DBLoader, logger *log.Logger) *NDSymbolsLoader {
 	return &NDSymbolsLoader{
 		exporter: exporter,
+		db:       db,
 		logger:   logger,
 	}
-}
-
-// NewNDSymbolsLoaderBuilder creates and returns a new NDSymbolsLoaderBuilder instance.
-func NewNDSymbolsLoaderBuilder() *NDSymbolsLoaderBuilder {
-	return &NDSymbolsLoaderBuilder{}
 }
 
 func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
@@ -226,6 +247,6 @@ func NewNDSymbolsLoaderWorkItemManager(fname string) (IWorkItemManager, error) {
 	return &NDSymbolsLoaderWorkItemManager{tickers: tickers, keys: keys}, nil
 }
 
-func NewParallelNDSymbolsLoader(wb IWorkerBuilder, wim IWorkItemManager) *ParallelWorker {
-	return &ParallelWorker{wb: wb, wim: wim}
+func NewParallelNDSymbolsLoader(wFac IWorkerFactory, wim IWorkItemManager) *ParallelWorker {
+	return &ParallelWorker{wFac: wFac, wim: wim}
 }

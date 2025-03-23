@@ -7,13 +7,12 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/sdclogger"
 )
 
 type ParallelWorker struct {
-	wb  IWorkerBuilder
-	wim IWorkItemManager
+	wFac IWorkerFactory
+	wim  IWorkItemManager
 }
 
 type IWorkItem interface {
@@ -27,6 +26,11 @@ type IWorkItemManager interface {
 	OnProcessSuccess(IWorkItem) error
 	Summary() string
 }
+
+type IWorkerFactory interface {
+	MakeWorker(*log.Logger) IWorker
+}
+
 type Request struct {
 	wi IWorkItem
 }
@@ -53,9 +57,8 @@ func (pw *ParallelWorker) workerRoutine(
 	}
 	logMessage("Begin")
 
-	pw.wb.WithLogger(logger)
-	worker, err := pw.wb.NewWorker()
-
+	worker := pw.wFac.MakeWorker(logger)
+	var err error
 	for err == nil {
 
 		if err := worker.Init(); err != nil {
@@ -94,7 +97,7 @@ func (pw *ParallelWorker) workerRoutine(
 		}
 
 		if !complete {
-			worker, err = pw.wb.NewWorker()
+			worker = pw.wFac.MakeWorker(logger)
 		}
 
 		if complete {
@@ -167,12 +170,4 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 	sdclogger.SDCLoggerInstance.Println(pw.wim.Summary())
 
 	return nil
-}
-
-func NewParallelSAPageExporter() ParallelWorker {
-
-	return ParallelWorker{
-		wb:  &SAPageWorkBuilder{},
-		wim: &SAPageWorkItemManager{cache: cache.NewCacheManager()},
-	}
 }

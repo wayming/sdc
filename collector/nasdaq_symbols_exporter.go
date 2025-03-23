@@ -1,15 +1,12 @@
 package collector
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"time"
 
 	"github.com/wayming/sdc/cache"
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
-	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
 
@@ -35,20 +32,4 @@ func NewNDSymbolsFileExporter() *FileExporter {
 		sdclogger.SDCLoggerInstance.Fatalf("Failed to create directory %s: %v", exportPath, err)
 	}
 	return &FileExporter{path: exportPath}
-}
-
-func NewNDSymbolsExporters(l *log.Logger) *DataExporters {
-	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, l)
-	dbLoader.Connect(os.Getenv("PGHOST"),
-		os.Getenv("PGPORT"),
-		os.Getenv("PGUSER"),
-		os.Getenv("PGPASSWORD"),
-		os.Getenv("PGDATABASE"))
-	dbExporter := NewDBExporter(dbLoader, config.SCHEMA_NAME)
-	var e DataExporters
-	e.AddExporter(NewNDSymbollCacheExporter()).
-		AddExporter(NewNDSymbolsFileExporter()).
-		AddExporter(dbExporter)
-
-	return &e
 }

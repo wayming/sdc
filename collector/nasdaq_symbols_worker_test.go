@@ -54,7 +54,7 @@ func TestRemoveDuplicateRowsShortSymbolBack(t *testing.T) {
 func TestNDSymbolsLoader_Do(t *testing.T) {
 	t.Run("TestNDSymbolsLoader_Do", func(t *testing.T) {
 		fixture := testcommon.NewMockTestFixture(t).WithExportMock()
-		sl := collector.NewNDSymbolsLoader(fixture.ExporterMock(), fixture.Logger())
+		sl := collector.NewNDSymbolsLoader(fixture.ExporterMock(), fixture.DBMock(), fixture.Logger())
 		wi := collector.NewNDSymbolsLoaderWorkItem(
 			"FMN",
 			"FMN,Federated Hermes Premier Municipal Income Fund,$10.93,-0.04,-0.365%,942765511.00,United States,2002,112147,Finance,Investment Managers",
@@ -99,15 +99,13 @@ func TestParallelNDSymbolsLoader(t *testing.T) {
 			t.Errorf("Failed to write file %s. Error: %v", csvFile, err)
 		}
 
-		wb := collector.NewNDSymbolsLoaderBuilder()
-		wb.WithLogger(fixture.Logger()).WithExporter(fixture.ExporterMock())
-
+		fac := &collector.NDSSymbolWorkerFactory{}
 		wim, err := collector.NewNDSymbolsLoaderWorkItemManager(csvFile)
 		if err != nil {
 			t.Errorf("Failed to create work item manager. Error: %v", err)
 		}
 
-		parallelLoader := collector.NewParallelNDSymbolsLoader(wb, wim)
+		parallelLoader := collector.NewParallelNDSymbolsLoader(fac, wim)
 		expectJson := `[{"Country":"United States","IPOYear":"1999","Industry":"Biotechnology: Laboratory Analytical Instruments","Name":"Agilent Technologies Inc. Common Stock","Sector":"Industrials","Symbol":"A"}]`
 		fixture.ExporterMock().EXPECT().Export(
 			collector.NDSymDataTypes[collector.ND_TICKERS],
