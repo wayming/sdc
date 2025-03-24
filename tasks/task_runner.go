@@ -16,9 +16,11 @@ func Greet(name int) {
 }
 
 var FUNCTIONS_MAAP = map[string]interface{}{
-	"load_nasdaq_tickers": load_nasdaq_tickers,
-	"clear_db":            clear_db,
-	"clear_cache":         clear_cache,
+	"load_nasdaq_tickers":         load_nasdaq_tickers,
+	"clear_db":                    clear_db,
+	"clear_cache":                 clear_cache,
+	"download_sa_page_for_symbol": download_sa_page_for_symbol,
+	"download_sa_pages":           download_sa_pages,
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
@@ -27,6 +29,20 @@ func load_nasdaq_tickers(filePath string, nThreads int) {
 		log.Panicf("Failed to create symbols loader. Error: %v", err)
 	}
 	collector.NewParallelNDSymbolsLoader(&collector.NDSSymbolWorkerFactory{}, wiManager).Execute(nThreads)
+}
+
+func download_sa_pages(proxyFile string, nThreads int) {
+	collector.NewParallelSAPageDownloader(
+		collector.NewSAPageDownloaderFactory(),
+		collector.NewSAPageWorkItemManager(proxyFile, ""),
+	).Execute(nThreads)
+}
+
+func download_sa_page_for_symbol(proxyFile string, symbol string) {
+	collector.NewParallelSAPageDownloader(
+		collector.NewSAPageDownloaderFactory(),
+		collector.NewSAPageWorkItemManager(proxyFile, symbol),
+	).Execute(1)
 }
 
 func clear_db() {

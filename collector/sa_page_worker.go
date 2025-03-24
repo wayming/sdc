@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ type SAPageWorkItemManager struct {
 	db         dbloader.DBLoader
 	logger     *log.Logger
 	proxyFile  string
+	singleSym  string
 	nProcessed int
 }
 
@@ -101,16 +103,23 @@ func (m *SAPageWorkItemManager) loadProxyFromFile(fname string) error {
 }
 
 func (m *SAPageWorkItemManager) Prepare() error {
-	if length, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS); length > 0 {
-		if err := m.loadSymFromCache(config.CACHE_KEY_SYMBOLS); err != nil {
-			return fmt.Errorf("Failed to load symbols from cache key %s. Error: %v", config.CACHE_KEY_SYMBOLS, err)
-		}
+	if len(m.singleSym) > 0 {
+		m.logger.Printf("down load pages for symbol %s", m.singleSym)
 	} else {
-		if err := m.loadSymFromDB(NDSymDataTables[ND_TICKERS]); err != nil {
-			return fmt.Errorf("Failed to load symbols from database table %s. Error: %v", NDSymDataTables[ND_TICKERS], err)
-		}
-	}
+		if length, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS); length > 0 {
+			if err := m.loadSymFromCache(config.CACHE_KEY_SYMBOLS); err != nil {
+				return fmt.Errorf("Failed to load symbols from cache key %s. Error: %v", config.CACHE_KEY_SYMBOLS, err)
+			}
+			m.logger.Printf("down load pages for symbols from cache key %s", config.CACHE_KEY_SA_SYMBOLS)
+		} else {
+			if err := m.loadSymFromDB(NDSymDataTables[ND_TICKERS]); err != nil {
+				return fmt.Errorf("Failed to load symbols from database table %s. Error: %v", NDSymDataTables[ND_TICKERS], err)
+			}
+			m.logger.Printf("down load pages for symbols from database table %s", NDSymDataTables[ND_TICKERS])
 
+		}
+
+	}
 	if _, err := os.Stat(m.proxyFile); err != nil {
 		return fmt.Errorf("No proxy file found from %s", m.proxyFile)
 	}
@@ -122,7 +131,7 @@ func (m *SAPageWorkItemManager) Prepare() error {
 }
 
 func (m *SAPageWorkItemManager) Next() (IWorkItem, error) {
-	symbol, err := m.cache.PopFromSet(config.CACHE_KEY_SYMBOLS)
+	symbol, err := m.cache.PopFromSet(config.CACHE_KEY_SA_SYMBOLS)
 	if err != nil {
 		return nil, err
 	} else {
@@ -131,7 +140,7 @@ func (m *SAPageWorkItemManager) Next() (IWorkItem, error) {
 }
 
 func (m *SAPageWorkItemManager) Size() int64 {
-	size, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS)
+	size, _ := m.cache.GetLength(config.CACHE_KEY_SA_SYMBOLS)
 	return size
 }
 
@@ -197,35 +206,35 @@ func (d *SAPageDownloader) Do(wi IWorkItem) error {
 		return fmt.Errorf("Failed to convert the work item to SAPageDownloader work item")
 	}
 
-	dir := d.downloadDir + "/" + swi.symbol
+	baseUrl := "https://stockanalysis.com/stocks/" + strings.ToLower(swi.symbol)
+	urls := map[string]string{
+		"income":              baseUrl + "financials/?p=quarterly",
+		"balance_sheet":       baseUrl + "financials/balance-sheet/?p=quarterly",
+		"cash_flow_statement": baseUrl + "financials/cash-flow-statement/?p=quarterly",
+		"ratios":              baseUrl + "financials/ratios/?p=quarterly",
+	}
+
+	dir := filepath.Join(d.downloadDir, swi.symbol)
 	if err := common.CreateDirIfNotExists(dir); err != nil {
 		return err
 	}
 
-	url := "https://stockanalysis.com/stocks/" + strings.ToLower(swi.symbol) + "/financials/?p=quarterly"
-	file := dir + "/" + "financial_income.html"
-	if err := d.ExportSAPage(url, file); err != nil {
-		return fmt.Errorf("failed to download page %s, error %v", url, err)
+	for name, url := range urls {
+		html, err := d.reader.Read(url, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to download page %s. Error: %v", url, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name+".html"), []byte(html), 0644); err != nil {
+			return fmt.Errorf("Failed to write page %s. Error: %v", filepath.Join(dir, name+".html"), err)
+		}
+
 	}
+
 	return nil
 }
 
 func (d *SAPageDownloader) Done() error {
 	// Do nothing
-	return nil
-}
-
-func (d *SAPageDownloader) ExportSAPage(url string, file string) error {
-
-	html, err := d.reader.Read(url, nil)
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(file, []byte(html), 0644); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -245,4 +254,28 @@ func (d *SAPageDownloader) Retry(err error) bool {
 	}
 
 	return false
+}
+
+// Creator functions
+func NewSAPageWorkItemManager(proxyFile string, symbol string) IWorkItemManager {
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sdclogger.SDCLoggerInstance)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	return &SAPageWorkItemManager{
+		cache: cache.NewCacheManager(),
+		db:    dbLoader, logger: sdclogger.SDCLoggerInstance,
+		proxyFile: proxyFile,
+		singleSym: symbol,
+	}
+}
+
+func NewSAPageDownloaderFactory() IWorkerFactory {
+	return &SAPageDownloaderFactory{cache: cache.NewCacheManager()}
+}
+
+func NewParallelSAPageDownloader(wFac IWorkerFactory, wim IWorkItemManager) *ParallelWorker {
+	return &ParallelWorker{wFac: wFac, wim: wim}
 }

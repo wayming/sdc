@@ -6,6 +6,11 @@ tasks:
     cmds:
       - go run tasks/task_runner.go load_nasdaq_tickers data/nasdaq_screener_1742045443432.csv 20
   
+  download_sa_page_for_symbol:
+    desc: Download SA pages for one symbol
+    cmds:
+      - go run tasks/task_runner.go download_sa_page_for_symbol data/proxies1.txt AAPL
+
   clear_db:
     desc: drop database schema
     cmds:

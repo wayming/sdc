@@ -40,10 +40,6 @@ type NDSymbolsLoader struct {
 	exportDir string
 }
 
-type NDSymbolsLoaderBuilder struct {
-	BaseWorkerBuilder
-}
-
 type NDSSymbolWorkerFactory struct {
 }
 
@@ -90,6 +86,10 @@ func (wi NDSymbolsLoaderWorkItem) ToString() string {
 //
 // Work Item Manager Methods
 //
+
+func (wim *NDSymbolsLoaderWorkItemManager) Prepare() error {
+	return nil
+}
 
 func (wim *NDSymbolsLoaderWorkItemManager) Next() (IWorkItem, error) {
 	if len(wim.tickers) == 0 {
@@ -184,6 +184,11 @@ func (sl *NDSymbolsLoader) Do(wi IWorkItem) error {
 func (sl *NDSymbolsLoader) Done() error {
 	// Do nothing
 	return nil
+}
+
+func (sl *NDSymbolsLoader) Retry(error) bool {
+	// Do nothing
+	return false
 }
 
 //
