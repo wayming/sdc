@@ -10,6 +10,7 @@ echo "password" | docker secret create proxy_pass_file -
 docker stack rm sdc
 docker build -t stock_data_collector -f Dockerfile.sdc .
 docker build -t postgres_sdc -f Dockerfile.pg .
+docker build -t scraper -f Dockerfile.scraper .
 # docker build -t pgadmin_sdc -f Dockerfile.pgadmin .
 docker build -t openbb -f Dockerfile.openbb .
 while [ 1 ];

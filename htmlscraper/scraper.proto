@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package HtmlScraper;
+
+option go_package = "./;HtmlScraper";
+
+// 请求消息
+message Request {
+  string html_text = 1;       // 客户端发送的 HTML 内容
+  string page_type = 2;       // 数据类型指定，例如 'income_statement', 'balance_sheet', 'cash_flow' 等
+}
+
+// 响应消息
+message Response {
+  StatusCode status = 1;          // 请求状态，成功或失败
+  string     json_data = 2;       // 返回的 JSON 数据
+}
+
+// 服务定义
+service HtmlScraper {
+  // 处理 HTML 文本并返回 JSON 格式的数据
+  rpc ProcessPage(Request) returns (Response);
+}
+
+enum StatusCode {
+    OK = 0;  // No errors
+    ERROR_PARSER = 1;  // Failed to parse the Html
+    ERROR_INTERNAL = 99;  // Server-side error
+}

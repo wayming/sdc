@@ -51,6 +51,15 @@ services:
         uid: '1000'  # appuser
         gid: '1000'  # appuser
 
+  scraper:
+    image: scraper
+    volumes:
+      - ../htmlscraper:/app
+    deploy:
+      replicas: 1
+    networks:
+      - overlay_network
+
   postgres:
     image: postgres_sdc
     restart: always
