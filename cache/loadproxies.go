@@ -32,35 +32,35 @@ func LoadProxies(cm ICacheManager, key string, proxyFile string) (int, error) {
 
 func isProxyValid(proxy string) bool {
 	parts := strings.Split(proxy, ":")
-	proxyURL := parts[0] + ":" + parts[1]
-	proxyUser := parts[2]
-	proxyPassword := parts[3]
+	// proxyURL := parts[0] + ":" + parts[1]
+	// proxyUser := os.Getenv("PROXYUSER")
+	// proxyPassword := os.Getenv("PROXYPASSWORD")
 	cmd := exec.Command("nc", "-w", "5", "-zv", parts[0], parts[1])
 	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxyURL+". Error: ", err.Error())
+		sdclogger.SDCLoggerInstance.Printf("Failed to run [%s]. Error: %v ", cmd.String(), err)
 		return false
 	}
 	if cmd.ProcessState.ExitCode() != 0 {
 		return false
 	}
 
-	cmd = exec.Command("wget",
-		"--timeout", "2",
-		"--tries", "1",
-		"-e", "use_proxy=yes",
-		"-e", "http_proxy="+proxyURL,
-		"--proxy-user", proxyUser,
-		"--proxy-password", proxyPassword,
-		"-O", "logs/proxy_test.html",
-		"-a", "logs/proxy_test.log",
-		"http://example.com")
-	if err := cmd.Run(); err != nil {
-		sdclogger.SDCLoggerInstance.Println("Failed to ping "+proxyURL+". Error: ", err.Error())
-		return false
-	}
-	if cmd.ProcessState.ExitCode() != 0 {
-		return false
-	}
+	// cmd = exec.Command("wget",
+	// 	"--timeout", "2",
+	// 	"--tries", "1",
+	// 	"-e", "use_proxy=yes",
+	// 	"-e", "http_proxy="+proxyURL,
+	// 	"--proxy-user", proxyUser,
+	// 	"--proxy-password", proxyPassword,
+	// 	"-O", "logs/proxy_test.html",
+	// 	"-a", "logs/proxy_test.log",
+	// 	"http://example.com")
+	// if err := cmd.Run(); err != nil {
+	// 	sdclogger.SDCLoggerInstance.Printf("Failed to run [%s]. Error: %v ", cmd.String(), err)
+	// 	return false
+	// }
+	// if cmd.ProcessState.ExitCode() != 0 {
+	// 	return false
+	// }
 	return true
 }
 

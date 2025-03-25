@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/wayming/sdc/sdclogger"
@@ -87,7 +88,7 @@ func NewProxyClient(proxyRecord string) (*http.Client, error) {
 	proxyParts := strings.Split(proxyRecord, ":")
 
 	// Define the proxy URL
-	proxyURL, err := url.Parse("http://" + proxyParts[2] + ":" + proxyParts[3] + "@" + proxyParts[0] + ":" + proxyParts[1])
+	proxyURL, err := url.Parse("http://" + os.Getenv("PROXYUSER") + ":" + os.Getenv("PROXYPASSWORD") + "@" + proxyParts[0] + ":" + proxyParts[1])
 	if err != nil {
 		sdclogger.SDCLoggerInstance.Printf("Failed to parse proxy URL: %v", err)
 		return nil, err

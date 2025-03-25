@@ -115,7 +115,7 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 	}
 
 	nAll := pw.wim.Size()
-	summary := "\nResults Summary:\n"
+	summary := "Results Summary:\n"
 
 	var wg sync.WaitGroup
 	inChan := make(chan Request, 1000*1000)

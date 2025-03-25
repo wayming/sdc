@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["load_nasdaq_tickers", "data/nasdaq_screener_1742045443432.csv", "2"]
+            "args": ["download_sa_page_for_symbol", "data/proxies1.txt", "AAPL"]
         }
     ]
 }

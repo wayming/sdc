@@ -92,47 +92,44 @@ func (m *SAPageWorkItemManager) loadSymFromCache(setName string) error {
 }
 
 func (m *SAPageWorkItemManager) loadProxyFromFile(fname string) error {
-	num, err := cache.LoadProxies(m.cache, config.CACHE_KEY_PROXIES, fname)
-
-	if err != nil {
-		return err
-	} else {
-		m.logger.Printf("%d proxies loaded to cache", num)
-		return nil
-	}
+	_, err := cache.LoadProxies(m.cache, config.CACHE_KEY_PROXIES, fname)
+	return err
 }
 
 func (m *SAPageWorkItemManager) Prepare() error {
 	if len(m.singleSym) > 0 {
-		m.logger.Printf("down load pages for symbol %s", m.singleSym)
+		m.logger.Printf("download pages for symbol %s", m.singleSym)
+		if err := m.cache.AddToSet(config.CACHE_KEY_SA_SYMBOLS, m.singleSym); err != nil {
+			return fmt.Errorf("failed to prepare work item to process. Error: %v", err)
+		}
 	} else {
 		if length, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS); length > 0 {
 			if err := m.loadSymFromCache(config.CACHE_KEY_SYMBOLS); err != nil {
-				return fmt.Errorf("Failed to load symbols from cache key %s. Error: %v", config.CACHE_KEY_SYMBOLS, err)
+				return fmt.Errorf("failed to load symbols from cache key %s. Error: %v", config.CACHE_KEY_SYMBOLS, err)
 			}
-			m.logger.Printf("down load pages for symbols from cache key %s", config.CACHE_KEY_SA_SYMBOLS)
+			m.logger.Printf("download pages for symbols from cache key %s", config.CACHE_KEY_SA_SYMBOLS)
 		} else {
 			if err := m.loadSymFromDB(NDSymDataTables[ND_TICKERS]); err != nil {
-				return fmt.Errorf("Failed to load symbols from database table %s. Error: %v", NDSymDataTables[ND_TICKERS], err)
+				return fmt.Errorf("failed to load symbols from database table %s. Error: %v", NDSymDataTables[ND_TICKERS], err)
 			}
-			m.logger.Printf("down load pages for symbols from database table %s", NDSymDataTables[ND_TICKERS])
+			m.logger.Printf("download pages for symbols from database table %s", NDSymDataTables[ND_TICKERS])
 
 		}
 
 	}
 	if _, err := os.Stat(m.proxyFile); err != nil {
-		return fmt.Errorf("No proxy file found from %s", m.proxyFile)
+		return fmt.Errorf("no proxy file found from %s", m.proxyFile)
 	}
 
 	if err := m.loadProxyFromFile(m.proxyFile); err != nil {
-		return fmt.Errorf("Failed to load proxies from file %s. Error: %v", m.proxyFile, err)
+		return fmt.Errorf("failed to load proxies from file %s. Error: %v", m.proxyFile, err)
 	}
 	return nil
 }
 
 func (m *SAPageWorkItemManager) Next() (IWorkItem, error) {
 	symbol, err := m.cache.PopFromSet(config.CACHE_KEY_SA_SYMBOLS)
-	if err != nil {
+	if err != nil || symbol == "" {
 		return nil, err
 	} else {
 		return SAPageWorkItem{symbol}, nil
@@ -166,8 +163,8 @@ func (m *SAPageWorkItemManager) OnProcessSuccess(wi IWorkItem) error {
 }
 
 func (m *SAPageWorkItemManager) Summary() string {
-	nLeft, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS)
-	nError, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS_ERROR)
+	nLeft, _ := m.cache.GetLength(config.CACHE_KEY_SA_SYMBOLS)
+	nError, _ := m.cache.GetLength(config.CACHE_KEY_SA_SYMBOLS_ERROR)
 
 	summary := fmt.Sprintf("Processed: %d, Left: %d, Error: %d", m.nProcessed, nLeft, nError)
 	return summary
@@ -182,7 +179,9 @@ func (f *SAPageDownloaderFactory) MakeWorker(l *log.Logger) IWorker {
 	if len(proxy) == 0 {
 		sdclogger.SDCLoggerInstance.Fatalf("No usable proxy found. Error: %v", err)
 	}
-	return &SAPageDownloader{logger: l, proxy: proxy}
+	sdclogger.SDCLoggerInstance.Printf("Connect with proxy %s", proxy)
+	clt, _ := NewProxyClient(proxy)
+	return &SAPageDownloader{reader: NewHttpReader(clt), logger: l, proxy: proxy}
 }
 
 //
@@ -203,15 +202,15 @@ func (d *SAPageDownloader) Init() error {
 func (d *SAPageDownloader) Do(wi IWorkItem) error {
 	swi, ok := wi.(SAPageWorkItem)
 	if !ok {
-		return fmt.Errorf("Failed to convert the work item to SAPageDownloader work item")
+		return fmt.Errorf("failed to convert the work item to SAPageDownloader work item")
 	}
 
 	baseUrl := "https://stockanalysis.com/stocks/" + strings.ToLower(swi.symbol)
 	urls := map[string]string{
-		"income":              baseUrl + "financials/?p=quarterly",
-		"balance_sheet":       baseUrl + "financials/balance-sheet/?p=quarterly",
-		"cash_flow_statement": baseUrl + "financials/cash-flow-statement/?p=quarterly",
-		"ratios":              baseUrl + "financials/ratios/?p=quarterly",
+		"income":              baseUrl + "/financials/?p=quarterly",
+		"balance_sheet":       baseUrl + "/financials/balance-sheet/?p=quarterly",
+		"cash_flow_statement": baseUrl + "/financials/cash-flow-statement/?p=quarterly",
+		"ratios":              baseUrl + "/financials/ratios/?p=quarterly",
 	}
 
 	dir := filepath.Join(d.downloadDir, swi.symbol)
@@ -222,10 +221,12 @@ func (d *SAPageDownloader) Do(wi IWorkItem) error {
 	for name, url := range urls {
 		html, err := d.reader.Read(url, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to download page %s. Error: %v", url, err)
+			return fmt.Errorf("failed to download page %s. Error: %v", url, err)
 		}
 		if err := os.WriteFile(filepath.Join(dir, name+".html"), []byte(html), 0644); err != nil {
-			return fmt.Errorf("Failed to write page %s. Error: %v", filepath.Join(dir, name+".html"), err)
+			return fmt.Errorf("failed to write page %s. Error: %v", filepath.Join(dir, name+".html"), err)
+		} else {
+			d.logger.Printf("write html to %s", filepath.Join(dir, name+".html"))
 		}
 
 	}
@@ -252,7 +253,7 @@ func (d *SAPageDownloader) Retry(err error) bool {
 			return true
 		}
 	}
-
+	log.Printf("none http server error. %v. No retry.", err)
 	return false
 }
 

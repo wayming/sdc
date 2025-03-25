@@ -28,7 +28,11 @@ type CacheManager struct {
 }
 
 func NewCacheManager() *CacheManager {
-	return &CacheManager{clientHandle: nil}
+	c := &CacheManager{clientHandle: nil}
+	if err := c.Connect(); err != nil {
+		sdclogger.SDCLoggerInstance.Fatalln("Failed to connect to Cache")
+	}
+	return c
 }
 
 func (m *CacheManager) Disconnect() error {

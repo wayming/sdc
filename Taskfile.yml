@@ -11,6 +11,11 @@ tasks:
     cmds:
       - go run tasks/task_runner.go download_sa_page_for_symbol data/proxies1.txt AAPL
 
+  download_sa_pages:
+    desc: Download SA pages
+    cmds:
+      - go run tasks/task_runner.go download_sa_pages data/proxies1.txt 50
+
   clear_db:
     desc: drop database schema
     cmds:
