@@ -12,7 +12,37 @@ import logging
 logging.basicConfig(level=logging.DEBUG,  # Set the logging level
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Define handlers for each page type
+# Extract data from finanical pages
+#
+# Input:
+#
+# <table id="main-table" data-test="financials">
+#   <thead>
+#     <tr>
+#       <td></td>
+#       ...
+#     </tr>
+#     <tr>
+#       <td></td>
+#       ...
+#     </tr>
+#   </thead>
+#   <tbody>
+#     <tr>
+#       <td></td>
+#       ...
+#     </tr>
+#     <tr>
+#       <td></td>
+#       ...
+#     </tr>
+#     ...
+#   </tbody>
+# </table>
+#
+# Output:
+#
+#
 def handle_finanical_table(request):
     # Logic for handling financial table
     selector = Selector(request.html_text)
@@ -23,10 +53,14 @@ def handle_finanical_table(request):
             return scrape_pb2.ERROR_PARSER, {"message": "No table header found"}
 
         results = []
-        # Iterate over the extracted <th> elements and print their text
+
+        # First column is the key of the header
         headerKey = theader[0].xpath('.//text()').get()
         fiscalPeriodsIdx = 0
-        for th in theader[1:]:
+
+        # Remaining columns are data for each fiscal period
+        # Iterate over the extracted <th> elements and print their text
+        for th in theader[1:]: # Skip the first column which is the key of the header
             text = th.xpath('.//text()').get()  # Extract text content from <th>
             results.append({ headerKey: text})
             fiscalPeriodsIdx = fiscalPeriodsIdx + 1
@@ -37,14 +71,17 @@ def handle_finanical_table(request):
 
         for tr in trs:
             tds = tr.xpath('.//td')
+
+            # First column is the key of the row
             rowKey = tds[0].xpath('.//div//text()').get()
             if rowKey is None:
                 rowKey = tds[0].xpath('.//a//text()').get()
 
+            # Must have the same number of columns as the header
             if len(tds[1:]) != len(results):
                 return scrape_pb2.ERROR_PARSER, {"message": "Different number for columns found between header and the table contents"}
             
-
+            # Remaining columns are data for each fiscal period
             fiscalPeriodsIdx = 0
             for td in tds[1:]:
                 results[fiscalPeriodsIdx][rowKey] = td.xpath('.//text()').get()

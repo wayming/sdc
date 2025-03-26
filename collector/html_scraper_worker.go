@@ -36,6 +36,7 @@ type HtmlScraper struct {
 }
 
 type HtmlScraperFactory struct {
+	outputBaseDir string
 }
 
 //
@@ -117,7 +118,7 @@ func (m *HtmlScraperWorkItemManager) Summary() string {
 //
 
 func (f *HtmlScraperFactory) MakeWorker(l *log.Logger) IWorker {
-	return &HtmlScraper{logger: l, exporter: &FileExporter{}}
+	return &HtmlScraper{logger: l, exporter: &FileExporter{path: f.outputBaseDir}}
 }
 
 //
@@ -151,7 +152,7 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	// Read a html file
 	content, err := os.ReadFile(swi.path)
 	if err != nil {
-		log.Fatal(err)
+		d.logger.Fatal(err)
 	}
 
 	// Create a sample Request to send
@@ -163,26 +164,26 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	// Call ProcessPage method from the HtmlScraper service
 	response, err := client.ProcessPage(context.Background(), request)
 	if err != nil || response.Status != ScraperProto.StatusCode_OK {
-		log.Fatalf("Failed to process file %s. Response status %s. Error: %v",
+		d.logger.Fatalf("Failed to process file %s. Response status %s. Error: %v",
 			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], err)
 	}
-	log.Println("Response JSON Data:", string(response.GetJsonData()))
+	d.logger.Println("Response JSON Data:", string(response.GetJsonData()))
 
 	// Unmarshal the JSON string
 	var obj []map[string]interface{}
 	err = json.Unmarshal([]byte(string(response.GetJsonData())), &obj)
 	if err != nil {
-		log.Fatalf("Failed to unmarshall json response. Error: %v", err)
+		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
 	}
 
 	// Marshal the object back into a pretty-printed JSON string
 	prettyJSON, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
-		log.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
+		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
 	}
 
-	log.Println("Response Status:", response.GetStatus())
-	log.Println("Response JSON Data:", string(prettyJSON))
+	d.logger.Println("Response Status:", response.GetStatus())
+	d.logger.Println("Response JSON Data:", string(prettyJSON))
 
 	parts := strings.Split(swi.path, "/")
 	symbol := parts[len(parts)-2] // the second-to-last part
@@ -190,7 +191,7 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	// Extract table name, popu
 	baseName := filepath.Base(swi.path)
 	ext := filepath.Ext(swi.path)
-	saCategory := "SA" + common.ConvertToPascalCase(strings.TrimSuffix(baseName, ext))
+	saCategory := "SAFinancials" + common.ConvertToPascalCase(strings.TrimSuffix(baseName, ext))
 	d.exporter.Export(SADataTypes[saCategory], SADataTables[saCategory], string(prettyJSON), symbol)
 	return nil
 }
@@ -214,8 +215,8 @@ func NewHtmlScraperWorkItemManager(inputDir string) IWorkItemManager {
 	}
 }
 
-func NewHtmlScraperFactory() IWorkerFactory {
-	return &HtmlScraperFactory{}
+func NewHtmlScraperFactory(outDir string) IWorkerFactory {
+	return &HtmlScraperFactory{outputBaseDir: outDir}
 }
 
 func NewParallelHtmlScraper(wFac IWorkerFactory, wim IWorkItemManager) *ParallelWorker {

@@ -48,7 +48,7 @@ func download_sa_page_for_symbol(proxyFile string, symbol string) {
 
 func scrape_sa_pages(inputDir string, nThreads int) {
 	collector.NewParallelHtmlScraper(
-		collector.NewHtmlScraperFactory(),
+		collector.NewHtmlScraperFactory(inputDir),
 		collector.NewHtmlScraperWorkItemManager(inputDir),
 	).Execute(nThreads)
 }
