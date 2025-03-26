@@ -52,9 +52,9 @@ func (swi HtmlScraperWorkItem) ToString() string {
 
 func (m *HtmlScraperWorkItemManager) Prepare() error {
 
-	matches, err := filepath.Glob("m.inputDir/*/*.html")
+	matches, err := filepath.Glob(m.inputDir + "/*/*.html")
 	if err != nil {
-		return fmt.Errorf("Failed to find html files under %s", m.inputDir)
+		return fmt.Errorf("failed to find html files under %s", m.inputDir)
 	}
 
 	for _, path := range matches {
@@ -117,7 +117,7 @@ func (m *HtmlScraperWorkItemManager) Summary() string {
 //
 
 func (f *HtmlScraperFactory) MakeWorker(l *log.Logger) IWorker {
-	return &HtmlScraper{logger: l}
+	return &HtmlScraper{logger: l, exporter: &FileExporter{}}
 }
 
 //
@@ -133,8 +133,8 @@ func (d *HtmlScraper) Init() error {
 	if err != nil {
 		log.Fatalf("Failed to connect to scraper server %s. Error: %v", config.SCRAPER_HOST+":"+config.SCRAPER_PORT, err)
 	}
-	defer conn.Close()
 
+	d.conn = conn
 	return nil
 }
 
@@ -144,11 +144,12 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 		return fmt.Errorf("failed to convert the work item to HtmlScraper work item")
 	}
 
+	d.logger.Printf("process file %s", swi.path)
 	// Create a new HtmlScraper client
-	client := ScraperProto.NewHtmlScraperClient(swi.path)
+	client := ScraperProto.NewHtmlScraperClient(d.conn)
 
 	// Read a html file
-	content, err := os.ReadFile("input/income_statement.html")
+	content, err := os.ReadFile(swi.path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,14 +157,16 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	// Create a sample Request to send
 	request := &ScraperProto.Request{
 		HtmlText: string(content),
-		PageType: "income_statement",
+		PageType: "finanical_table",
 	}
 
 	// Call ProcessPage method from the HtmlScraper service
 	response, err := client.ProcessPage(context.Background(), request)
-	if err != nil {
-		log.Fatalf("Error calling ProcessPage: %v", err)
+	if err != nil || response.Status != ScraperProto.StatusCode_OK {
+		log.Fatalf("Failed to process file %s. Response status %s. Error: %v",
+			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], err)
 	}
+	log.Println("Response JSON Data:", string(response.GetJsonData()))
 
 	// Unmarshal the JSON string
 	var obj []map[string]interface{}
@@ -203,11 +206,11 @@ func (d *HtmlScraper) Retry(err error) bool {
 }
 
 // Creator functions
-func NewHtmlScraperWorkItemManager(input string) IWorkItemManager {
+func NewHtmlScraperWorkItemManager(inputDir string) IWorkItemManager {
 	return &HtmlScraperWorkItemManager{
 		cache:    cache.NewCacheManager(),
 		logger:   sdclogger.SDCLoggerInstance,
-		inputDir: input,
+		inputDir: inputDir,
 	}
 }
 

@@ -21,6 +21,7 @@ var FUNCTIONS_MAAP = map[string]interface{}{
 	"clear_cache":                 clear_cache,
 	"download_sa_page_for_symbol": download_sa_page_for_symbol,
 	"download_sa_pages":           download_sa_pages,
+	"scrape_sa_pages":             scrape_sa_pages,
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
@@ -43,6 +44,13 @@ func download_sa_page_for_symbol(proxyFile string, symbol string) {
 		collector.NewSAPageDownloaderFactory(),
 		collector.NewSAPageWorkItemManager(proxyFile, symbol),
 	).Execute(1)
+}
+
+func scrape_sa_pages(inputDir string, nThreads int) {
+	collector.NewParallelHtmlScraper(
+		collector.NewHtmlScraperFactory(),
+		collector.NewHtmlScraperWorkItemManager(inputDir),
+	).Execute(nThreads)
 }
 
 func clear_db() {

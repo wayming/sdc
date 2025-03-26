@@ -3,8 +3,7 @@ package common
 import (
 	"regexp"
 	"strings"
-
-	"golang.org/x/text/cases"
+	"unicode"
 )
 
 func RemoveAllWhitespace(s string) string {
@@ -25,8 +24,10 @@ func ConvertToPascalCase(input string) string {
 
 	// Iterate through each part
 	for _, part := range parts {
-		// Capitalize the first letter of each part and append it to the result
-		result += cases.Title(part)
+		if len(part) > 0 {
+			// Capitalize the first letter of each part and make the rest lowercase
+			result += string(unicode.ToUpper(rune(part[0]))) + strings.ToLower(part[1:])
+		}
 	}
 
 	return result

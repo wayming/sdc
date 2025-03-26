@@ -57,33 +57,27 @@ func (pw *ParallelWorker) workerRoutine(
 	worker := pw.wFac.MakeWorker(logger)
 	var err error
 	for err == nil {
-
 		if err := worker.Init(); err != nil {
 			logMessage(err.Error())
 			outChan <- Response{nil, err}
 			return
 		}
-
 		complete := false
 		for {
-			var r Request
-			select {
-			case r = <-inChan:
-				logMessage("Begin processing [" + r.wi.ToString() + "]")
-			default:
+			r, ok := <-inChan
+			if !ok {
 				logMessage("All work items are processed")
 				complete = true
-			}
-
-			if complete {
 				break
+			} else {
+				logMessage("Begin processing [" + r.wi.ToString() + "]")
 			}
 
 			if err := worker.Do(r.wi); err != nil {
 				logMessage(err.Error())
 				if worker.Retry(err) {
-					logMessage("Re-processing [" + r.wi.ToString() + "].")
-					continue
+					logMessage("Recreate worker for processing.")
+					break
 				}
 				outChan <- Response{r.wi, err}
 				logMessage("End processing [" + r.wi.ToString() + "].")
@@ -93,17 +87,15 @@ func (pw *ParallelWorker) workerRoutine(
 			}
 		}
 
-		if err := worker.Done(); err != nil {
-			outChan <- Response{nil, err}
-		}
-
-		if !complete {
+		if complete {
+			break
+		} else {
+			if err := worker.Done(); err != nil {
+				outChan <- Response{nil, err}
+			}
 			worker = pw.wFac.MakeWorker(logger)
 		}
 
-		if complete {
-			break
-		}
 	}
 
 	logMessage("Finish")

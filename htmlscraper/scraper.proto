@@ -4,21 +4,18 @@ package HtmlScraper;
 
 option go_package = "./;HtmlScraper";
 
-// 请求消息
 message Request {
-  string html_text = 1;       // 客户端发送的 HTML 内容
-  string page_type = 2;       // 数据类型指定，例如 'income_statement', 'balance_sheet', 'cash_flow' 等
+  string html_text = 1;       // HTML text string
+  string page_type = 2;       // Type of the page
 }
 
-// 响应消息
 message Response {
-  StatusCode status = 1;          // 请求状态，成功或失败
-  string     json_data = 2;       // 返回的 JSON 数据
+  StatusCode status = 1;
+  string     json_data = 2;
 }
 
-// 服务定义
 service HtmlScraper {
-  // 处理 HTML 文本并返回 JSON 格式的数据
+  // Process HTML and return JSON
   rpc ProcessPage(Request) returns (Response);
 }
 

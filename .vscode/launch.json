@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["download_sa_page_for_symbol", "data/proxies1.txt", "AAPL"]
+            "args": ["scrape_sa_pages", "data/20250324", "1"]
         }
     ]
 }
