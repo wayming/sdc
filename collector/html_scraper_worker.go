@@ -163,11 +163,16 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 
 	// Call ProcessPage method from the HtmlScraper service
 	response, err := client.ProcessPage(context.Background(), request)
-	if err != nil || response.Status != ScraperProto.StatusCode_OK {
-		d.logger.Fatalf("Failed to process file %s. Response status %s. Error: %v",
-			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], err)
+	if err != nil {
+		d.logger.Fatalf("Failed to process file %s. Response status %s.  Response body %s. Error: %v",
+			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()), err)
 	}
-	d.logger.Println("Response JSON Data:", string(response.GetJsonData()))
+
+	if response.Status != ScraperProto.StatusCode_OK {
+		d.logger.Println("Response JSON Data:", string(response.GetJsonData()))
+		return fmt.Errorf("failed to process file %s. Response status %s.  Response body %s",
+			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()))
+	}
 
 	// Unmarshal the JSON string
 	var obj []map[string]interface{}

@@ -131,8 +131,8 @@ func (pw *ParallelWorker) Execute(parallel int) error {
 			sdclogger.SDCLoggerInstance.Printf("Push %s into [input] channel.", wi.ToString())
 			inChan <- Request{wi}
 		}
+		defer close(inChan) // Close the inChan when done
 	}()
-	defer close(inChan) // Close the inChan when done
 
 	// Start goroutine
 	i := 0

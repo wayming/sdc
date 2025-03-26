@@ -42,6 +42,19 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 #
 # Output:
 #
+#   [
+#     {
+#       "Fiscal Quarter": 'Q3 2024',
+#       "Revenue": "100",
+#       ...
+#     },
+#     {
+#       "Fiscal Quarter": 'Q2 2024',
+#       "Revenue": "95",
+#       ...
+#     },
+#     ... 
+#   ]
 #
 def handle_finanical_table(request):
     # Logic for handling financial table
@@ -57,6 +70,7 @@ def handle_finanical_table(request):
         # First column is the key of the header
         headerKey = theader[0].xpath('.//text()').get()
         fiscalPeriodsIdx = 0
+        logging.debug("headerKey=%s", headerKey)
 
         # Remaining columns are data for each fiscal period
         # Iterate over the extracted <th> elements and print their text
@@ -64,7 +78,8 @@ def handle_finanical_table(request):
             text = th.xpath('.//text()').get()  # Extract text content from <th>
             results.append({ headerKey: text})
             fiscalPeriodsIdx = fiscalPeriodsIdx + 1
-        
+        logging.debug("results header: %s\n", json.dumps(results, indent=4))
+
         trs = selector.xpath('//*[@id="main-table"]/tbody/tr')
         if len(trs) <= 0:
             return scrape_pb2.ERROR_PARSER, {"message": "No table body found"}
@@ -76,9 +91,12 @@ def handle_finanical_table(request):
             rowKey = tds[0].xpath('.//div//text()').get()
             if rowKey is None:
                 rowKey = tds[0].xpath('.//a//text()').get()
+            logging.debug("rowKey=%s", rowKey)
 
-            # Must have the same number of columns as the header
-            if len(tds[1:]) != len(results):
+            # Some pages has unaligned columns, see https://stockanalysis.com/stocks/blne/financials/ratios/?p=quarterly
+            # Each row may have the same number of columns as the header or one column less
+            if len(tds[1:]) != len(results) and len(tds[1:]) != len(results) - 1:
+                logging.debug("header columns %d, row columns %d", len(results), len(tds[1:]))
                 return scrape_pb2.ERROR_PARSER, {"message": "Different number for columns found between header and the table contents"}
             
             # Remaining columns are data for each fiscal period
@@ -113,7 +131,7 @@ PAGE_TYPE_HANDLERS = {
     "finanical_table": handle_finanical_table,
 }
 
-# 实现 gRPC 服务
+# Implemente gRPC service
 class ScraperService(scrape_pb2_grpc.HtmlScraperServicer):
     def ProcessPage(self, request, context):
         page_type = request.page_type
