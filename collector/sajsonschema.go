@@ -10,8 +10,8 @@ const SA_REDIRECTED_SYMBOLS = "SARedirectedSymbols"
 const SA_STOCKOVERVIEW = "SAStockOverview"
 const SA_FINANCIALSINCOME = "SAFinancialsIncome"
 const SA_FINANCIALSBALANCESHEET = "SAFinancialsBalanceSheet"
-const SA_FINANCIALSCASHFLOW = "SAFinancialsCashFlow"
-const SA_FINANCIALRATIOS = "SAFinancialRatios"
+const SA_FINANCIALSCASHFLOW = "SAFinancialsCashFlowStatement"
+const SA_FINANCIALRATIOS = "SAFinancialsRatios"
 const SA_ANALYSTSRATING = "SAAnalystsRating"
 
 type RedirectedSymbols struct {
@@ -512,7 +512,7 @@ var SADataTables = map[string]string{
 	SA_STOCKOVERVIEW:          "sa_stockoverview",
 	SA_FINANCIALSINCOME:       "sa_financialsincome",
 	SA_FINANCIALSBALANCESHEET: "sa_financialsbalancesheet",
-	SA_FINANCIALSCASHFLOW:     "sa_financialscashflow",
+	SA_FINANCIALSCASHFLOW:     "sa_financialscashflowstatement",
 	SA_FINANCIALRATIOS:        "sa_financialratios",
 	SA_ANALYSTSRATING:         "sa_analystsrating",
 }

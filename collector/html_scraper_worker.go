@@ -13,6 +13,7 @@ import (
 	ScraperProto "github.com/wayming/sdc/collector/proto"
 	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
+	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -118,7 +119,18 @@ func (m *HtmlScraperWorkItemManager) Summary() string {
 //
 
 func (f *HtmlScraperFactory) MakeWorker(l *log.Logger) IWorker {
-	return &HtmlScraper{logger: l, exporter: &FileExporter{path: f.outputBaseDir}}
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, l)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+
+	var e DataExporters
+	e.AddExporter(NewDBExporter(dbLoader, config.SCHEMA_NAME)).
+		AddExporter(&FileExporter{path: f.outputBaseDir})
+
+	return &HtmlScraper{logger: l, exporter: &e}
 }
 
 //

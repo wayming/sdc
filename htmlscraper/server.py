@@ -18,10 +18,19 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 #
 # <table id="main-table" data-test="financials">
 #   <thead>
+#    // Fiscal Quarter
 #     <tr>
+#       // Key
+#       <td></td>
+#       // Current
+#       <td></td>
+#       // Data Columns
 #       <td></td>
 #       ...
+#       // "Upgrade" column
+#       <td></td>
 #     </tr>
+#    // Period Ending
 #     <tr>
 #       <td></td>
 #       ...
@@ -29,12 +38,15 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 #   </thead>
 #   <tbody>
 #     <tr>
+#       // Key
+#       <td></td>
+#       // Current
+#       <td></td>
+#       // Data Columns
 #       <td></td>
 #       ...
-#     </tr>
-#     <tr>
+#       // "Upgrade" column
 #       <td></td>
-#       ...
 #     </tr>
 #     ...
 #   </tbody>
@@ -65,45 +77,60 @@ def handle_finanical_table(request):
         if len(theader) <= 0:
             return scrape_pb2.ERROR_PARSER, {"message": "No table header found"}
 
-        results = []
+        trs = selector.xpath('//*[@id="main-table"]/tbody/tr')
+        if len(trs) <= 0:
+            return scrape_pb2.ERROR_PARSER, {"message": "No table body found"}
 
         # First column is the key of the header
         headerKey = theader[0].xpath('.//text()').get()
-        fiscalPeriodsIdx = 0
         logging.debug("headerKey=%s", headerKey)
 
-        # Remaining columns are data for each fiscal period
+        # Populate the effective column
+        # Exclude the key, current and upgrade column
+        numOfEffectiveColumns = len(theader)
+        for tr in trs:
+            tds = tr.xpath('.//td')
+            # Some pages has unaligned columns, see https://stockanalysis.com/stocks/blne/financials/ratios/?p=quarterly
+            # Set the effective columns to match the columns of the row with the fewest columns.
+            if len(tds) < numOfEffectiveColumns:
+                numOfEffectiveColumns = len(tds)
+        numOfEffectiveColumns = numOfEffectiveColumns - 3 # Remove the key, current and upgrade column
+
+        # Populate number of columns to return
+        results = []
+        theader = theader[1:numOfEffectiveColumns+1]
+
         # Iterate over the extracted <th> elements and print their text
-        for th in theader[1:]: # Skip the first column which is the key of the header
+        for th in theader:
             text = th.xpath('.//text()').get()  # Extract text content from <th>
             results.append({ headerKey: text})
             fiscalPeriodsIdx = fiscalPeriodsIdx + 1
         logging.debug("results header: %s\n", json.dumps(results, indent=4))
 
-        trs = selector.xpath('//*[@id="main-table"]/tbody/tr')
-        if len(trs) <= 0:
-            return scrape_pb2.ERROR_PARSER, {"message": "No table body found"}
 
         for tr in trs:
             tds = tr.xpath('.//td')
-
+            
             # First column is the key of the row
             rowKey = tds[0].xpath('.//div//text()').get()
             if rowKey is None:
                 rowKey = tds[0].xpath('.//a//text()').get()
             logging.debug("rowKey=%s", rowKey)
 
-            # Some pages has unaligned columns, see https://stockanalysis.com/stocks/blne/financials/ratios/?p=quarterly
+            tds = tds[1:numOfEffectiveColumns+1]
+
             # Each row may have the same number of columns as the header or one column less
-            if len(tds[1:]) != len(results) and len(tds[1:]) != len(results) - 1:
-                logging.debug("header columns %d, row columns %d", len(results), len(tds[1:]))
-                return scrape_pb2.ERROR_PARSER, {"message": "Different number for columns found between header and the table contents"}
+            if len(tds[1:]) < numOfEffectiveColumns:
+                error = f"Expecting {numOfEffectiveColumns} effective columns, however got {len(tds[1:])} columns from the row."
+                logging.debug(error)
+                return scrape_pb2.ERROR_PARSER, {"message": error}
             
             # Remaining columns are data for each fiscal period
             fiscalPeriodsIdx = 0
-            for td in tds[1:]:
+            for td in tds:
                 results[fiscalPeriodsIdx][rowKey] = td.xpath('.//text()').get()
                 fiscalPeriodsIdx = fiscalPeriodsIdx + 1
+
         return scrape_pb2.OK, results
     except Exception as e:
             # Capture the exception and its traceback as a string
