@@ -33,6 +33,7 @@ type HtmlScraperWorkItemManager struct {
 type HtmlScraper struct {
 	logger   *log.Logger
 	exporter IDataExporter
+	norm     *SAJsonNormaliser
 	conn     *grpc.ClientConn
 }
 
@@ -130,7 +131,7 @@ func (f *HtmlScraperFactory) MakeWorker(l *log.Logger) IWorker {
 	e.AddExporter(NewDBExporter(dbLoader, config.SCHEMA_NAME)).
 		AddExporter(&FileExporter{path: f.outputBaseDir})
 
-	return &HtmlScraper{logger: l, exporter: &e}
+	return &HtmlScraper{logger: l, exporter: &e, norm: &SAJsonNormaliser{}}
 }
 
 //
@@ -187,14 +188,25 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	}
 
 	// Unmarshal the JSON string
-	var obj []map[string]interface{}
+	var objs []map[string]interface{}
 	err = json.Unmarshal([]byte(string(response.GetJsonData())), &obj)
 	if err != nil {
 		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
 	}
 
+	var normObjs []map[string]interface{}
+	for _, pairs := range objs {
+		normPairs := make(map[string]interface{})
+		for k, v := range pairs {
+			normVal, ok := d.norm.NormaliseJSONValue(v)
+			if ok {
+				normPairs[d.norm.NormaliseJSONKey(k)] = normVal
+			}
+		}
+	}
+
 	// Marshal the object back into a pretty-printed JSON string
-	prettyJSON, err := json.MarshalIndent(obj, "", "    ")
+	prettyJSON, err := json.MarshalIndent(normObjs, "", "    ")
 	if err != nil {
 		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
 	}

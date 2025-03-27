@@ -104,7 +104,7 @@ def handle_finanical_table(request):
         for th in theader:
             text = th.xpath('.//text()').get()  # Extract text content from <th>
             results.append({ headerKey: text})
-            fiscalPeriodsIdx = fiscalPeriodsIdx + 1
+
         logging.debug("results header: %s\n", json.dumps(results, indent=4))
 
 
@@ -120,8 +120,8 @@ def handle_finanical_table(request):
             tds = tds[1:numOfEffectiveColumns+1]
 
             # Each row may have the same number of columns as the header or one column less
-            if len(tds[1:]) < numOfEffectiveColumns:
-                error = f"Expecting {numOfEffectiveColumns} effective columns, however got {len(tds[1:])} columns from the row."
+            if len(tds) < numOfEffectiveColumns:
+                error = f"Expecting {numOfEffectiveColumns} effective columns, however got {len(tds)} columns from the row."
                 logging.debug(error)
                 return scrape_pb2.ERROR_PARSER, {"message": error}
             

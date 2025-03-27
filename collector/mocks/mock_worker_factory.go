@@ -9,9 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	cache "github.com/wayming/sdc/cache"
 	collector "github.com/wayming/sdc/collector"
-	dbloader "github.com/wayming/sdc/dbloader"
 )
 
 // MockIWorker is a mock of IWorker interface.
@@ -79,6 +77,20 @@ func (mr *MockIWorkerMockRecorder) Init() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockIWorker)(nil).Init))
 }
 
+// Retry mocks base method.
+func (m *MockIWorker) Retry(arg0 error) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Retry", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Retry indicates an expected call of Retry.
+func (mr *MockIWorkerMockRecorder) Retry(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Retry", reflect.TypeOf((*MockIWorker)(nil).Retry), arg0)
+}
+
 // MockIWorkerFactory is a mock of IWorkerFactory interface.
 type MockIWorkerFactory struct {
 	ctrl     *gomock.Controller
@@ -114,140 +126,4 @@ func (m *MockIWorkerFactory) MakeWorker(arg0 *log.Logger) collector.IWorker {
 func (mr *MockIWorkerFactoryMockRecorder) MakeWorker(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeWorker", reflect.TypeOf((*MockIWorkerFactory)(nil).MakeWorker), arg0)
-}
-
-// MockIWorkerBuilder is a mock of IWorkerBuilder interface.
-type MockIWorkerBuilder struct {
-	ctrl     *gomock.Controller
-	recorder *MockIWorkerBuilderMockRecorder
-}
-
-// MockIWorkerBuilderMockRecorder is the mock recorder for MockIWorkerBuilder.
-type MockIWorkerBuilderMockRecorder struct {
-	mock *MockIWorkerBuilder
-}
-
-// NewMockIWorkerBuilder creates a new mock instance.
-func NewMockIWorkerBuilder(ctrl *gomock.Controller) *MockIWorkerBuilder {
-	mock := &MockIWorkerBuilder{ctrl: ctrl}
-	mock.recorder = &MockIWorkerBuilderMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIWorkerBuilder) EXPECT() *MockIWorkerBuilderMockRecorder {
-	return m.recorder
-}
-
-// NewWorker mocks base method.
-func (m *MockIWorkerBuilder) NewWorker() (collector.IWorker, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewWorker")
-	ret0, _ := ret[0].(collector.IWorker)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewWorker indicates an expected call of NewWorker.
-func (mr *MockIWorkerBuilderMockRecorder) NewWorker() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWorker", reflect.TypeOf((*MockIWorkerBuilder)(nil).NewWorker))
-}
-
-// Prepare mocks base method.
-func (m *MockIWorkerBuilder) Prepare() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Prepare")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Prepare indicates an expected call of Prepare.
-func (mr *MockIWorkerBuilderMockRecorder) Prepare() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Prepare", reflect.TypeOf((*MockIWorkerBuilder)(nil).Prepare))
-}
-
-// WithCache mocks base method.
-func (m *MockIWorkerBuilder) WithCache(cm cache.ICacheManager) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithCache", cm)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithCache indicates an expected call of WithCache.
-func (mr *MockIWorkerBuilderMockRecorder) WithCache(cm interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithCache", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithCache), cm)
-}
-
-// WithDB mocks base method.
-func (m *MockIWorkerBuilder) WithDB(db dbloader.DBLoader) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithDB", db)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithDB indicates an expected call of WithDB.
-func (mr *MockIWorkerBuilderMockRecorder) WithDB(db interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithDB", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithDB), db)
-}
-
-// WithExporter mocks base method.
-func (m *MockIWorkerBuilder) WithExporter(exp collector.IDataExporter) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithExporter", exp)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithExporter indicates an expected call of WithExporter.
-func (mr *MockIWorkerBuilderMockRecorder) WithExporter(exp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithExporter", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithExporter), exp)
-}
-
-// WithLogger mocks base method.
-func (m *MockIWorkerBuilder) WithLogger(l *log.Logger) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithLogger", l)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithLogger indicates an expected call of WithLogger.
-func (mr *MockIWorkerBuilderMockRecorder) WithLogger(l interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithLogger", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithLogger), l)
-}
-
-// WithParams mocks base method.
-func (m *MockIWorkerBuilder) WithParams(p *collector.PCParams) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithParams", p)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithParams indicates an expected call of WithParams.
-func (mr *MockIWorkerBuilderMockRecorder) WithParams(p interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithParams", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithParams), p)
-}
-
-// WithReader mocks base method.
-func (m *MockIWorkerBuilder) WithReader(r collector.IHttpReader) collector.IWorkerBuilder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithReader", r)
-	ret0, _ := ret[0].(collector.IWorkerBuilder)
-	return ret0
-}
-
-// WithReader indicates an expected call of WithReader.
-func (mr *MockIWorkerBuilderMockRecorder) WithReader(r interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithReader", reflect.TypeOf((*MockIWorkerBuilder)(nil).WithReader), r)
 }
