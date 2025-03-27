@@ -31,10 +31,12 @@ type HtmlScraperWorkItemManager struct {
 }
 
 type HtmlScraper struct {
-	logger   *log.Logger
-	exporter IDataExporter
-	norm     *SAJsonNormaliser
-	conn     *grpc.ClientConn
+	logger     *log.Logger
+	exporter   IDataExporter
+	norm       *SAJsonNormaliser
+	structMeta map[string]map[string]JsonFieldMetadata
+
+	conn *grpc.ClientConn
 }
 
 type HtmlScraperFactory struct {
@@ -131,7 +133,7 @@ func (f *HtmlScraperFactory) MakeWorker(l *log.Logger) IWorker {
 	e.AddExporter(NewDBExporter(dbLoader, config.SCHEMA_NAME)).
 		AddExporter(&FileExporter{path: f.outputBaseDir})
 
-	return &HtmlScraper{logger: l, exporter: &e, norm: &SAJsonNormaliser{}}
+	return &HtmlScraper{logger: l, exporter: &e, norm: &SAJsonNormaliser{}, structMeta: AllSAMetricsFields()}
 }
 
 //
@@ -189,19 +191,34 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 
 	// Unmarshal the JSON string
 	var objs []map[string]interface{}
-	err = json.Unmarshal([]byte(string(response.GetJsonData())), &obj)
+	err = json.Unmarshal([]byte(string(response.GetJsonData())), &objs)
 	if err != nil {
 		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
 	}
 
+	// Populate data category by it is html file name
+	baseName := filepath.Base(swi.path)
+	ext := filepath.Ext(swi.path)
+	category := "SAFinancials" + common.ConvertToPascalCase(strings.TrimSuffix(baseName, ext))
 	var normObjs []map[string]interface{}
 	for _, pairs := range objs {
 		normPairs := make(map[string]interface{})
 		for k, v := range pairs {
-			normVal, ok := d.norm.NormaliseJSONValue(v)
+			normKey := d.norm.NormaliseJSONKey(k)
+			fieldType := GetFieldTypeByTag(d.structMeta[category], normKey)
+			strVal, ok := v.(string)
 			if ok {
-				normPairs[d.norm.NormaliseJSONKey(k)] = normVal
+				normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
+				if err == nil {
+					normPairs[normKey] = normVal
+				} else {
+					return fmt.Errorf("failed to normalise string %s, type %s. Error: %v", strVal, fieldType, err)
+
+				}
+			} else {
+				return fmt.Errorf("%v is not a string", v)
 			}
+
 		}
 	}
 
@@ -217,11 +234,7 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	parts := strings.Split(swi.path, "/")
 	symbol := parts[len(parts)-2] // the second-to-last part
 
-	// Extract table name, popu
-	baseName := filepath.Base(swi.path)
-	ext := filepath.Ext(swi.path)
-	saCategory := "SAFinancials" + common.ConvertToPascalCase(strings.TrimSuffix(baseName, ext))
-	d.exporter.Export(SADataTypes[saCategory], SADataTables[saCategory], string(prettyJSON), symbol)
+	d.exporter.Export(SADataTypes[category], SADataTables[category], string(prettyJSON), symbol)
 	return nil
 }
 
