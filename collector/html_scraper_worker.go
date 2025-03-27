@@ -205,7 +205,10 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 		normPairs := make(map[string]interface{})
 		for k, v := range pairs {
 			normKey := d.norm.NormaliseJSONKey(k)
-			fieldType := GetFieldTypeByTag(d.structMeta[category], normKey)
+			fieldType := GetFieldTypeByTag(d.structMeta[SADataTypes[category].Name()], normKey)
+			if fieldType == nil {
+				return fmt.Errorf("failed to find the type of field for JSON key %s in the struct %v", normKey, SADataTypes[category])
+			}
 			strVal, ok := v.(string)
 			if ok {
 				normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
@@ -220,6 +223,7 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 			}
 
 		}
+		normObjs = append(normObjs, normPairs)
 	}
 
 	// Marshal the object back into a pretty-printed JSON string
