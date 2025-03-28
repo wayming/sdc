@@ -207,10 +207,10 @@ func (d *SAPageDownloader) Do(wi IWorkItem) error {
 
 	baseUrl := "https://stockanalysis.com/stocks/" + strings.ToLower(swi.symbol)
 	urls := map[string]string{
-		"income":              baseUrl + "/financials/?p=quarterly",
-		"balance_sheet":       baseUrl + "/financials/balance-sheet/?p=quarterly",
-		"cash_flow_statement": baseUrl + "/financials/cash-flow-statement/?p=quarterly",
-		"ratios":              baseUrl + "/financials/ratios/?p=quarterly",
+		SA_FINANCIALSINCOME:       baseUrl + "/financials/?p=quarterly",
+		SA_FINANCIALSBALANCESHEET: baseUrl + "/financials/balance-sheet/?p=quarterly",
+		SA_FINANCIALSCASHFLOW:     baseUrl + "/financials/cash-flow-statement/?p=quarterly",
+		SA_FINANCIALRATIOS:        baseUrl + "/financials/ratios/?p=quarterly",
 	}
 
 	dir := filepath.Join(d.downloadDir, swi.symbol)

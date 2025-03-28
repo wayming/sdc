@@ -11,7 +11,6 @@ import (
 
 	"github.com/wayming/sdc/cache"
 	ScraperProto "github.com/wayming/sdc/collector/proto"
-	"github.com/wayming/sdc/common"
 	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
@@ -154,6 +153,56 @@ func (d *HtmlScraper) Init() error {
 	return nil
 }
 
+func (d *HtmlScraper) getDataCategory(filePath string) string {
+	// Populate data category by it is html file name
+	baseName := filepath.Base(filePath)
+	ext := filepath.Ext(filePath)
+	return strings.TrimSuffix(baseName, ext)
+}
+
+func (d *HtmlScraper) normaliseJSONText(jsonText string, dataCtg string) (string, error) {
+	// Unmarshal the JSON string
+	var objs []map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &objs)
+	if err != nil {
+		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
+	}
+
+	var normObjs []map[string]interface{}
+	for _, pairs := range objs {
+		normPairs := make(map[string]interface{})
+		for k, v := range pairs {
+			normKey := d.norm.NormaliseJSONKey(k)
+			fieldType := GetFieldTypeByTag(d.structMeta[SADataTypes[dataCtg].Name()], normKey)
+			if fieldType == nil {
+				return "", fmt.Errorf("failed to find the type of field for JSON key %s in the struct %v", normKey, SADataTypes[dataCtg])
+			}
+			strVal, ok := v.(string)
+			if ok {
+				normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
+				if err == nil {
+					normPairs[normKey] = normVal
+				} else {
+					return "", fmt.Errorf("failed to normalise string %s, type %s. Error: %v", strVal, fieldType, err)
+
+				}
+			} else {
+				return "", fmt.Errorf("%v is not a string", v)
+			}
+
+		}
+		normObjs = append(normObjs, normPairs)
+	}
+
+	// Marshal the object back into a pretty-printed JSON string
+	prettyJSON, err := json.MarshalIndent(normObjs, "", "    ")
+	if err != nil {
+		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
+	}
+
+	return string(prettyJSON), nil
+}
+
 func (d *HtmlScraper) Do(wi IWorkItem) error {
 	swi, ok := wi.(HtmlScraperWorkItem)
 	if !ok {
@@ -189,56 +238,16 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()))
 	}
 
-	// Unmarshal the JSON string
-	var objs []map[string]interface{}
-	err = json.Unmarshal([]byte(string(response.GetJsonData())), &objs)
-	if err != nil {
-		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
-	}
-
-	// Populate data category by it is html file name
-	baseName := filepath.Base(swi.path)
-	ext := filepath.Ext(swi.path)
-	category := "SAFinancials" + common.ConvertToPascalCase(strings.TrimSuffix(baseName, ext))
-	var normObjs []map[string]interface{}
-	for _, pairs := range objs {
-		normPairs := make(map[string]interface{})
-		for k, v := range pairs {
-			normKey := d.norm.NormaliseJSONKey(k)
-			fieldType := GetFieldTypeByTag(d.structMeta[SADataTypes[category].Name()], normKey)
-			if fieldType == nil {
-				return fmt.Errorf("failed to find the type of field for JSON key %s in the struct %v", normKey, SADataTypes[category])
-			}
-			strVal, ok := v.(string)
-			if ok {
-				normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
-				if err == nil {
-					normPairs[normKey] = normVal
-				} else {
-					return fmt.Errorf("failed to normalise string %s, type %s. Error: %v", strVal, fieldType, err)
-
-				}
-			} else {
-				return fmt.Errorf("%v is not a string", v)
-			}
-
-		}
-		normObjs = append(normObjs, normPairs)
-	}
-
-	// Marshal the object back into a pretty-printed JSON string
-	prettyJSON, err := json.MarshalIndent(normObjs, "", "    ")
-	if err != nil {
-		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
-	}
+	dataCtg := d.getDataCategory(swi.path)
+	noralisedJSON, err := d.normaliseJSONText(string(response.GetJsonData()), dataCtg)
 
 	d.logger.Println("Response Status:", response.GetStatus())
-	d.logger.Println("Response JSON Data:", string(prettyJSON))
+	d.logger.Println("Response JSON Data:", noralisedJSON)
 
 	parts := strings.Split(swi.path, "/")
 	symbol := parts[len(parts)-2] // the second-to-last part
 
-	d.exporter.Export(SADataTypes[category], SADataTables[category], string(prettyJSON), symbol)
+	d.exporter.Export(SADataTypes[dataCtg], SADataTables[dataCtg], string(noralisedJSON), symbol)
 	return nil
 }
 

@@ -90,7 +90,7 @@ func (c *SACollector) MapRedirectedSymbol(symbol string) (string, error) {
 		c.logger.Println("JSON text generated - " + string(jsonText))
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), SADataTables[SA_REDIRECTED_SYMBOLS], reflect.TypeFor[RedirectedSymbols]())
+	numOfRows, err := c.loader.LoadByJsonText(string(jsonText), SADataTables[SA_REDIRECTED_SYMBOLS], reflect.TypeFor[SARedirectedSymbols]())
 	if err != nil {
 		return "", errors.New("Failed to load data into table " + SADataTables[SA_REDIRECTED_SYMBOLS] + ". Error: " + err.Error())
 	}
@@ -121,7 +121,7 @@ func (c *SACollector) CollectFinancialOverview(symbol string) (int64, error) {
 		return 0, err
 	}
 
-	numOfRows, err := c.loader.LoadByJsonText(jsonText, SADataTables[SA_STOCKOVERVIEW], reflect.TypeFor[StockOverview]())
+	numOfRows, err := c.loader.LoadByJsonText(jsonText, SADataTables[SA_STOCKOVERVIEW], reflect.TypeFor[SAStockOverview]())
 	if err != nil {
 		return 0, errors.New("Failed to load data into table " + SADataTables[SA_STOCKOVERVIEW] + ". Error: " + err.Error())
 	}
