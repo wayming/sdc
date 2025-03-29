@@ -71,7 +71,7 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 def handle_finanical_table(request):
     # Logic for handling financial table
     selector = Selector(request.html_text)
-    logging.debug("handle_finanical_table")
+    logging.debug("Begin handle_finanical_table")
     try:
         theader = selector.xpath('//*[@id="main-table"]/thead/tr[1]/th')
         if len(theader) <= 0:
@@ -86,19 +86,31 @@ def handle_finanical_table(request):
         logging.debug("headerKey=%s", headerKey)
 
         # Populate the effective column
-        # Exclude the key, current and upgrade column
+        # Exclude the key, current(if any) and upgrade column
+        length = len(theader)
+        hasTarget = False
+        if theader[1].xpath('.//text()').get().upper() == 'CURRENT':
+            hasTarget = True
+            theader = theader[2:length-1]
+        else:
+            theader = theader[1:length-1]
+            
         numOfEffectiveColumns = len(theader)
         for tr in trs:
             tds = tr.xpath('.//td')
             # Some pages has unaligned columns, see https://stockanalysis.com/stocks/blne/financials/ratios/?p=quarterly
             # Set the effective columns to match the columns of the row with the fewest columns.
-            if len(tds) < numOfEffectiveColumns:
-                numOfEffectiveColumns = len(tds)
-        numOfEffectiveColumns = numOfEffectiveColumns - 3 # Remove the key, current and upgrade column
+            rowEffectiveColumns = len(tds) - 2
+            if hasTarget:
+                rowEffectiveColumns = rowEffectiveColumns - 1
+                
+            if rowEffectiveColumns < numOfEffectiveColumns:
+                numOfEffectiveColumns = rowEffectiveColumns
+
+        logging.debug("Total number of effective columns is %d", numOfEffectiveColumns)
 
         # Populate number of columns to return
         results = []
-        theader = theader[1:numOfEffectiveColumns+1]
 
         # Iterate over the extracted <th> elements and print their text
         for th in theader:
@@ -116,10 +128,14 @@ def handle_finanical_table(request):
             if rowKey is None:
                 rowKey = tds[0].xpath('.//a//text()').get()
             logging.debug("rowKey=%s", rowKey)
-
-            tds = tds[1:numOfEffectiveColumns+1]
-
-            # Each row may have the same number of columns as the header or one column less
+            
+            # Remove the key column and target column if any
+            # Remove the trailing upgrade column
+            if hasTarget:
+                tds = tds[2:len(tds)-1]
+            else:
+                tds = tds[1:len(tds)-1]
+            
             if len(tds) < numOfEffectiveColumns:
                 error = f"Expecting {numOfEffectiveColumns} effective columns, however got {len(tds)} columns from the row."
                 logging.debug(error)
@@ -131,6 +147,8 @@ def handle_finanical_table(request):
                 results[fiscalPeriodsIdx][rowKey] = td.xpath('.//text()').get()
                 fiscalPeriodsIdx = fiscalPeriodsIdx + 1
 
+        logging.debug("Done handle_finanical_table")
+
         return scrape_pb2.OK, results
     except Exception as e:
             # Capture the exception and its traceback as a string
@@ -138,6 +156,7 @@ def handle_finanical_table(request):
             
             # Convert the traceback into a single string (it's a list of strings)
             error_trace_str = ''.join(error_trace)
+            logging.debug("Done handle_finanical_table")
             return scrape_pb2.ERROR_INTERNAL, {"message": error_trace_str}
 
 

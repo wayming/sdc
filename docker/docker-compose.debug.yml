@@ -56,7 +56,7 @@ services:
     volumes:
       - ../htmlscraper:/app
     deploy:
-      replicas: 10
+      replicas: 1
     networks:
       - overlay_network
 

@@ -24,6 +24,7 @@ type HtmlScraperWorkItem struct {
 
 type HtmlScraperWorkItemManager struct {
 	cache      cache.ICacheManager
+	db         dbloader.DBLoader
 	logger     *log.Logger
 	inputDir   string
 	nProcessed int
@@ -66,6 +67,10 @@ func (m *HtmlScraperWorkItemManager) Prepare() error {
 		if err := m.cache.AddToSet(config.CACHE_KEY_HTML_FILES, path); err != nil {
 			return fmt.Errorf("failed to add html page %s. Error: %v", path, err)
 		}
+	}
+
+	for dataCategory, structType := range SADataTypes {
+		m.db.CreateTableByJsonStruct(SADataTables[dataCategory], structType)
 	}
 
 	m.logger.Printf("%d html pages added", len(matches))
@@ -160,7 +165,7 @@ func (d *HtmlScraper) getDataCategory(filePath string) string {
 	return strings.TrimSuffix(baseName, ext)
 }
 
-func (d *HtmlScraper) normaliseJSONText(jsonText string, dataCtg string) (string, error) {
+func (d *HtmlScraper) normaliseJSONText(jsonText string, dataCtg string, symbol string) (string, error) {
 	// Unmarshal the JSON string
 	var objs []map[string]interface{}
 	err := json.Unmarshal([]byte(jsonText), &objs)
@@ -189,8 +194,11 @@ func (d *HtmlScraper) normaliseJSONText(jsonText string, dataCtg string) (string
 			} else {
 				return "", fmt.Errorf("%v is not a string", v)
 			}
-
 		}
+		if _, exists := normPairs["symbol"]; !exists {
+			normPairs["symbol"] = symbol
+		}
+
 		normObjs = append(normObjs, normPairs)
 	}
 
@@ -219,6 +227,9 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 		d.logger.Fatal(err)
 	}
 
+	dir := filepath.Dir(swi.path)
+	symbol := filepath.Base(dir) //leaf folder name is the symbol
+
 	// Create a sample Request to send
 	request := &ScraperProto.Request{
 		HtmlText: string(content),
@@ -238,16 +249,20 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()))
 	}
 
-	dataCtg := d.getDataCategory(swi.path)
-	noralisedJSON, err := d.normaliseJSONText(string(response.GetJsonData()), dataCtg)
-
 	d.logger.Println("Response Status:", response.GetStatus())
-	d.logger.Println("Response JSON Data:", noralisedJSON)
 
-	parts := strings.Split(swi.path, "/")
-	symbol := parts[len(parts)-2] // the second-to-last part
+	dataCtg := d.getDataCategory(swi.path)
+	d.logger.Println("Response Raw JSON Data:", response.GetJsonData())
+	noralisedJSON, err := d.normaliseJSONText(string(response.GetJsonData()), dataCtg, symbol)
+	if err != nil {
+		return err
+	}
+	d.logger.Println("Response Normalised JSON Data:", noralisedJSON)
 
-	d.exporter.Export(SADataTypes[dataCtg], SADataTables[dataCtg], string(noralisedJSON), symbol)
+	if err := d.exporter.Export(
+		SADataTypes[dataCtg], SADataTables[dataCtg], string(noralisedJSON), symbol); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -263,7 +278,15 @@ func (d *HtmlScraper) Retry(err error) bool {
 
 // Creator functions
 func NewHtmlScraperWorkItemManager(inputDir string) IWorkItemManager {
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sdclogger.SDCLoggerInstance)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+
 	return &HtmlScraperWorkItemManager{
+		db:       dbLoader,
 		cache:    cache.NewCacheManager(),
 		logger:   sdclogger.SDCLoggerInstance,
 		inputDir: inputDir,
