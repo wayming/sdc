@@ -66,6 +66,7 @@ services:
     environment:
       - POSTGRES_USER=appuser
       - POSTGRES_PASSWORD_FILE=/run/secrets/pg_pass_file
+      # - POSTGRES_PASSWORD=password
       - POSTGRES_DB=stock_data
       - PGID=1000
       - PGGID=1000
@@ -156,7 +157,7 @@ secrets:
     external: true
   market_stack_access_key:
     # generated from docker secret command
-    # echo "accesskey" | docker secret create market_stack_access_key -
+    # echo "password" | docker secret create market_stack_access_key -
     external: true
   proxy_pass_file:
     # generated from docker secret command

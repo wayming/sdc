@@ -2,12 +2,14 @@
 
 docker swarm init
 
+docker stack rm sdc
+
+docker secret rm market_stack_access_key pg_pass_file pgadmin_pass_file proxy_pass_file
 echo "password" | docker secret create pg_pass_file -
 echo "password" | docker secret create pgadmin_pass_file -
-echo "accesskey" | docker secret create market_stack_access_key -
+echo "password" | docker secret create market_stack_access_key -
 echo "password" | docker secret create proxy_pass_file -
 
-docker stack rm sdc
 docker build -t stock_data_collector -f Dockerfile.sdc .
 docker build -t postgres_sdc -f Dockerfile.pg .
 docker build -t scraper -f Dockerfile.scraper .

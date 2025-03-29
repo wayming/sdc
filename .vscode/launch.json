@@ -12,7 +12,7 @@
             "cwd": "${workspaceFolder}",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["scrape_sa_pages", "data/20250324", "1"]
+            "args": ["scrape_sa_pages", "data/testdata", "1"]
         }
     ]
 }
