@@ -80,13 +80,13 @@ func (n SAJsonNormaliser) NormaliseJSONValue(value string, vType reflect.Type) (
 
 	if vType == reflect.TypeFor[time.Time]() ||
 		vType == reflect.TypeFor[json2db.Date]() {
-		if n.isFiscalDate((value)) {
-			if value, err = n.convertFiscalToDate(value); err != nil {
+		if n.isFiscalQuarterFormat((value)) {
+			if value, err = n.convertFiscalQuarterToDate(value); err != nil {
 				return nil, err
 			}
-			if convertedValue, err = n.stringToDate(value); err != nil {
-				return convertedValue, err
-			}
+		}
+		if convertedValue, err = n.stringToDate(value); err != nil {
+			return convertedValue, err
 		}
 	}
 
@@ -133,7 +133,7 @@ func (n SAJsonNormaliser) stringToDate(value string) (any, error) {
 		day := 1 // Defaulting to the first day of the month
 
 		// Construct a new time.Time object representing January 1, 2006
-		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, nil)
+		convertedValue = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 		return convertedValue.Format("2006-01-02"), nil
 	} else {
 		return "", err
@@ -147,7 +147,7 @@ func (n SAJsonNormaliser) addToYear(yearStr string, add int) (string, error) {
 		return strconv.Itoa(year + add), nil
 	}
 }
-func (n SAJsonNormaliser) convertFiscalToDate(value string) (string, error) {
+func (n SAJsonNormaliser) convertFiscalQuarterToDate(value string) (string, error) {
 	pattern := `([QH])(\d) (\d{4})`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindStringSubmatch(value)
@@ -197,10 +197,23 @@ func (n SAJsonNormaliser) convertFiscalToDate(value string) (string, error) {
 // 	return err == nil
 // }
 
-func (n SAJsonNormaliser) isFiscalDate(value string) bool {
+// Pattern to match "Q1 2024"
+func (n SAJsonNormaliser) isFiscalQuarterFormat(value string) bool {
 	pattern := `[QH]\d \d{4}`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindString(value)
+	return len(matches) > 0
+}
+
+// Pattern to match "Sep '24" or "Mar '22"
+func (n SAJsonNormaliser) isFiscalMonthYearFormat(value string) bool {
+	pattern := `^[A-Za-z]{3} '\d{2}$`
+	re := regexp.MustCompile(pattern)
+
+	// Use FindString to find a match
+	matches := re.FindString(value)
+
+	// Check if matches is not empty, meaning we found a match
 	return len(matches) > 0
 }
 
@@ -217,7 +230,7 @@ func (n SAJsonNormaliser) isFiscalDate(value string) bool {
 
 // 	matches := re.FindAllString(value, -1)
 // 	// The value shold not contain characters except date
-// 	if len(matches) > 0 && !n.isValidDate(value) && !n.isFiscalDate(value) {
+// 	if len(matches) > 0 && !n.isValidDate(value) && !n.isFiscalQuarterFormat(value) {
 // 		return false
 // 	}
 

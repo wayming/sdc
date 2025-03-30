@@ -528,7 +528,7 @@ func isValidDate(value string) bool {
 	return err == nil
 }
 
-func isFiscalDate(value string) bool {
+func isFiscalQuarterFormat(value string) bool {
 	pattern := `[QH]\d \d{4}`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindString(value)
@@ -548,7 +548,7 @@ func isValidValue(value string) bool {
 
 	matches := re.FindAllString(value, -1)
 	// The value shold not contain characters except date
-	if len(matches) > 0 && !isValidDate(value) && !isFiscalDate(value) {
+	if len(matches) > 0 && !isValidDate(value) && !isFiscalQuarterFormat(value) {
 		return false
 	}
 
@@ -657,7 +657,7 @@ func normaliseJSONValue(value string, vType reflect.Type) (any, error) {
 
 	if vType == reflect.TypeFor[time.Time]() ||
 		vType == reflect.TypeFor[json2db.Date]() {
-		if isFiscalDate((value)) {
+		if isFiscalQuarterFormat((value)) {
 			if value, err = convertFiscalToDate(value); err != nil {
 				return nil, err
 			}

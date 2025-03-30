@@ -208,6 +208,9 @@ func (d *HtmlScraper) normaliseJSONText(jsonText string, dataCtg string, symbol 
 		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
 	}
 
+	if string(prettyJSON) == "null" {
+		return "", fmt.Errorf("No data found. Symbol: %s", symbol)
+	}
 	return string(prettyJSON), nil
 }
 
@@ -240,28 +243,39 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	response, err := client.ProcessPage(context.Background(), request)
 	if err != nil {
 		d.logger.Fatalf("Failed to process file %s. Response status %s.  Response body %s. Error: %v",
-			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()), err)
+			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], response.GetJsonData(), err)
 	}
 
 	if response.Status != ScraperProto.StatusCode_OK {
-		d.logger.Println("Response JSON Data:", string(response.GetJsonData()))
+		d.logger.Printf("Response JSON Data:", response.GetJsonData())
 		return fmt.Errorf("failed to process file %s. Response status %s.  Response body %s",
-			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], string(response.GetJsonData()))
+			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], response.GetJsonData())
 	}
 
-	d.logger.Println("Response Status:", response.GetStatus())
+	// response []
+	if len(strings.TrimSpace(response.GetJsonData())) <= 0 {
+		d.logger.Printf("Response JSON Data: %s", response.GetJsonData())
+		return fmt.Errorf("no data for file %s.", swi.path)
+	}
+
+	d.logger.Printf("Response Status: %d", response.GetStatus())
 
 	dataCtg := d.getDataCategory(swi.path)
-	d.logger.Println("Response Raw JSON Data:", response.GetJsonData())
-	noralisedJSON, err := d.normaliseJSONText(string(response.GetJsonData()), dataCtg, symbol)
+	d.logger.Printf("Response Raw JSON Data: %s", response.GetJsonData())
+	noralisedJSON, err := d.normaliseJSONText(response.GetJsonData(), dataCtg, symbol)
 	if err != nil {
 		return err
 	}
-	d.logger.Println("Response Normalised JSON Data:", noralisedJSON)
+	d.logger.Printf("Response Normalised JSON Data: %s", noralisedJSON)
 
-	if err := d.exporter.Export(
-		SADataTypes[dataCtg], SADataTables[dataCtg], string(noralisedJSON), symbol); err != nil {
-		return err
+	if len(noralisedJSON) > 0 {
+		if err := d.exporter.Export(
+			SADataTypes[dataCtg], SADataTables[dataCtg],
+			string(noralisedJSON), symbol); err != nil {
+			return err
+		}
+	} else {
+		d.logger.Println("Nothing to export")
 	}
 	return nil
 }

@@ -95,8 +95,8 @@ type SAFinancialsIncome struct {
 	PreferredDividendsOtherAdjustments       float64      `json:"preferred_dividends_other_adjustments"`
 	PretaxIncome                             float64      `json:"pretax_income"`
 	ProfitMargin                             float64      `json:"profit_margin"`
-	PeriodEnding                             json2db.Date `json:"period_ending"`
-	FiscalQuarter                            json2db.Date `json:"fiscal_quarter" db:"PrimaryKey"`
+	PeriodEnding                             json2db.Date `json:"period_ending" db:"PrimaryKey"`
+	FiscalQuarter                            json2db.Date `json:"fiscal_quarter"`
 	ResearchDevelopment                      float64      `json:"research_development"`
 	Revenue                                  float64      `json:"revenue"`
 	RevenueAsReported                        float64      `json:"revenue_as_reported"`
@@ -237,8 +237,8 @@ type SAFinancialsBalanceSheet struct {
 	OtherReceivables                       float64      `json:"other_receivables"`
 	PropertyPlantEquipment                 float64      `json:"property_plant_equipment"`
 	PrepaidExpenses                        float64      `json:"prepaid_expenses"`
-	PeriodEnding                           json2db.Date `json:"period_ending"`
-	FiscalQuarter                          json2db.Date `json:"fiscal_quarter" db:"PrimaryKey"`
+	PeriodEnding                           json2db.Date `json:"period_ending" db:"PrimaryKey"`
+	FiscalQuarter                          json2db.Date `json:"fiscal_quarter"`
 	Receivables                            float64      `json:"receivables"`
 	RestrictedCash                         float64      `json:"restricted_cash"`
 	RetainedEarnings                       float64      `json:"retained_earnings"`
@@ -392,8 +392,8 @@ type SAFinancialsCashFlow struct {
 	ProfitMargin                                      float64      `json:"profit_margin"`
 	ProvisionForCreditLosses                          float64      `json:"provision_for_credit_losses"`
 	ProvisionWriteOffOfBadDebts                       float64      `json:"provision_write_off_of_bad_debts"`
-	PeriodEnding                                      json2db.Date `json:"period_ending"`
-	FiscalQuarter                                     json2db.Date `json:"fiscal_quarter" db:"PrimaryKey"`
+	PeriodEnding                                      json2db.Date `json:"period_ending" db:"PrimaryKey"`
+	FiscalQuarter                                     json2db.Date `json:"fiscal_quarter"`
 	ReinsuranceRecoverable                            float64      `json:"reinsurance_recoverable"`
 	RepurchasesOfCommonStock                          float64      `json:"repurchases_of_common_stock"`
 	RepurchaseOfCommonStock                           float64      `json:"repurchase_of_common_stock"`
@@ -474,8 +474,8 @@ type SAFinancialRatios struct {
 	PriceAffoRatio              float64      `json:"price_affo_ratio"`
 	PriceFfoRatio               float64      `json:"price_ffo_ratio"`
 	PSRatio                     float64      `json:"ps_ratio"`
-	PeriodEnding                json2db.Date `json:"period_ending"`
-	FiscalQuarter               json2db.Date `json:"fiscal_quarter" db:"PrimaryKey"`
+	PeriodEnding                json2db.Date `json:"period_ending" db:"PrimaryKey"`
+	FiscalQuarter               json2db.Date `json:"fiscal_quarter"`
 	QuickRatio                  float64      `json:"quick_ratio"`
 	ReturnOnAssetsROA           float64      `json:"return_on_assets_roa"`
 	ReturnOnCapitalROIC         float64      `json:"return_on_capital_roic"`

@@ -19,7 +19,12 @@ tasks:
   scrape_sa_pages:
     desc: Extract information from SA pages
     cmds:
-      - go run tasks/task_runner.go scrape_sa_pages data/testdata 1
+      - go run tasks/task_runner.go scrape_sa_pages data/20250328 20
+
+  scrape_sa_pages_test:
+    desc: Extract information from SA pages
+    cmds:
+      - go run tasks/task_runner.go scrape_sa_pages data/testdata/ 1
 
   clear_db:
     desc: drop database schema

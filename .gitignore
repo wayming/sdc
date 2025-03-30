@@ -39,3 +39,5 @@ collector/data/2025*
 .gitconfig
 .gitconfig
 .gitconfig
+data/testdata
+

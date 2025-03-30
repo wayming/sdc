@@ -21,19 +21,28 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 #    // Fiscal Quarter
 #     <tr>
 #       // Key
-#       <td></td>
-#       // Current
-#       <td></td>
+#       <th></th>
+#       // Current (optional)
+#       <th></th>
 #       // Data Columns
-#       <td></td>
+#       <th></th>
 #       ...
 #       // "Upgrade" column
-#       <td></td>
+#       <th></th>
 #     </tr>
 #    // Period Ending
 #     <tr>
-#       <td></td>
+#       // Key
+#       <th></th>
+#       // Current (optional)
+#       <th>
+#           // Hidden span
+#           <span></span>
+#           <span></span>
+#       </th>
 #       ...
+#       // "Upgrade" column
+#       <th></th>
 #     </tr>
 #   </thead>
 #   <tbody>
@@ -56,12 +65,12 @@ logging.basicConfig(level=logging.DEBUG,  # Set the logging level
 #
 #   [
 #     {
-#       "Fiscal Quarter": 'Q3 2024',
+#       "Period Ending": "Sep '24",
 #       "Revenue": "100",
 #       ...
 #     },
 #     {
-#       "Fiscal Quarter": 'Q2 2024',
+#       "Period Ending": "Jun '24",
 #       "Revenue": "95",
 #       ...
 #     },
@@ -77,12 +86,14 @@ def handle_finanical_table(request):
         if len(theader) <= 0:
             return scrape_pb2.ERROR_PARSER, {"message": "No table header found"}
 
+        periodEndings = selector.xpath('//*[@id="main-table"]/thead/tr[2]/th')
+
         trs = selector.xpath('//*[@id="main-table"]/tbody/tr')
         if len(trs) <= 0:
             return scrape_pb2.ERROR_PARSER, {"message": "No table body found"}
 
         # First column is the key of the header
-        headerKey = theader[0].xpath('.//text()').get()
+        headerKey = periodEndings[0].xpath('.//text()').get()
         logging.debug("headerKey=%s", headerKey)
 
         # Populate the effective column
@@ -92,10 +103,13 @@ def handle_finanical_table(request):
         if theader[1].xpath('.//text()').get().upper() == 'CURRENT':
             hasTarget = True
             theader = theader[2:length-1]
+            periodEndings = periodEndings[2:length-1]
         else:
             theader = theader[1:length-1]
+            periodEndings = periodEndings[1:length-1]
             
-        numOfEffectiveColumns = len(theader)
+        numOfEffectiveColumns = len(periodEndings)
+              
         for tr in trs:
             tds = tr.xpath('.//td')
             # Some pages has unaligned columns, see https://stockanalysis.com/stocks/blne/financials/ratios/?p=quarterly
@@ -113,8 +127,8 @@ def handle_finanical_table(request):
         results = []
 
         # Iterate over the extracted <th> elements and print their text
-        for th in theader:
-            text = th.xpath('.//text()').get()  # Extract text content from <th>
+        for th in periodEndings:
+            text = th.xpath('.//text()').get()  # Extract text content from the hidden <span> of the <th>
             results.append({ headerKey: text})
 
         logging.debug("results header: %s\n", json.dumps(results, indent=4))
