@@ -152,14 +152,13 @@ func (d *HistPriceDownloader) Init() error {
 func (d *HistPriceDownloader) normaliseJSONText(JSONText string) (string, error) {
 
 	// Unmarshal the JSON string
-	var response map[string][]map[string]interface{}
+	var response HistoryPriceIntradayResponse
 	err := json.Unmarshal([]byte(JSONText), &response)
 	if err != nil {
 		return "", fmt.Errorf("failed to unmarshall json response. Error: %v", err)
 	}
 
-	results, ok := response["results"]
-	if !ok {
+	if len(response.Results) == 0 {
 		return "", fmt.Errorf("no results found from the JSON text")
 	}
 	// var normObjs []map[string]interface{}
@@ -192,7 +191,7 @@ func (d *HistPriceDownloader) normaliseJSONText(JSONText string) (string, error)
 	// 	return "", fmt.Errorf("no normalised data")
 	// }
 	// Marshal the object back into a pretty-printed JSON string
-	prettyJSON, err := json.MarshalIndent(results, "", "    ")
+	prettyJSON, err := json.MarshalIndent(response.Results, "", "    ")
 	if err != nil {
 		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
 	}
@@ -208,23 +207,26 @@ func (d *HistPriceDownloader) Do(wi IWorkItem) error {
 
 	d.logger.Printf("process symbol %s", swi.symbol)
 
-	params := map[string]string{
-		"chart":           "false",
-		"provider":        "yfinance",
-		"symbol":          swi.symbol,
-		"start_date":      "2010-01-01",
-		"interval":        "1d",
-		"adjustment":      "splits_only",
-		"extended_hours":  "false",
-		"use_cache":       "true",
-		"timezone":        "America%2FNew_York",
-		"source":          "realtime",
-		"sort":            "asc",
-		"limit":           "49999",
-		"include_actions": "true",
-	}
+	// params := map[string]string{
+	// 	"chart":           "false",
+	// 	"provider":        "yfinance",
+	// 	"symbol":          swi.symbol,
+	// 	"start_date":      "2010-01-01",
+	// 	"interval":        "1d",
+	// 	"adjustment":      "splits_only",
+	// 	"extended_hours":  "false",
+	// 	"use_cache":       "true",
+	// 	"timezone":        "America%2FNew_York",
+	// 	"source":          "realtime",
+	// 	"sort":            "asc",
+	// 	"limit":           "49999",
+	// 	"include_actions": "true",
+	// }
 
-	JSONText, err := d.reader.Read("http://openbb:6900/api/v1/equity/price/historical", params)
+	// JSONText, err := d.reader.Read("http://openbb:6900/api/v1/equity/price/historical", params)
+	baseURL := "http://openbb:6900/api/v1/equity/price/historical?chart=false&provider=yfinance&start_date=2010-01-01&interval=1d&adjustment=splits_only&extended_hours=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=49999&include_actions=true"
+	JSONText, err := d.reader.Read(baseURL+"&symbol=AAPL", nil)
+
 	if err != nil {
 		return fmt.Errorf("Failed to read history price information from OpenBB for symbol %s", swi.symbol)
 	}
@@ -237,9 +239,19 @@ func (d *HistPriceDownloader) Do(wi IWorkItem) error {
 
 	d.logger.Printf("Normalised JSON Text: %s", normalised)
 
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, d.logger)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+	tableName := swi.symbol + "_" + OpenBBDataTables[OPENBB_HIST_PRICE_INTRADAY]
+	dbLoader.CreateTableByJsonStruct(tableName, OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY])
+
 	if err := d.exporter.Export(
 		OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY],
-		OpenBBDataTables[OPENBB_HIST_PRICE_INTRADAY],
+		tableName,
 		normalised, swi.symbol); err != nil {
 		return fmt.Errorf("failed to export data for symbol %s. Error: %v", swi.symbol, err)
 	}
@@ -265,7 +277,6 @@ func NewHistPriceWorkItemManager(singleSym string) IWorkItemManager {
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"))
-
 	return &HistPriceWorkItemManager{
 		db:        dbLoader,
 		cache:     cache.NewCacheManager(),
@@ -274,7 +285,7 @@ func NewHistPriceWorkItemManager(singleSym string) IWorkItemManager {
 	}
 }
 
-func NewHistPriceDownloaderFactory(outDir string) IWorkerFactory {
+func NewHistPriceDownloaderFactory() IWorkerFactory {
 	return &HistPriceDownloaderFactory{}
 }
 

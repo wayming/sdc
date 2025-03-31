@@ -26,6 +26,11 @@ tasks:
     cmds:
       - go run tasks/task_runner.go scrape_sa_pages data/testdata/ 1
 
+  download_history_price_for_symbol:
+    desc: Download history prices for the specified symbol
+    cmds:
+      - go run tasks/task_runner.go download_history_price_for_symbol AAPL
+
   clear_db:
     desc: drop database schema
     cmds:

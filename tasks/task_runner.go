@@ -16,12 +16,13 @@ func Greet(name int) {
 }
 
 var FUNCTIONS_MAAP = map[string]interface{}{
-	"load_nasdaq_tickers":         load_nasdaq_tickers,
-	"clear_db":                    clear_db,
-	"clear_cache":                 clear_cache,
-	"download_sa_page_for_symbol": download_sa_page_for_symbol,
-	"download_sa_pages":           download_sa_pages,
-	"scrape_sa_pages":             scrape_sa_pages,
+	"load_nasdaq_tickers":               load_nasdaq_tickers,
+	"clear_db":                          clear_db,
+	"clear_cache":                       clear_cache,
+	"download_sa_page_for_symbol":       download_sa_page_for_symbol,
+	"download_sa_pages":                 download_sa_pages,
+	"scrape_sa_pages":                   scrape_sa_pages,
+	"download_history_price_for_symbol": download_history_price_for_symbol,
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
@@ -51,6 +52,13 @@ func scrape_sa_pages(inputDir string, nThreads int) {
 		collector.NewHtmlScraperFactory(inputDir),
 		collector.NewHtmlScraperWorkItemManager(inputDir),
 	).Execute(nThreads)
+}
+
+func download_history_price_for_symbol(symbol string) {
+	collector.NewParallelHistPriceDownloader(
+		collector.NewHistPriceDownloaderFactory(),
+		collector.NewHistPriceWorkItemManager(symbol),
+	).Execute(1)
 }
 
 func clear_db() {
