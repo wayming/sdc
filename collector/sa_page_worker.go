@@ -84,13 +84,6 @@ func (m *SAPageWorkItemManager) loadSymFromDB(tableName string) error {
 	return nil
 }
 
-func (m *SAPageWorkItemManager) loadSymFromCache(setName string) error {
-	if err := m.cache.MoveSet(setName, config.CACHE_KEY_SA_SYMBOLS); err != nil {
-		return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
-	}
-	return nil
-}
-
 func (m *SAPageWorkItemManager) loadProxyFromFile(fname string) error {
 	_, err := cache.LoadProxies(m.cache, config.CACHE_KEY_PROXIES, fname)
 	return err
@@ -104,19 +97,19 @@ func (m *SAPageWorkItemManager) Prepare() error {
 		}
 	} else {
 		if length, _ := m.cache.GetLength(config.CACHE_KEY_SYMBOLS); length > 0 {
-			if err := m.loadSymFromCache(config.CACHE_KEY_SYMBOLS); err != nil {
+			if err := LoadSymbolFromCahce(config.CACHE_KEY_SYMBOLS, config.CACHE_KEY_SA_SYMBOLS); err != nil {
 				return fmt.Errorf("failed to load symbols from cache key %s. Error: %v", config.CACHE_KEY_SYMBOLS, err)
 			}
 			m.logger.Printf("download pages for symbols from cache key %s", config.CACHE_KEY_SA_SYMBOLS)
 		} else {
-			if err := m.loadSymFromDB(NDSymDataTables[ND_TICKERS]); err != nil {
+			if err := LoadSymbolFromDBToCahce(NDSymDataTables[ND_TICKERS], config.CACHE_KEY_SYMBOLS); err != nil {
 				return fmt.Errorf("failed to load symbols from database table %s. Error: %v", NDSymDataTables[ND_TICKERS], err)
 			}
 			m.logger.Printf("download pages for symbols from database table %s", NDSymDataTables[ND_TICKERS])
 
 		}
-
 	}
+
 	if _, err := os.Stat(m.proxyFile); err != nil {
 		return fmt.Errorf("no proxy file found from %s", m.proxyFile)
 	}

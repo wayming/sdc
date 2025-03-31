@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/wayming/sdc/cache"
+	"github.com/wayming/sdc/config"
 	"github.com/wayming/sdc/dbloader"
 	"github.com/wayming/sdc/sdclogger"
 )
@@ -156,4 +157,54 @@ func CountMatches(text string, pattern string) (int, error) {
 	matches := re.FindAllString(text, -1)
 	fmt.Printf("%v", matches)
 	return len(re.FindAllString(text, -1)), nil
+}
+
+func LoadSymbolFromDBToCahce(tableName string, key string) error {
+	type queryResult struct {
+		Symbol string
+	}
+
+	dbLoader := dbloader.NewPGLoader(config.SCHEMA_NAME, sdclogger.SDCLoggerInstance)
+	dbLoader.Connect(os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+		os.Getenv("PGDATABASE"))
+	defer dbLoader.Disconnect()
+
+	c := cache.NewCacheManager()
+	defer c.Disconnect()
+
+	sql := "SELECT symbol FROM " + tableName
+	results, err := dbLoader.RunQuery(sql, reflect.TypeFor[queryResult]())
+	if err != nil {
+		return errors.New("Failed to run query [" + sql + "]. Error: " + err.Error())
+	}
+	queryResults, ok := results.([]queryResult)
+	if !ok {
+		return errors.New("failed to assert the slice of queryResults")
+	} else {
+		sdclogger.SDCLoggerInstance.Printf("%d symbols retrieved from table %s", len(queryResults), tableName)
+	}
+
+	for _, row := range queryResults {
+		if row.Symbol == "" {
+			sdclogger.SDCLoggerInstance.Printf("Ignore the empty symbol.")
+			continue
+		}
+		if err := c.AddToSet(key, row.Symbol); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func LoadSymbolFromCahce(keyFrom string, keyTo string) error {
+	c := cache.NewCacheManager()
+	defer c.Disconnect()
+
+	if err := c.CopySet(keyFrom, keyTo); err != nil {
+		return fmt.Errorf("failed to restore the error symbols. Error: %s", err.Error())
+	}
+	return nil
 }

@@ -12,7 +12,8 @@
             "cwd": "${workspaceFolder}",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["scrape_sa_pages", "data/testdata", "1"]
+            "args": ["scrape_sa_pages", "data/testdata", "1"],
+            "dlvFlags": ["--check-go-version=false"]
         }
     ]
 }

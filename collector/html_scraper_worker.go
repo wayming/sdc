@@ -247,7 +247,7 @@ func (d *HtmlScraper) Do(wi IWorkItem) error {
 	}
 
 	if response.Status != ScraperProto.StatusCode_OK {
-		d.logger.Printf("Response JSON Data:", response.GetJsonData())
+		d.logger.Printf("Response JSON Data:%s", response.GetJsonData())
 		return fmt.Errorf("failed to process file %s. Response status %s.  Response body %s",
 			swi.path, ScraperProto.StatusCode_name[int32(response.Status)], response.GetJsonData())
 	}

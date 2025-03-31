@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -90,18 +89,17 @@ func TestHtmlScraper_normaliseJSONText(t *testing.T) {
         "return_on_capital_employed_roce": 0.1525,
         "return_on_capital_roic": 0.1014,
         "return_on_equity_roe": 0.2379,
+        "symbol": "AAPL",
         "total_shareholder_return": 0.0301
     }
 ]`
 	t.Run("TestHtmlScraper_normaliseJSONText", func(t *testing.T) {
 		scraper := &HtmlScraper{norm: &SAJsonNormaliser{}, structMeta: AllSAMetricsFields()}
-		got, err := scraper.normaliseJSONText(JSONText, "SAFinancialsRatios")
+		got, err := scraper.normaliseJSONText(JSONText, "SAFinancialsRatios", "AAPL")
 		if err != nil {
 			t.Errorf("HtmlScraper.normaliseJSONText() error = %v", err)
 			return
 		}
-		fmt.Println(got)
-		fmt.Println(want)
 		if got != want {
 			t.Errorf("HtmlScraper.normaliseJSONText() = %v, want %v", got, want)
 		}
