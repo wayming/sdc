@@ -155,44 +155,44 @@ func (d *HistPriceDownloader) normaliseJSONText(JSONText string) (string, error)
 	var response map[string][]map[string]interface{}
 	err := json.Unmarshal([]byte(JSONText), &response)
 	if err != nil {
-		d.logger.Fatalf("Failed to unmarshall json response. Error: %v", err)
+		return "", fmt.Errorf("failed to unmarshall json response. Error: %v", err)
 	}
 
 	results, ok := response["results"]
 	if !ok {
 		return "", fmt.Errorf("no results found from the JSON text")
 	}
-	var normObjs []map[string]interface{}
-	for _, pairs := range results {
-		normPairs := make(map[string]interface{})
-		for k, v := range pairs {
-			normKey := d.norm.NormaliseJSONKey(k)
-			fieldType := GetFieldTypeByTag(GetJsonStructMetadata(OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY]), normKey)
-			if fieldType == nil {
-				return "", fmt.Errorf("failed to find the type of field for JSON key %s in the struct %v", normKey, OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY])
-			}
-			strVal, ok := v.(string)
-			if ok {
-				normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
-				if err == nil {
-					normPairs[normKey] = normVal
-				} else {
-					return "", fmt.Errorf("failed to normalise string %s, type %s. Error: %v", strVal, fieldType, err)
+	// var normObjs []map[string]interface{}
+	// for _, pairs := range results {
+	// 	normPairs := make(map[string]interface{})
+	// 	for k, v := range pairs {
+	// 		normKey := d.norm.NormaliseJSONKey(k)
+	// 		fieldType := GetFieldTypeByTag(GetJsonStructMetadata(OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY]), normKey)
+	// 		if fieldType == nil {
+	// 			return "", fmt.Errorf("failed to find the type of field for JSON key %s in the struct %v", normKey, OpenBBDataTypes[OPENBB_HIST_PRICE_INTRADAY])
+	// 		}
+	// 		strVal, ok := v.(string)
+	// 		if ok {
+	// 			normVal, err := d.norm.NormaliseJSONValue(strVal, fieldType)
+	// 			if err == nil {
+	// 				normPairs[normKey] = normVal
+	// 			} else {
+	// 				return "", fmt.Errorf("failed to normalise string %s, type %s. Error: %v", strVal, fieldType, err)
 
-				}
-			} else {
-				return "", fmt.Errorf("%v is not a string", v)
-			}
-		}
+	// 			}
+	// 		} else {
+	// 			return "", fmt.Errorf("%v is not a string", v)
+	// 		}
+	// 	}
 
-		normObjs = append(normObjs, normPairs)
-	}
+	// 	normObjs = append(normObjs, normPairs)
+	// }
 
-	if len(normObjs) == 0 {
-		return "", fmt.Errorf("no normalised data")
-	}
+	// if len(normObjs) == 0 {
+	// 	return "", fmt.Errorf("no normalised data")
+	// }
 	// Marshal the object back into a pretty-printed JSON string
-	prettyJSON, err := json.MarshalIndent(normObjs, "", "    ")
+	prettyJSON, err := json.MarshalIndent(results, "", "    ")
 	if err != nil {
 		d.logger.Fatalf("Failed to marshall json response with prettier format. Error: %v", err)
 	}
