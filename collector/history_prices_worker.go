@@ -225,7 +225,7 @@ func (d *HistPriceDownloader) Do(wi IWorkItem) error {
 
 	// JSONText, err := d.reader.Read("http://openbb:6900/api/v1/equity/price/historical", params)
 	baseURL := "http://openbb:6900/api/v1/equity/price/historical?chart=false&provider=yfinance&start_date=2010-01-01&interval=1d&adjustment=splits_only&extended_hours=false&use_cache=true&timezone=America%2FNew_York&source=realtime&sort=asc&limit=49999&include_actions=true"
-	JSONText, err := d.reader.Read(baseURL+"&symbol=AAPL", nil)
+	JSONText, err := d.reader.Read(baseURL+"&symbol="+swi.symbol, nil)
 
 	if err != nil {
 		return fmt.Errorf("Failed to read history price information from OpenBB for symbol %s", swi.symbol)
@@ -283,6 +283,10 @@ func NewHistPriceWorkItemManager(singleSym string) IWorkItemManager {
 		logger:    sdclogger.SDCLoggerInstance,
 		singleSym: singleSym,
 	}
+}
+
+func NewHistPriceWorkItemManagerAll() IWorkItemManager {
+	return NewHistPriceWorkItemManager("")
 }
 
 func NewHistPriceDownloaderFactory() IWorkerFactory {

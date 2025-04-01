@@ -23,6 +23,7 @@ var FUNCTIONS_MAAP = map[string]interface{}{
 	"download_sa_pages":                 download_sa_pages,
 	"scrape_sa_pages":                   scrape_sa_pages,
 	"download_history_price_for_symbol": download_history_price_for_symbol,
+	"download_history_price":            download_history_price,
 }
 
 func load_nasdaq_tickers(filePath string, nThreads int) {
@@ -59,6 +60,13 @@ func download_history_price_for_symbol(symbol string) {
 		collector.NewHistPriceDownloaderFactory(),
 		collector.NewHistPriceWorkItemManager(symbol),
 	).Execute(1)
+}
+
+func download_history_price(nThreads int) {
+	collector.NewParallelHistPriceDownloader(
+		collector.NewHistPriceDownloaderFactory(),
+		collector.NewHistPriceWorkItemManagerAll(),
+	).Execute(nThreads)
 }
 
 func clear_db() {

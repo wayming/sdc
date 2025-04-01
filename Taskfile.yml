@@ -4,7 +4,7 @@ tasks:
   load_nasdaq_tickers:
     desc: Load tickers that are downloaded from https://www.nasdaq.com/market-activity/stocks/screener 
     cmds:
-      - go run tasks/task_runner.go load_nasdaq_tickers data/nasdaq_screener_1742045443432.csv 20
+      - go run tasks/task_runner.go load_nasdaq_tickers data/nasdaq_screener_1742045443432.csv 1
   
   download_sa_page_for_symbol:
     desc: Download SA pages for one symbol
@@ -30,6 +30,11 @@ tasks:
     desc: Download history prices for the specified symbol
     cmds:
       - go run tasks/task_runner.go download_history_price_for_symbol AAPL
+
+  download_history_price:
+    desc: Download history prices for the all symbols
+    cmds:
+      - go run tasks/task_runner.go download_history_price 20
 
   clear_db:
     desc: drop database schema
