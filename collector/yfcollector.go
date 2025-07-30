@@ -39,6 +39,7 @@ func NewYFCollector(httpReader IHttpReader, exporters IDataExporter, db dbloader
 
 func (c *YFCollector) Tickers() error {
 	apiURL := "http://openbb:8001/api/v1/equity/search?provider=nasdaq&is_symbol=true&use_cache=true&active=true&is_etf=false&is_fund=false"
+
 	textJSON, err := c.reader.Read(apiURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to load data from %s: %v ", apiURL, err)

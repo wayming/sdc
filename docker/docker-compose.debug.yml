@@ -58,9 +58,9 @@ services:
       # dockerfile: ./Dockerfile.pg
     restart: always
     environment:
-      - PGUSER=appuser
-      - PGPASSWORD_FILE=/run/secrets/pg_pass_file
-      - PGDATABASE=stock_data
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD_FILE=/run/secrets/pg_pass_file
+      - POSTGRES_DB=stock_data
       - PGID=1000
       - PGGID=1000
     ports:
@@ -112,7 +112,7 @@ services:
     networks:
       - overlay_network
 
-  openbb:
+  openbb: 
     image: openbb
     build:
       context: .
@@ -120,10 +120,11 @@ services:
     volumes:
       - ..:/home/appuser
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./openbb_platform:/root/.openbb_platform
     ports:
-      - "8001:8001"
+      - "6900:6900"
     deploy:
-      replicas: 5
+      replicas: 1
     networks:
       - overlay_network
 
